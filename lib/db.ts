@@ -8,6 +8,7 @@ export interface ApartamentoStatus {
   cybleAntesFeito: boolean;
   cybleDepoisFeito: boolean;
   qtdDocumentos: number;
+  qtdFotos: number;
 }
 
 export interface FotoRecord {
@@ -85,6 +86,11 @@ export async function fotosPendentes() {
   return all.filter((f) => !f.synced);
 }
 
+export async function deletarFoto(id: number) {
+  const db = await getDb();
+  await db.delete('fotos', id);
+}
+
 export async function marcarSincronizada(id: number, url: string) {
   const db = await getDb();
   const rec = await db.get('fotos', id);
@@ -110,6 +116,7 @@ export async function statusDeTodosApartamentos(
         cybleAntesFeito: fotos.some((f) => f.categoria === 'cyble_antes'),
         cybleDepoisFeito: fotos.some((f) => f.categoria === 'cyble_depois'),
         qtdDocumentos: fotos.filter((f) => f.categoria === 'documento').length,
+        qtdFotos: fotos.length,
       });
     }
   }

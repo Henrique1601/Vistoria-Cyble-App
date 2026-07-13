@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { salvarFoto, fotosDoApartamento, FotoRecord, Categoria } from '@/lib/db';
+import { salvarFoto, deletarFoto, fotosDoApartamento, FotoRecord, Categoria } from '@/lib/db';
 
 const CATEGORIAS: { key: Categoria; label: string; multi: boolean }[] = [
   { key: 'cyble_antes', label: 'Cyble — Antes', multi: false },
-  { key: 'cyble_depois', label: 'Cyble — Depois', multi: false },
+  { key: 'cyble_depois', label: 'Cyble — Depois', multi: true },
   { key: 'documento', label: 'Documento do apartamento', multi: true },
 ];
 
@@ -40,6 +40,12 @@ export default function CapturaScreen({
     onFotoSalva();
   }
 
+  async function handleDeletar(id: number) {
+    await deletarFoto(id);
+    await recarregar();
+    onFotoSalva();
+  }
+
   return (
     <main className="shell">
       <div className="top-bar">
@@ -67,8 +73,11 @@ export default function CapturaScreen({
             </button>
             {doCategoria.length > 0 && (
               <div className="thumb-row">
-                {doCategoria.map((f, idx) => (
-                  <img key={idx} className="thumb" src={URL.createObjectURL(f.blob)} alt="" />
+                {doCategoria.map((f) => (
+                  <div key={f.id} className="thumb-wrapper">
+                    <img className="thumb" src={URL.createObjectURL(f.blob)} alt="" />
+                    <button className="thumb-delete" onClick={() => f.id && handleDeletar(f.id)} title="Excluir foto">✕</button>
+                  </div>
                 ))}
               </div>
             )}

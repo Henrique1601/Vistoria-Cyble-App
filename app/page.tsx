@@ -99,7 +99,7 @@ export default function Home() {
     const codigos = lista[blocoAtual] || [];
     return codigos
       .map((c) => status.find((s) => s.bloco === blocoAtual && s.apartamento === c) ?? {
-        bloco: blocoAtual, apartamento: c, cybleAntesFeito: false, cybleDepoisFeito: false, qtdDocumentos: 0,
+        bloco: blocoAtual, apartamento: c, cybleAntesFeito: false, cybleDepoisFeito: false, qtdDocumentos: 0, qtdFotos: 0,
       })
       .filter((s) => s.apartamento.toLowerCase().includes(busca.toLowerCase()));
   }, [blocoAtual, lista, status, busca]);
@@ -107,10 +107,11 @@ export default function Home() {
   function progressoBloco(bloco: string) {
     const codigos = lista?.[bloco] || [];
     const completos = codigos.filter((c) => {
-      const s = status.find((x) => x.bloco === bloco && x.apartamento === c);
-      return s && s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0;
+      const st = status.find((x) => x.bloco === bloco && x.apartamento === c);
+      return st && st.cybleAntesFeito && st.cybleDepoisFeito && st.qtdDocumentos > 0;
     }).length;
-    return `${completos}/${codigos.length}`;
+    const pct = codigos.length > 0 ? Math.round((completos / codigos.length) * 100) : 0;
+    return { texto: `${completos}/${codigos.length}`, pct };
   }
 
   if (!pinChecked) return null;
@@ -163,6 +164,7 @@ export default function Home() {
             >
               <span>{s.apartamento}</span>
               <span className="badges">
+                {s.qtdFotos > 0 && <span className="apt-count mono">{s.qtdFotos} foto{s.qtdFotos > 1 ? 's' : ''}</span>}
                 <span className={`dot ${s.cybleAntesFeito ? 'on' : ''}`} title="Cyble antes" />
                 <span className={`dot ${s.cybleDepoisFeito ? 'on' : ''}`} title="Cyble depois" />
                 <span className={`dot ${s.qtdDocumentos > 0 ? 'on' : ''}`} title="Documento" />
@@ -182,14 +184,20 @@ export default function Home() {
         <h1>Vistoria Cyble</h1>
       </div>
       <p className="subtitle">Selecione o bloco para começar.</p>
-      {blocos.map((b) => (
-        <div key={b} className="big-tile" onClick={() => { setBlocoAtual(b); setView('apartamentos'); setBusca(''); }}>
-          <div>
-            <div className="big-tile-label">{b}</div>
-            <div className="big-tile-sub">{progressoBloco(b)} concluídos</div>
+      {blocos.map((b) => {
+        const prog = progressoBloco(b);
+        return (
+          <div key={b} className="big-tile" onClick={() => { setBlocoAtual(b); setView('apartamentos'); setBusca(''); }}>
+            <div style={{ flex: 1 }}>
+              <div className="big-tile-label">{b}</div>
+              <div className="big-tile-sub">{prog.texto} concluídos</div>
+              <div className="progress-bar">
+                <div className="progress-fill" style={{ width: `${prog.pct}%` }} />
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       <button className="ghost" onClick={() => setLista(null)}>Editar lista de apartamentos</button>
       <SyncBanner online={online} pendentes={pendentes} />
     </main>
