@@ -85,6 +85,17 @@ button.ghost { background: none; border: none; color: var(--text-dim); font-size
 
 .search-box { margin-bottom: 12px; }
 
+.export-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.export-row button {
+  flex: 1;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
 .progress-bar {
   height: 4px;
   background: var(--border);

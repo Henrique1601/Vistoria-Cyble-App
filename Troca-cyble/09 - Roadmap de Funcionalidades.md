@@ -10,13 +10,13 @@
 ## Relatórios e Dados
 
 ### 1. Exportar progresso em PDF
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Gerar PDF com lista de apartamentos concluídos/pendentes por torre, com data e hora
 - **Uso:** Enviar para o gestor no final do dia/semana
 - **Dependências:** Nenhuma
 
 ### 2. Exportar em Excel/CSV
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Gerar arquivo .csv com colunas: Torre, Apto, Status Cyble Antes, Status Cyble Depois, Qtd Documentos, Última atualização
 - **Uso:** Abrir no computador para planilhas e filtros
 - **Dependências:** Nenhuma

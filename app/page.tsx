@@ -11,6 +11,7 @@ import {
   marcarSincronizada,
   ApartamentoStatus,
 } from '@/lib/db';
+import { exportarCSV, exportarPDF } from '@/lib/export';
 
 type View = 'blocos' | 'apartamentos' | 'captura';
 
@@ -198,6 +199,14 @@ export default function Home() {
           </div>
         );
       })}
+      <div className="export-row">
+        <button className="secondary" onClick={() => exportarCSV(status)} disabled={status.length === 0}>
+          📊 Exportar CSV
+        </button>
+        <button className="secondary" onClick={() => exportarPDF(status, 'Vistoria Cyble')} disabled={status.length === 0}>
+          📄 Gerar relatório
+        </button>
+      </div>
       <button className="ghost" onClick={() => setLista(null)}>Editar lista de apartamentos</button>
       <SyncBanner online={online} pendentes={pendentes} />
     </main>
