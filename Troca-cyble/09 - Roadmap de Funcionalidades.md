@@ -38,7 +38,7 @@
 - **Dependências:** Nenhuma
 
 ### 5. Marcar apto como "em andamento"
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Terceiro estado visual (bolinha amarela) para aptos onde já começou a vistoria mas não terminou
 - **Uso:** Saber quais aptos estão pela metade
 - **Dependências:** Nenhuma
@@ -94,13 +94,13 @@
 ## Segurança e Controle
 
 ### 12. Logout explícito
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Botão de sair que limpa o PIN do localStorage e volta para a tela de login
 - **Uso:** Empréstimo do celular, troca de turno
 - **Dependências:** Nenhuma
 
 ### 13. Timeout automático
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Deslogar após 30 minutos sem uso (configurável)
 - **Uso:** Segurança em caso de celular perdido/roubado
 - **Dependências:** Opção 12 (Logout explícito)
@@ -136,7 +136,7 @@
 | 1 | 4, 8, 9 | Melhoram diretamente a experiência no campo (mais uso) |
 | 2 | 1, 2, 3 | Relatórios para gestão |
 | 3 | 6, 7, 11 | Navegação e organização |
-| 4 | 5, 12, 13 | Segurança e controle |
+| 4 | ✅ 5, 12, 13 | Segurança e controle |
 | 5 | 10, 14, 15, 16 | Melhorias técnicas |
 
 ---

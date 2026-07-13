@@ -27,12 +27,32 @@ export default function Home() {
   const [ordem, setOrdem] = useState<'original' | 'pendentes'>('original');
   const [pendentes, setPendentes] = useState(0);
   const [online, setOnline] = useState(true);
+  const [lastActivity, setLastActivity] = useState(Date.now());
 
   useEffect(() => {
     const saved = localStorage.getItem('vistoria_pin');
     setPin(saved);
     setPinChecked(true);
   }, []);
+
+  // Timeout automático — 30 min sem interação desloga
+  useEffect(() => {
+    if (!pin) return;
+    const TIMEOUT_MS = 30 * 60 * 1000;
+    const events = ['mousedown', 'touchstart', 'keydown', 'scroll'];
+    const resetTimer = () => setLastActivity(Date.now());
+    events.forEach((e) => window.addEventListener(e, resetTimer));
+    const check = setInterval(() => {
+      if (Date.now() - lastActivity > TIMEOUT_MS) {
+        localStorage.removeItem('vistoria_pin');
+        setPin(null);
+      }
+    }, 60000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetTimer));
+      clearInterval(check);
+    };
+  }, [pin]);
 
   useEffect(() => {
     if (pin) {
@@ -192,8 +212,8 @@ export default function Home() {
               <span>{s.apartamento}</span>
               <span className="badges">
                 {s.qtdFotos > 0 && <span className="apt-count mono">{s.qtdFotos} foto{s.qtdFotos > 1 ? 's' : ''}</span>}
-                <span className={`dot ${s.cybleAntesFeito ? 'on' : ''}`} title="Cyble antes" />
-                <span className={`dot ${s.cybleDepoisFeito ? 'on' : ''}`} title="Cyble depois" />
+                <span className={`dot ${s.cybleAntesFeito ? 'on' : emAndamento(s) ? 'partial' : ''}`} title="Cyble antes" />
+                <span className={`dot ${s.cybleDepoisFeito ? 'on' : emAndamento(s) ? 'partial' : ''}`} title="Cyble depois" />
                 <span className={`dot ${s.qtdDocumentos > 0 ? 'on' : ''}`} title="Documento" />
               </span>
             </div>
@@ -234,6 +254,7 @@ export default function Home() {
         </button>
       </div>
       <button className="ghost" onClick={() => setLista(null)}>Editar lista de apartamentos</button>
+      <button className="ghost logout" onClick={() => { localStorage.removeItem('vistoria_pin'); setPin(null); }}>Sair</button>
       <SyncBanner online={online} pendentes={pendentes} />
     </main>
   );
@@ -247,4 +268,10 @@ function SyncBanner({ online, pendentes }: { online: boolean; pendentes: number 
       <span className="mono">{pendentes} pendente(s)</span>
     </div>
   );
+}
+
+function emAndamento(s: ApartamentoStatus): boolean {
+  const temFoto = s.cybleAntesFeito || s.cybleDepoisFeito;
+  const completo = s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0;
+  return temFoto && !completo;
 }

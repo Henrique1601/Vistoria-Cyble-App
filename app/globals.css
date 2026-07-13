@@ -71,6 +71,7 @@ button.ghost { background: none; border: none; color: var(--text-dim); font-size
 .apt-row .badges { display: flex; gap: 5px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
 .dot.on { background: var(--ok); }
+.dot.partial { background: var(--accent); }
 
 .sync-banner {
   position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel);
@@ -173,4 +174,9 @@ button.ghost { background: none; border: none; color: var(--text-dim); font-size
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   z-index: 50;
+}
+
+button.ghost.logout {
+  color: var(--danger);
+  margin-top: 8px;
 }
