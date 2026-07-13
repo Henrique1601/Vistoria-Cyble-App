@@ -22,10 +22,25 @@ export interface FotoRecord {
   uploadUrl?: string;
 }
 
+export interface SyncLogEntry {
+  id?: number;
+  timestamp: number;
+  bloco: string;
+  apartamento: string;
+  categoria: string;
+  url: string;
+  ok: boolean;
+  erro?: string;
+}
+
 interface VistoriaDB extends DBSchema {
   fotos: {
     key: number;
     value: FotoRecord;
+  };
+  syncLog: {
+    key: number;
+    value: SyncLogEntry;
   };
   config: {
     key: string;
@@ -37,10 +52,15 @@ let dbPromise: Promise<IDBPDatabase<VistoriaDB>> | null = null;
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<VistoriaDB>('vistoria-cyble', 1, {
-      upgrade(db) {
-        db.createObjectStore('fotos', { keyPath: 'id', autoIncrement: true });
-        db.createObjectStore('config');
+    dbPromise = openDB<VistoriaDB>('vistoria-cyble', 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          db.createObjectStore('fotos', { keyPath: 'id', autoIncrement: true });
+          db.createObjectStore('config');
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore('syncLog', { keyPath: 'id', autoIncrement: true });
+        }
       },
     });
   }
@@ -121,4 +141,28 @@ export async function statusDeTodosApartamentos(
     }
   }
   return result;
+}
+
+// --- Compressão de imagem ---
+export async function comprimirImagem(file: File, maxLargura = 1920, qualidade = 0.75): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const escala = Math.min(1, maxLargura / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * escala);
+  const h = Math.round(bitmap.height * escala);
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  return canvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
+}
+
+// --- Histórico de sincronização ---
+export async function registrarSync(entry: Omit<SyncLogEntry, 'id'>) {
+  const db = await getDb();
+  await db.add('syncLog', entry as SyncLogEntry);
+}
+
+export async function historicoSync(): Promise<SyncLogEntry[]> {
+  const db = await getDb();
+  const all = await db.getAll('syncLog');
+  return all.sort((a, b) => b.timestamp - a.timestamp);
 }

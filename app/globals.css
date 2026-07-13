@@ -121,6 +121,25 @@ button.ghost { background: none; border: none; color: var(--text-dim); font-size
   position: relative;
   display: inline-block;
 }
+.thumb-placeholder {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.sync-badge {
+  position: absolute;
+  bottom: -2px;
+  left: -2px;
+  font-size: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 3px;
+  line-height: 1.3;
+}
+.sync-badge.ok { color: var(--ok); border-color: var(--ok); }
 .thumb-delete {
   position: absolute;
   top: -4px;

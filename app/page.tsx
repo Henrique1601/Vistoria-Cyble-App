@@ -9,6 +9,7 @@ import {
   statusDeTodosApartamentos,
   fotosPendentes,
   marcarSincronizada,
+  registrarSync,
   ApartamentoStatus,
 } from '@/lib/db';
 import { exportarCSV, exportarPDF } from '@/lib/export';
@@ -104,11 +105,23 @@ export default function Home() {
         if (resp.ok) {
           const data = await resp.json();
           await marcarSincronizada(foto.id!, data.url);
+          await registrarSync({
+            timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
+            categoria: foto.categoria, url: data.url, ok: true,
+          });
         } else {
-          break; // para no primeiro erro (ex: PIN mudou, ou sem token configurado)
+          await registrarSync({
+            timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
+            categoria: foto.categoria, url: '', ok: false, erro: `HTTP ${resp.status}`,
+          });
+          break;
         }
-      } catch {
-        break; // sem internet de verdade — tenta de novo no próximo ciclo
+      } catch (e: any) {
+        await registrarSync({
+          timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
+          categoria: foto.categoria, url: '', ok: false, erro: e?.message ?? 'offline',
+        });
+        break;
       }
     }
     await refreshStatus();

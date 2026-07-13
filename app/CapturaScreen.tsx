@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { salvarFoto, deletarFoto, fotosDoApartamento, FotoRecord, Categoria } from '@/lib/db';
+import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, FotoRecord, Categoria } from '@/lib/db';
 
 const CATEGORIAS: { key: Categoria; label: string; multi: boolean }[] = [
   { key: 'cyble_antes', label: 'Cyble — Antes', multi: false },
@@ -35,7 +35,8 @@ export default function CapturaScreen({
 
   async function handleFile(categoria: Categoria, file: File | null) {
     if (!file) return;
-    await salvarFoto({ bloco, apartamento, categoria, blob: file, timestamp: Date.now(), synced: false });
+    const comprimido = await comprimirImagem(file);
+    await salvarFoto({ bloco, apartamento, categoria, blob: comprimido, timestamp: Date.now(), synced: false });
     await recarregar();
     onFotoSalva();
   }
@@ -75,12 +76,18 @@ export default function CapturaScreen({
             </button>
             {doCategoria.length > 0 && (
               <div className="thumb-row">
-                {doCategoria.map((f) => (
-                  <div key={f.id} className="thumb-wrapper">
-                    <img className="thumb" src={URL.createObjectURL(f.blob)} alt="" />
-                    <button className="thumb-delete" onClick={() => f.id && handleDeletar(f.id)} title="Excluir foto">✕</button>
-                  </div>
-                ))}
+                {doCategoria.map((f) => {
+                  const src = f.synced && f.uploadUrl ? f.uploadUrl : (f.blob.size > 0 ? URL.createObjectURL(f.blob) : '');
+                  return (
+                    <div key={f.id} className="thumb-wrapper">
+                      {src ? <img className="thumb" src={src} alt="" /> : <div className="thumb placeholder" />}
+                      <span className={`sync-badge ${f.synced ? 'ok' : ''}`} title={f.synced ? 'Sincronizada' : 'Pendente'}>
+                        {f.synced ? '☁' : '⏳'}
+                      </span>
+                      <button className="thumb-delete" onClick={() => f.id && handleDeletar(f.id)} title="Excluir foto">✕</button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

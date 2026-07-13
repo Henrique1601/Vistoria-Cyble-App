@@ -72,7 +72,7 @@
 - **Dependências:** Nenhuma
 
 ### 10. Ver fotos já enviadas
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Mostrar thumbnail com link para a URL do Blob nas fotos já sincronizadas
 - **Uso:** Conferir se a foto subiu corretamente
 - **Dependências:** Nenhuma
@@ -106,7 +106,7 @@
 - **Dependências:** Opção 12 (Logout explícito)
 
 ### 14. Histórico de sincronização
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Log com data/hora de cada upload realizado, acessível numa tela de "Atividade"
 - **Uso:** Conferir se tudo foi enviado, rastrear erros
 - **Dependências:** Nenhuma
@@ -116,13 +116,13 @@
 ## Performance
 
 ### 15. Compressão de imagem
-- **Status:** ⬜
+- **Status:** �
 - **Descrição:** Reduzir resolução/qualidade da foto antes de salvar no IndexedDB e enviar
 - **Uso:** Economizar espaço no celular e加快 upload
 - **Dependências:** Nenhuma
 
 ### 16. Upload em background
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Sincronizar fotos sem bloquear a UI (mostrar progresso sutil no canto)
 - **Uso:** Continuar tirando fotos enquanto envia as anteriores
 - **Dependências:** Nenhuma
@@ -137,7 +137,7 @@
 | 2 | 1, 2, 3 | Relatórios para gestão |
 | 3 | 6, 7, 11 | Navegação e organização |
 | 4 | ✅ 5, 12, 13 | Segurança e controle |
-| 5 | 10, 14, 15, 16 | Melhorias técnicas |
+| 5 | ✅ 10, 14, 15, 16 | Melhorias técnicas |
 
 ---
 
