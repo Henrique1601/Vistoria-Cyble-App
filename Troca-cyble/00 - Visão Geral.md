@@ -24,6 +24,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 ## Fluxo Principal
 ```
 PIN → Selecionar Bloco → Selecionar Apartamento → Tirar Fotos → Sincronizar
+PIN -> 4821 
 ```
 
 ## Links Úteis

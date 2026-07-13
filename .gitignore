@@ -32,3 +32,5 @@ next-env.d.ts
 # Obsidian config (personal)
 Troca-cyble/.obsidian/workspace.json
 Troca-cyble/.obsidian/workspace-mobile.json
+
+.vercel
