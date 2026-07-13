@@ -24,6 +24,7 @@ export default function Home() {
   const [blocoAtual, setBlocoAtual] = useState<string | null>(null);
   const [aptoAtual, setAptoAtual] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
+  const [ordem, setOrdem] = useState<'original' | 'pendentes'>('original');
   const [pendentes, setPendentes] = useState(0);
   const [online, setOnline] = useState(true);
 
@@ -98,12 +99,23 @@ export default function Home() {
   const aptosDoBloco = useMemo(() => {
     if (!blocoAtual || !lista) return [];
     const codigos = lista[blocoAtual] || [];
-    return codigos
+    const result = codigos
       .map((c) => status.find((s) => s.bloco === blocoAtual && s.apartamento === c) ?? {
         bloco: blocoAtual, apartamento: c, cybleAntesFeito: false, cybleDepoisFeito: false, qtdDocumentos: 0, qtdFotos: 0,
       })
       .filter((s) => s.apartamento.toLowerCase().includes(busca.toLowerCase()));
-  }, [blocoAtual, lista, status, busca]);
+
+    if (ordem === 'pendentes') {
+      result.sort((a, b) => {
+        const aCompleto = a.cybleAntesFeito && a.cybleDepoisFeito && a.qtdDocumentos > 0;
+        const bCompleto = b.cybleAntesFeito && b.cybleDepoisFeito && b.qtdDocumentos > 0;
+        if (aCompleto === bCompleto) return 0;
+        return aCompleto ? 1 : -1;
+      });
+    }
+
+    return result;
+  }, [blocoAtual, lista, status, busca, ordem]);
 
   function progressoBloco(bloco: string) {
     const codigos = lista?.[bloco] || [];
@@ -155,6 +167,20 @@ export default function Home() {
         </div>
         <div className="search-box">
           <input type="text" placeholder="Buscar apartamento…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        </div>
+        <div className="sort-bar">
+          <button
+            className={`sort-chip ${ordem === 'original' ? 'active' : ''}`}
+            onClick={() => setOrdem('original')}
+          >
+            Ordemnumérica
+          </button>
+          <button
+            className={`sort-chip ${ordem === 'pendentes' ? 'active' : ''}`}
+            onClick={() => setOrdem('pendentes')}
+          >
+            Pendentes primeiro
+          </button>
         </div>
         <div className="apt-list">
           {aptosDoBloco.map((s) => (

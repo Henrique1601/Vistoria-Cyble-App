@@ -44,13 +44,13 @@
 - **Dependências:** Nenhuma
 
 ### 6. Ordenar aptos por status
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Opção de ordenação: pendentes primeiro, concluídos no final (ou vice-versa)
 - **Uso:** Focar nos que ainda faltam
 - **Dependências:** Nenhuma
 
 ### 7. Botão voltar flutuante
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Botão fixo no canto da tela para voltar à lista de apartamentos sem precisar scrollar até o topo
 - **Uso:** Navegação rápida no campo
 - **Dependências:** Nenhuma
@@ -78,7 +78,7 @@
 - **Dependências:** Nenhuma
 
 ### 11. Ordem cronológica das fotos
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Ordenar fotos por timestamp na tela do apartamento
 - **Uso:** Visualizar evolução (antes → depois)
 - **Dependências:** Nenhuma

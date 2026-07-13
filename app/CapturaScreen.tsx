@@ -56,7 +56,9 @@ export default function CapturaScreen({
       </div>
 
       {CATEGORIAS.map((cat) => {
-        const doCategoria = fotos.filter((f) => f.categoria === cat.key);
+        const doCategoria = fotos
+          .filter((f) => f.categoria === cat.key)
+          .sort((a, b) => a.timestamp - b.timestamp);
         return (
           <div className="panel" key={cat.key}>
             <div className="panel-title">{cat.label}</div>
@@ -87,6 +89,10 @@ export default function CapturaScreen({
 
       <button className="primary" onClick={onVoltar}>
         Concluir e voltar pra lista
+      </button>
+
+      <button className="fab-back" onClick={onVoltar} title="Voltar para lista">
+        ← Lista
       </button>
     </main>
   );
