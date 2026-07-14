@@ -199,3 +199,33 @@ button.ghost.logout {
   color: var(--danger);
   margin-top: 8px;
 }
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.dash-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+.dash-value {
+  font-size: 26px;
+  font-weight: 700;
+}
+.dash-total {
+  font-size: 16px;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+.dash-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}

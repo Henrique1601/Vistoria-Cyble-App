@@ -244,6 +244,9 @@ export default function Home() {
         <h1>Vistoria Cyble</h1>
       </div>
       <p className="subtitle">Selecione o bloco para começar.</p>
+
+      <Dashboard status={status} pendentes={pendentes} blocos={blocos} lista={lista} />
+
       {blocos.map((b) => {
         const prog = progressoBloco(b);
         return (
@@ -287,4 +290,47 @@ function emAndamento(s: ApartamentoStatus): boolean {
   const temFoto = s.cybleAntesFeito || s.cybleDepoisFeito;
   const completo = s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0;
   return temFoto && !completo;
+}
+
+function Dashboard({
+  status,
+  pendentes,
+  blocos,
+  lista,
+}: {
+  status: ApartamentoStatus[];
+  pendentes: number;
+  blocos: string[];
+  lista: Record<string, string[]>;
+}) {
+  const totalAptos = Object.values(lista).flat().length;
+  const completos = status.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0).length;
+  const emAndamentoCount = status.filter((s) => emAndamento(s)).length;
+  const pendentesCount = totalAptos - completos - emAndamentoCount;
+  const totalFotos = status.reduce((acc, s) => acc + s.qtdFotos, 0);
+  const pct = totalAptos > 0 ? Math.round((completos / totalAptos) * 100) : 0;
+
+  return (
+    <div className="dashboard">
+      <div className="dash-card">
+        <div className="dash-value mono">{pct}%</div>
+        <div className="dash-label">Concluído</div>
+        <div className="progress-bar" style={{ marginTop: 6 }}>
+          <div className="progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      <div className="dash-card">
+        <div className="dash-value mono">{completos}<span className="dash-total">/{totalAptos}</span></div>
+        <div className="dash-label">Aptos feitos</div>
+      </div>
+      <div className="dash-card">
+        <div className="dash-value mono">{totalFotos}</div>
+        <div className="dash-label">Fotos tiradas</div>
+      </div>
+      <div className="dash-card">
+        <div className="dash-value mono" style={{ color: pendentes > 0 ? 'var(--accent)' : 'var(--ok)' }}>{pendentes}</div>
+        <div className="dash-label">Pendente sync</div>
+      </div>
+    </div>
+  );
 }

@@ -22,7 +22,7 @@
 - **Dependências:** Nenhuma
 
 ### 3. Dashboard resumido
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Tela com percentual de conclusão por torre, total de fotos tiradas, total pendentes, fotos não sincronizadas
 - **Uso:** Visão geral rápida antes de começar o trabalho
 - **Dependências:** Nenhuma
@@ -133,9 +133,9 @@
 
 | Fase | Funcionalidades | Justificativa |
 |------|----------------|---------------|
-| 1 | 4, 8, 9 | Melhoram diretamente a experiência no campo (mais uso) |
-| 2 | 1, 2, 3 | Relatórios para gestão |
-| 3 | 6, 7, 11 | Navegação e organização |
+| 1 | ✅ 4, 8, 9 | Melhoram diretamente a experiência no campo (mais uso) |
+| 2 | ✅ 1, 2, 3 | Relatórios para gestão |
+| 3 | ✅ 6, 7, 11 | Navegação e organização |
 | 4 | ✅ 5, 12, 13 | Segurança e controle |
 | 5 | ✅ 10, 14, 15, 16 | Melhorias técnicas |
 
