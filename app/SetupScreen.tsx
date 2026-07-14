@@ -1,9 +1,29 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Plus,
+  Upload,
+  FileText,
+  Warning,
+  CheckCircle,
+  ListNumbers,
+  Buildings,
+} from '@phosphor-icons/react';
 import { salvarListaApartamentos } from '@/lib/db';
 
 type Mode = 'manual' | 'importar';
+
+const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
+const stagger = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
+};
+const item = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: spring },
+};
 
 export default function SetupScreen({ onDone }: { onDone: (lista: Record<string, string[]>) => void }) {
   const [mode, setMode] = useState<Mode>('manual');
@@ -22,7 +42,6 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
   function parseImport(text: string): Record<string, string[]> | null {
     const trimmed = text.trim();
 
-    // Tentar JSON
     if (trimmed.startsWith('{')) {
       try {
         const obj = JSON.parse(trimmed);
@@ -40,7 +59,6 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
       } catch {}
     }
 
-    // Tentar TXT: "Torre A\n0031\n0032\n\nTorre B\n0101\n0102"
     const blocos: Record<string, string[]> = {};
     let currentBloco = '';
     for (const line of trimmed.split('\n')) {
@@ -49,7 +67,6 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
         currentBloco = '';
         continue;
       }
-      // Se a linha não é numérica e não tem só números, é nome do bloco
       if (!/^\d+$/.test(l)) {
         currentBloco = l;
         if (!blocos[currentBloco]) blocos[currentBloco] = [];
@@ -66,7 +83,7 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
     setImportError('');
     const lista = parseImport(importText);
     if (!lista) {
-      setImportError('Não consegui interpretar. Use JSON ({"Torre A":["0031",...]}) ou TXT (nome do bloco seguido de aptos).');
+      setImportError('Nao consegui interpretar. Use JSON ({\"Torre A\":[\"0031\",...]}) ou TXT (nome do bloco seguido de aptos).');
       return;
     }
     setListaImportada(lista);
@@ -82,13 +99,12 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
       const text = String(reader.result);
       setImportText(text);
       setMode('importar');
-      // Auto-parse
       const lista = parseImport(text);
       if (lista) {
         setListaImportada(lista);
         setImportError('');
       } else {
-        setImportError('Arquivo não reconhecido. Use .json ou .txt.');
+        setImportError('Arquivo nao reconhecido. Use .json ou .txt.');
       }
     };
     reader.readAsText(file);
@@ -121,112 +137,204 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
   const total = mode === 'importar' ? totalImport : totalManual;
 
   return (
-    <main className="shell">
-      <div className="hero">
-        <span className="hero-mark" />
-        <h1>Configuração</h1>
-      </div>
-      <p className="subtitle">
-        Cadastre os apartamentos de cada torre/bloco. Você pode preencher manualmente ou importar um arquivo.
-      </p>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button
-          className={mode === 'manual' ? 'primary' : 'secondary'}
-          style={{ flex: 1, fontSize: 14 }}
-          onClick={() => setMode('manual')}
+    <main className="min-h-[100dvh] bg-base">
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={spring}
+          className="mb-8"
         >
-          Manual
-        </button>
-        <button
-          className={mode === 'importar' ? 'primary' : 'secondary'}
-          style={{ flex: 1, fontSize: 14 }}
-          onClick={() => setMode('importar')}
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_0_4px_rgba(232,130,58,0.2)]" />
+            <h1 className="text-2xl font-bold tracking-tight">Configuracao</h1>
+          </div>
+          <p className="text-sm text-content-tertiary ml-5">
+            Cadastre os apartamentos de cada torre/bloco.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring, delay: 0.1 }}
+          className="flex gap-2 mb-6"
         >
-          Importar arquivo
-        </button>
-      </div>
+          <button
+            onClick={() => setMode('manual')}
+            className={`tactile-press flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${
+              mode === 'manual'
+                ? 'bg-accent-dim border-accent text-accent'
+                : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+            }`}
+          >
+            <ListNumbers size={16} weight="bold" />
+            Manual
+          </button>
+          <button
+            onClick={() => setMode('importar')}
+            className={`tactile-press flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${
+              mode === 'importar'
+                ? 'bg-accent-dim border-accent text-accent'
+                : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+            }`}
+          >
+            <Upload size={16} weight="bold" />
+            Importar arquivo
+          </button>
+        </motion.div>
 
-      {mode === 'manual' ? (
-        <>
-          <div className="panel">
-            <div className="panel-title">Quantidade de blocos/torres</div>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={numBlocos}
-              onChange={(e) => setNumBlocos(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-            />
-          </div>
-
-          {Array.from({ length: numBlocos }, (_, i) => (
-            <div className="panel" key={i}>
-              <div className="panel-title">Bloco {i + 1} — apartamentos (um por linha)</div>
-              <textarea
-                value={textos[i] || ''}
-                onChange={(e) => updateTexto(i, e.target.value)}
-                placeholder={'101\n102\n103\n...'}
-              />
-            </div>
-          ))}
-        </>
-      ) : (
-        <>
-          <div className="panel">
-            <div className="panel-title">Importar de arquivo (.json ou .txt)</div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".json,.txt"
-              style={{ display: 'none' }}
-              onChange={handleFile}
-            />
-            <button className="secondary" onClick={() => fileRef.current?.click()} style={{ width: '100%' }}>
-              📄 Escolher arquivo
-            </button>
-          </div>
-
-          <div className="panel">
-            <div className="panel-title">Ou cole o conteúdo aqui</div>
-            <textarea
-              value={importText}
-              onChange={(e) => { setImportText(e.target.value); setListaImportada(null); setImportError(''); }}
-              placeholder={'Torre A\n0031\n0032\n0033\n\nTorre B\n0101\n0102'}
-              style={{ minHeight: 160, fontFamily: 'var(--font-mono)', fontSize: 12 }}
-            />
-            <button
-              className="secondary"
-              onClick={handleImport}
-              disabled={!importText.trim()}
-              style={{ marginTop: 10, width: '100%' }}
+        <AnimatePresence mode="wait">
+          {mode === 'manual' ? (
+            <motion.div
+              key="manual"
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12 }}
+              transition={spring}
             >
-              Interpretar lista
-            </button>
-            {importError && <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{importError}</p>}
-          </div>
-
-          {listaImportada && (
-            <div className="panel">
-              <div className="panel-title">Prévia — {Object.keys(listaImportada).length} torres/blocos, {totalImport} apartamentos</div>
-              <div style={{ maxHeight: 200, overflowY: 'auto', fontSize: 13 }}>
-                {Object.entries(listaImportada).map(([nome, aptos]) => (
-                  <div key={nome} style={{ marginBottom: 8 }}>
-                    <strong>{nome}</strong> — {aptos.length} aptos
-                    <div style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 11, marginTop: 2 }}>
-                      {aptos.slice(0, 5).join(', ')}{aptos.length > 5 ? `... +${aptos.length - 5}` : ''}
-                    </div>
-                  </div>
-                ))}
+              <div className="bg-base-raised border border-base-border rounded-2xl p-5 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Buildings size={16} weight="duotone" className="text-content-tertiary" />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
+                    Quantidade de blocos/torres
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={numBlocos}
+                  onChange={(e) => setNumBlocos(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+                  className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content focus:outline-none focus:border-accent/50 focus:shadow-glow-accent transition-all"
+                />
               </div>
-            </div>
-          )}
-        </>
-      )}
 
-      <button className="primary" onClick={salvar} disabled={total === 0}>
-        Salvar e começar ({total} apartamentos)
-      </button>
+              <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-3">
+                {Array.from({ length: numBlocos }, (_, i) => (
+                  <motion.div key={i} variants={item} className="bg-base-raised border border-base-border rounded-2xl p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
+                        Bloco {i + 1} — apartamentos (um por linha)
+                      </span>
+                    </div>
+                    <textarea
+                      value={textos[i] || ''}
+                      onChange={(e) => updateTexto(i, e.target.value)}
+                      placeholder={'101\n102\n103\n...'}
+                      className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content placeholder:text-content-tertiary/50 focus:outline-none focus:border-accent/50 focus:shadow-glow-accent transition-all min-h-[100px] resize-y"
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="importar"
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={spring}
+              className="space-y-4"
+            >
+              <div className="bg-base-raised border border-base-border rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText size={16} weight="duotone" className="text-content-tertiary" />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
+                    Importar de arquivo (.json ou .txt)
+                  </span>
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".json,.txt"
+                  style={{ display: 'none' }}
+                  onChange={handleFile}
+                />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+                >
+                  <Upload size={16} weight="bold" />
+                  Escolher arquivo
+                </button>
+              </div>
+
+              <div className="bg-base-raised border border-base-border rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
+                    Ou cole o conteudo aqui
+                  </span>
+                </div>
+                <textarea
+                  value={importText}
+                  onChange={(e) => { setImportText(e.target.value); setListaImportada(null); setImportError(''); }}
+                  placeholder={'Torre A\n0031\n0032\n0033\n\nTorre B\n0101\n0102'}
+                  className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content placeholder:text-content-tertiary/50 focus:outline-none focus:border-accent/50 focus:shadow-glow-accent transition-all min-h-[140px] resize-y"
+                />
+                <button
+                  onClick={handleImport}
+                  disabled={!importText.trim()}
+                  className="tactile-press w-full mt-3 flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  Interpretar lista
+                </button>
+
+                {importError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-danger-dim/30 border border-danger/20"
+                  >
+                    <Warning size={14} weight="bold" className="text-danger flex-shrink-0" />
+                    <span className="text-xs text-danger">{importError}</span>
+                  </motion.div>
+                )}
+              </div>
+
+              {listaImportada && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-base-raised border border-success/20 rounded-2xl p-5"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle size={16} weight="duotone" className="text-success" />
+                    <span className="text-xs font-semibold uppercase tracking-widest text-success">
+                      Previa — {Object.keys(listaImportada).length} torres/blocos, {totalImport} apartamentos
+                    </span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {Object.entries(listaImportada).map(([nome, aptos]) => (
+                      <div key={nome} className="text-sm">
+                        <span className="font-semibold text-content">{nome}</span>
+                        <span className="text-content-tertiary ml-2">— {aptos.length} aptos</span>
+                        <div className="text-[11px] font-mono text-content-tertiary mt-0.5">
+                          {aptos.slice(0, 5).join(', ')}{aptos.length > 5 ? `... +${aptos.length - 5}` : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring, delay: 0.3 }}
+          className="mt-6"
+        >
+          <button
+            onClick={salvar}
+            disabled={total === 0}
+            className="tactile-press w-full bg-accent text-base font-semibold text-sm rounded-xl px-6 py-3.5 hover:bg-accent-hover transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          >
+            Salvar e comecar ({total} apartamentos)
+          </button>
+        </motion.div>
+      </div>
     </main>
   );
 }
