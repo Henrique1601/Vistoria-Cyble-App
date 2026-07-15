@@ -38,6 +38,15 @@ import { exportarCSV, exportarPDF } from '@/lib/export';
 
 type View = 'blocos' | 'apartamentos' | 'captura';
 
+interface FotoOnline {
+  id: number;
+  bloco: string;
+  apartamento: string;
+  data_leitura: string;
+  foto_url: string;
+  foto_index: number;
+}
+
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 const stagger = {
   hidden: { opacity: 0 },
@@ -64,6 +73,7 @@ export default function Home() {
   const [pendentes, setPendentes] = useState(0);
   const [online, setOnline] = useState(true);
   const [lastActivity, setLastActivity] = useState(Date.now());
+  const [fotosOnline, setFotosOnline] = useState<FotoOnline[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('vistoria_pin');
@@ -94,6 +104,13 @@ export default function Home() {
       carregarListaApartamentos().then((l) => setLista(Object.keys(l).length ? l : null));
     }
   }, [pin]);
+
+  useEffect(() => {
+    fetch('/api/fotos')
+      .then((r) => r.json())
+      .then((data) => setFotosOnline(data.fotos || []))
+      .catch(() => {});
+  }, []);
 
   async function refreshStatus() {
     if (lista) setStatus(await statusDeTodosApartamentos(lista));
@@ -161,12 +178,26 @@ export default function Home() {
 
   const blocos = useMemo(() => (lista ? Object.keys(lista) : []), [lista]);
 
+  const aptosOnlineDoBloco = useMemo(() => {
+    if (!blocoAtual) return new Set<string>();
+    const set = new Set<string>();
+    fotosOnline.filter((f) => f.bloco === blocoAtual).forEach((f) => set.add(f.apartamento));
+    return set;
+  }, [fotosOnline, blocoAtual]);
+
   const aptosDoBloco = useMemo(() => {
     if (!blocoAtual || !lista) return [];
     const codigos = lista[blocoAtual] || [];
     const result = codigos
-      .map((c) => status.find((s) => s.bloco === blocoAtual && s.apartamento === c) ?? {
-        bloco: blocoAtual, apartamento: c, cybleAntesFeito: false, cybleDepoisFeito: false, qtdDocumentos: 0, qtdFotos: 0,
+      .map((c) => {
+        const local = status.find((s) => s.bloco === blocoAtual && s.apartamento === c);
+        if (local) return local;
+        const temFotoOnline = aptosOnlineDoBloco.has(c);
+        return {
+          bloco: blocoAtual, apartamento: c,
+          cybleAntesFeito: temFotoOnline, cybleDepoisFeito: temFotoOnline,
+          qtdDocumentos: 0, qtdFotos: fotosOnline.filter((f) => f.bloco === blocoAtual && f.apartamento === c).length,
+        };
       })
       .filter((s) => s.apartamento.toLowerCase().includes(busca.toLowerCase()));
 
@@ -184,9 +215,14 @@ export default function Home() {
 
   function progressoBloco(bloco: string) {
     const codigos = lista?.[bloco] || [];
+    const aptosOnlineDoBloco = new Set(
+      fotosOnline.filter((f) => f.bloco === bloco).map((f) => f.apartamento)
+    );
     const completos = codigos.filter((c) => {
       const st = status.find((x) => x.bloco === bloco && x.apartamento === c);
-      return st && st.cybleAntesFeito && st.cybleDepoisFeito && st.qtdDocumentos > 0;
+      const feitoLocal = st && st.cybleAntesFeito && st.cybleDepoisFeito && st.qtdDocumentos > 0;
+      const feitoOnline = aptosOnlineDoBloco.has(c);
+      return feitoLocal || feitoOnline;
     }).length;
     const pct = codigos.length > 0 ? Math.round((completos / codigos.length) * 100) : 0;
     return { texto: `${completos}/${codigos.length}`, pct };
@@ -321,6 +357,11 @@ export default function Home() {
                       {s.qtdFotos} foto{s.qtdFotos > 1 ? 's' : ''}
                     </span>
                   )}
+                  {aptosOnlineDoBloco.has(s.apartamento) && s.qtdFotos === 0 && (
+                    <span className="text-[11px] font-mono text-success bg-success/10 px-2 py-0.5 rounded-md">
+                      online
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <StatusDot done={s.cybleAntesFeito} partial={emAndamento(s)} label="Antes" />
@@ -352,7 +393,7 @@ export default function Home() {
           <p className="text-sm text-content-tertiary ml-5">Selecione o bloco para comecar.</p>
         </motion.div>
 
-        <Dashboard status={status} pendentes={pendentes} />
+        <Dashboard status={status} pendentes={pendentes} fotosOnline={fotosOnline} />
 
         <motion.div
           variants={stagger}
@@ -490,11 +531,20 @@ function SyncBanner({ online, pendentes }: { online: boolean; pendentes: number 
   );
 }
 
-function Dashboard({ status, pendentes }: { status: ApartamentoStatus[]; pendentes: number }) {
+function Dashboard({ status, pendentes, fotosOnline }: { status: ApartamentoStatus[]; pendentes: number; fotosOnline: FotoOnline[] }) {
+  const aptosComFotoOnline = useMemo(() => {
+    const set = new Set<string>();
+    fotosOnline.forEach((f) => set.add(`${f.bloco}__${f.apartamento}`));
+    return set;
+  }, [fotosOnline]);
+
   const totalAptos = status.length;
-  const completos = status.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0).length;
+  const completosLocal = status.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0).length;
+  const completosOnline = aptosComFotoOnline.size;
+  const completos = Math.max(completosLocal, completosOnline);
   const andamento = status.filter((s) => emAndamento(s)).length;
-  const totalFotos = status.reduce((acc, s) => acc + s.qtdFotos, 0);
+  const totalFotosLocal = status.reduce((acc, s) => acc + s.qtdFotos, 0);
+  const totalFotos = Math.max(totalFotosLocal, fotosOnline.length);
   const pct = totalAptos > 0 ? Math.round((completos / totalAptos) * 100) : 0;
 
   const cards = [
