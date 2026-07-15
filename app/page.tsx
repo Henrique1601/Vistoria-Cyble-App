@@ -176,8 +176,6 @@ export default function Home() {
     await refreshStatus();
   }
 
-  const blocos = useMemo(() => (lista ? Object.keys(lista) : []), [lista]);
-
   function normApto(s: string) { return s.replace(/^0+/, '') || '0'; }
 
   const aptosOnlineMap = useMemo(() => {
@@ -192,6 +190,13 @@ export default function Home() {
     return map;
   }, [fotosOnline]);
 
+  const blocos = useMemo(() => {
+    const fromLista = lista ? Object.keys(lista) : [];
+    const fromOnline = [...aptosOnlineMap.keys()];
+    const merged = new Set([...fromLista, ...fromOnline]);
+    return [...merged].sort();
+  }, [lista, aptosOnlineMap]);
+
   const aptosOnlineDoBloco = useMemo(() => {
     if (!blocoAtual) return new Set<string>();
     const entry = aptosOnlineMap.get(blocoAtual);
@@ -199,9 +204,17 @@ export default function Home() {
   }, [aptosOnlineMap, blocoAtual]);
 
   const aptosDoBloco = useMemo(() => {
-    if (!blocoAtual || !lista) return [];
-    const codigos = lista[blocoAtual] || [];
-    const result = codigos
+    if (!blocoAtual) return [];
+
+    const codigosLocais = lista?.[blocoAtual] || [];
+    const aptosOnlineList = [...aptosOnlineDoBloco];
+
+    const allAptos = new Set<string>([
+      ...codigosLocais,
+      ...aptosOnlineList,
+    ]);
+
+    const result = [...allAptos]
       .map((c) => {
         const local = status.find((s) => s.bloco === blocoAtual && s.apartamento === c);
         if (local) return local;
@@ -222,23 +235,27 @@ export default function Home() {
         if (aC === bC) return 0;
         return aC ? 1 : -1;
       });
+    } else {
+      result.sort((a, b) => a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true }));
     }
 
     return result;
   }, [blocoAtual, lista, status, busca, ordem, aptosOnlineDoBloco, fotosOnline]);
 
   function progressoBloco(bloco: string) {
-    const codigos = lista?.[bloco] || [];
+    const codigosLocais = lista?.[bloco] || [];
     const entry = aptosOnlineMap.get(bloco);
     const aptosOnline = entry?.aptos ?? new Set<string>();
-    const completos = codigos.filter((c) => {
+    const allAptos = new Set<string>([...codigosLocais, ...aptosOnline]);
+    const total = allAptos.size;
+    const completos = [...allAptos].filter((c) => {
       const st = status.find((x) => x.bloco === bloco && x.apartamento === c);
       const feitoLocal = st && st.cybleAntesFeito && st.cybleDepoisFeito && st.qtdDocumentos > 0;
       const feitoOnline = aptosOnline.has(normApto(c));
       return feitoLocal || feitoOnline;
     }).length;
-    const pct = codigos.length > 0 ? Math.round((completos / codigos.length) * 100) : 0;
-    return { texto: `${completos}/${codigos.length}`, pct };
+    const pct = total > 0 ? Math.round((completos / total) * 100) : 0;
+    return { texto: `${completos}/${total}`, pct };
   }
 
   if (!pinChecked) return null;
