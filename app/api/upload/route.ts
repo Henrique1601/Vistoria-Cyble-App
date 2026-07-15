@@ -1,12 +1,13 @@
 import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
+import postgres from 'postgres';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const pin = req.headers.get('x-app-pin');
   if (!process.env.APP_PIN || pin !== process.env.APP_PIN) {
-    return NextResponse.json({ erro: 'PIN inválido' }, { status: 401 });
+    return NextResponse.json({ erro: 'PIN invalido' }, { status: 401 });
   }
 
   const form = await req.formData();
@@ -28,6 +29,19 @@ export async function POST(req: NextRequest) {
     addRandomSuffix: false,
     token: process.env.BLOB_READ_WRITE_TOKEN,
   });
+
+  // Insert into Neon if DATABASE_URL is configured
+  if (process.env.DATABASE_URL) {
+    try {
+      const sql = postgres(process.env.DATABASE_URL, { ssl: 'require' });
+      const dataLeitura = new Date(Number(timestamp)).toISOString().split('T')[0];
+      await sql`INSERT INTO fotos (bloco, apartamento, data_leitura, foto_url, foto_index)
+                 VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${blob.url}, 0)`;
+      await sql.end();
+    } catch {
+      // Non-critical: photo still saved to Blob
+    }
+  }
 
   return NextResponse.json({ url: blob.url, path });
 }

@@ -21,6 +21,7 @@ import {
   FileCsv,
   FilePdf,
   FunnelSimple,
+  Images,
 } from '@phosphor-icons/react';
 import PinGate from './PinGate';
 import SetupScreen from './SetupScreen';
@@ -423,6 +424,13 @@ export default function Home() {
           transition={{ delay: 0.5 }}
           className="flex gap-4"
         >
+          <a
+            href="/galeria"
+            className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content transition-colors"
+          >
+            <Images size={13} weight="bold" />
+            Galeria
+          </a>
           <button
             onClick={() => setLista(null)}
             className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content transition-colors"
