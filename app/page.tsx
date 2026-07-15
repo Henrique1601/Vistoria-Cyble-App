@@ -178,12 +178,25 @@ export default function Home() {
 
   const blocos = useMemo(() => (lista ? Object.keys(lista) : []), [lista]);
 
+  function normApto(s: string) { return s.replace(/^0+/, '') || '0'; }
+
+  const aptosOnlineMap = useMemo(() => {
+    const map = new Map<string, { count: number; aptos: Set<string> }>();
+    fotosOnline.forEach((f) => {
+      const key = f.bloco;
+      if (!map.has(key)) map.set(key, { count: 0, aptos: new Set() });
+      const entry = map.get(key)!;
+      entry.count++;
+      entry.aptos.add(normApto(f.apartamento));
+    });
+    return map;
+  }, [fotosOnline]);
+
   const aptosOnlineDoBloco = useMemo(() => {
     if (!blocoAtual) return new Set<string>();
-    const set = new Set<string>();
-    fotosOnline.filter((f) => f.bloco === blocoAtual).forEach((f) => set.add(f.apartamento));
-    return set;
-  }, [fotosOnline, blocoAtual]);
+    const entry = aptosOnlineMap.get(blocoAtual);
+    return entry?.aptos ?? new Set<string>();
+  }, [aptosOnlineMap, blocoAtual]);
 
   const aptosDoBloco = useMemo(() => {
     if (!blocoAtual || !lista) return [];
@@ -192,11 +205,12 @@ export default function Home() {
       .map((c) => {
         const local = status.find((s) => s.bloco === blocoAtual && s.apartamento === c);
         if (local) return local;
-        const temFotoOnline = aptosOnlineDoBloco.has(c);
+        const cNorm = normApto(c);
+        const temFotoOnline = aptosOnlineDoBloco.has(cNorm);
         return {
           bloco: blocoAtual, apartamento: c,
           cybleAntesFeito: temFotoOnline, cybleDepoisFeito: temFotoOnline,
-          qtdDocumentos: 0, qtdFotos: fotosOnline.filter((f) => f.bloco === blocoAtual && f.apartamento === c).length,
+          qtdDocumentos: 0, qtdFotos: fotosOnline.filter((f) => f.bloco === blocoAtual && normApto(f.apartamento) === cNorm).length,
         };
       })
       .filter((s) => s.apartamento.toLowerCase().includes(busca.toLowerCase()));
@@ -215,13 +229,12 @@ export default function Home() {
 
   function progressoBloco(bloco: string) {
     const codigos = lista?.[bloco] || [];
-    const aptosOnlineDoBloco = new Set(
-      fotosOnline.filter((f) => f.bloco === bloco).map((f) => f.apartamento)
-    );
+    const entry = aptosOnlineMap.get(bloco);
+    const aptosOnline = entry?.aptos ?? new Set<string>();
     const completos = codigos.filter((c) => {
       const st = status.find((x) => x.bloco === bloco && x.apartamento === c);
       const feitoLocal = st && st.cybleAntesFeito && st.cybleDepoisFeito && st.qtdDocumentos > 0;
-      const feitoOnline = aptosOnlineDoBloco.has(c);
+      const feitoOnline = aptosOnline.has(normApto(c));
       return feitoLocal || feitoOnline;
     }).length;
     const pct = codigos.length > 0 ? Math.round((completos / codigos.length) * 100) : 0;
@@ -357,7 +370,7 @@ export default function Home() {
                       {s.qtdFotos} foto{s.qtdFotos > 1 ? 's' : ''}
                     </span>
                   )}
-                  {aptosOnlineDoBloco.has(s.apartamento) && s.qtdFotos === 0 && (
+                  {aptosOnlineDoBloco.has(normApto(s.apartamento)) && s.qtdFotos === 0 && (
                     <span className="text-[11px] font-mono text-success bg-success/10 px-2 py-0.5 rounded-md">
                       online
                     </span>
@@ -532,9 +545,11 @@ function SyncBanner({ online, pendentes }: { online: boolean; pendentes: number 
 }
 
 function Dashboard({ status, pendentes, fotosOnline }: { status: ApartamentoStatus[]; pendentes: number; fotosOnline: FotoOnline[] }) {
+  function normApto(s: string) { return s.replace(/^0+/, '') || '0'; }
+
   const aptosComFotoOnline = useMemo(() => {
     const set = new Set<string>();
-    fotosOnline.forEach((f) => set.add(`${f.bloco}__${f.apartamento}`));
+    fotosOnline.forEach((f) => set.add(`${f.bloco}__${normApto(f.apartamento)}`));
     return set;
   }, [fotosOnline]);
 
