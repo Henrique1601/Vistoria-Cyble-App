@@ -225,7 +225,7 @@ export default function Home() {
     }
 
     return result;
-  }, [blocoAtual, lista, status, busca, ordem]);
+  }, [blocoAtual, lista, status, busca, ordem, aptosOnlineDoBloco, fotosOnline]);
 
   function progressoBloco(bloco: string) {
     const codigos = lista?.[bloco] || [];
@@ -420,7 +420,7 @@ export default function Home() {
               <motion.div
                 key={b}
                 variants={item}
-                onClick={() => { setBlocoAtual(b); setView('apartamentos'); setBusca(''); }}
+                onClick={() => { setBlocoAtual(b); setView('apartamentos'); setBusca(''); refreshStatus(); }}
                 className="tactile-press group bg-base-raised border border-base-border rounded-2xl p-5 cursor-pointer hover:border-accent/30 hover:shadow-diffusion transition-all duration-300"
               >
                 <div className="flex items-center justify-between mb-3">
