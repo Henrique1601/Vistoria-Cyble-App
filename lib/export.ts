@@ -1,9 +1,309 @@
 import { ApartamentoStatus } from './db';
 
+const CATEGORIA_LABELS: Record<string, string> = {
+  cyble_antes: 'cyble_antes',
+  cyble_depois: 'cyble_depois',
+  documento: 'documento',
+};
+
 function statusApto(s: ApartamentoStatus): string {
-  if (s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0) return 'Concluído';
+  if (s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0) return 'Concluido';
   if (s.cybleAntesFeito || s.cybleDepoisFeito || s.qtdDocumentos > 0) return 'Em andamento';
   return 'Pendente';
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function shareFile(blob: Blob, filename: string, title: string) {
+  const file = new File([blob], filename, { type: blob.type });
+
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({
+        title,
+        files: [file],
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+export async function exportarPDF(status: ApartamentoStatus[], titulo: string) {
+  const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 14;
+
+  const dataHora = new Date().toLocaleString('pt-BR');
+  const total = status.length;
+  const concluidos = status.filter((s) => statusApto(s) === 'Concluido').length;
+  const andamento = status.filter((s) => statusApto(s) === 'Em andamento').length;
+  const pendentes = total - concluidos - andamento;
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+
+  // ── Capa ──
+  doc.setFillColor(12, 15, 20);
+  doc.rect(0, 0, pageW, pageH, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(28);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Relatorio de Vistorias', margin, 60);
+
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(180, 180, 180);
+  doc.text(titulo, margin, 72);
+
+  doc.setFontSize(11);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Gerado em ${dataHora}`, margin, 84);
+
+  // Cards de resumo
+  const cardY = 100;
+  const cardW = (pageW - margin * 2 - 18) / 4;
+  const cards = [
+    { label: 'Concluidos', value: `${concluidos}`, color: [52, 211, 153] as [number, number, number] },
+    { label: 'Andamento', value: `${andamento}`, color: [251, 191, 36] as [number, number, number] },
+    { label: 'Pendentes', value: `${pendentes}`, color: [239, 68, 68] as [number, number, number] },
+    { label: 'Progresso', value: `${pct}%`, color: [232, 130, 58] as [number, number, number] },
+  ];
+
+  cards.forEach((c, i) => {
+    const x = margin + i * (cardW + 6);
+    doc.setFillColor(25, 28, 35);
+    doc.roundedRect(x, cardY, cardW, 28, 3, 3, 'F');
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...c.color);
+    doc.text(c.value, x + cardW / 2, cardY + 14, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(160, 160, 160);
+    doc.text(c.label.toUpperCase(), x + cardW / 2, cardY + 22, { align: 'center' });
+  });
+
+  // ── Pagina 2+: Tabelas por Torre ──
+  const porTorre: Record<string, ApartamentoStatus[]> = {};
+  for (const s of status) {
+    if (!porTorre[s.bloco]) porTorre[s.bloco] = [];
+    porTorre[s.bloco].push(s);
+  }
+
+  const torres = Object.keys(porTorre).sort();
+  let pageIdx = 1;
+
+  for (const torre of torres) {
+    const aptos = porTorre[torre];
+    const torreConcluidos = aptos.filter((s) => statusApto(s) === 'Concluido').length;
+    const torrePct = aptos.length > 0 ? Math.round((torreConcluidos / aptos.length) * 100) : 0;
+
+    doc.addPage();
+    pageIdx++;
+    doc.setFillColor(12, 15, 20);
+    doc.rect(0, 0, pageW, pageH, 'F');
+
+    // Header da torre
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${torre}`, margin, 22);
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(180, 180, 180);
+    doc.text(`${torreConcluidos}/${aptos.length} concluidos (${torrePct}%)`, margin, 30);
+
+    // Barra de progresso
+    const barY = 34;
+    const barW = pageW - margin * 2;
+    doc.setFillColor(35, 38, 45);
+    doc.roundedRect(margin, barY, barW, 3, 1.5, 1.5, 'F');
+    if (torrePct > 0) {
+      doc.setFillColor(52, 211, 153);
+      doc.roundedRect(margin, barY, barW * (torrePct / 100), 3, 1.5, 1.5, 'F');
+    }
+
+    // Tabela
+    const tableData = aptos
+      .sort((a, b) => a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true }))
+      .map((s) => [
+        s.apartamento,
+        s.cybleAntesFeito ? 'Sim' : 'Nao',
+        s.cybleDepoisFeito ? 'Sim' : 'Nao',
+        s.qtdDocumentos > 0 ? `${s.qtdDocumentos}` : '—',
+        `${s.qtdFotos}`,
+        statusApto(s),
+      ]);
+
+    autoTable(doc, {
+      startY: 42,
+      margin: { left: margin, right: margin },
+      head: [['Apto', 'Antes', 'Depois', 'Docs', 'Fotos', 'Status']],
+      body: tableData,
+      styles: {
+        fillColor: [20, 23, 30],
+        textColor: [200, 200, 200],
+        lineColor: [35, 38, 45],
+        lineWidth: 0.3,
+        fontSize: 9,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [30, 33, 40],
+        textColor: [160, 160, 160],
+        fontStyle: 'bold',
+        fontSize: 8,
+      },
+      alternateRowStyles: {
+        fillColor: [16, 19, 26],
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 5) {
+          const val = String(data.cell.raw);
+          if (val === 'Concluido') data.cell.styles.textColor = [52, 211, 153];
+          else if (val === 'Em andamento') data.cell.styles.textColor = [251, 191, 36];
+          else data.cell.styles.textColor = [239, 68, 68];
+        }
+      },
+    });
+
+    // Footer
+    const finalY = (doc as any).lastAutoTable?.finalY ?? 42;
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(
+      `Vistoria Cyble — Pagina ${pageIdx}`,
+      pageW / 2,
+      pageH - 8,
+      { align: 'center' }
+    );
+  }
+
+  // Pagina de rodape
+  doc.addPage();
+  doc.setFillColor(12, 15, 20);
+  doc.rect(0, 0, pageW, pageH, 'F');
+  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(10);
+  doc.text('Relatorio gerado automaticamente por Vistoria Cyble', pageW / 2, pageH / 2 - 10, { align: 'center' });
+  doc.text(dataHora, pageW / 2, pageH / 2, { align: 'center' });
+
+  const filename = `vistoria-${new Date().toISOString().slice(0, 10)}.pdf`;
+  doc.save(filename);
+}
+
+export async function exportarXLSX(status: ApartamentoStatus[], titulo: string) {
+  const XLSX = await import('xlsx');
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Aba Resumo ──
+  const total = status.length;
+  const concluidos = status.filter((s) => statusApto(s) === 'Concluido').length;
+  const andamento = status.filter((s) => statusApto(s) === 'Em andamento').length;
+  const pendentes = total - concluidos - andamento;
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+
+  const resumoData = [
+    ['Resumo da Vistoria'],
+    [],
+    ['Metrica', 'Valor'],
+    ['Total de Aptos', total],
+    ['Concluidos', concluidos],
+    ['Em Andamento', andamento],
+    ['Pendentes', pendentes],
+    ['Progresso', `${pct}%`],
+    [],
+    ['Gerado em', new Date().toLocaleString('pt-BR')],
+    ['Projeto', titulo],
+  ];
+
+  const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
+  wsResumo['!cols'] = [{ wch: 20 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+
+  // ── Aba Detalhamento (todas as torres) ──
+  const detalhamento = [
+    ['Torre', 'Apto', 'Antes', 'Depois', 'Docs', 'Total Fotos', 'Status'],
+  ];
+
+  const sorted = [...status].sort((a, b) => {
+    const blocCmp = a.bloco.localeCompare(b.bloco);
+    if (blocCmp !== 0) return blocCmp;
+    return a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true });
+  });
+
+  for (const s of sorted) {
+    detalhamento.push([
+      s.bloco,
+      s.apartamento,
+      s.cybleAntesFeito ? 'Sim' : 'Nao',
+      s.cybleDepoisFeito ? 'Sim' : 'Nao',
+      String(s.qtdDocumentos),
+      String(s.qtdFotos),
+      statusApto(s),
+    ]);
+  }
+
+  const wsDetalhe = XLSX.utils.aoa_to_sheet(detalhamento);
+  wsDetalhe['!cols'] = [
+    { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 },
+    { wch: 8 }, { wch: 12 }, { wch: 14 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsDetalhe, 'Detalhamento');
+
+  // ── Aba por Torre ──
+  const porTorre: Record<string, ApartamentoStatus[]> = {};
+  for (const s of status) {
+    if (!porTorre[s.bloco]) porTorre[s.bloco] = [];
+    porTorre[s.bloco].push(s);
+  }
+
+  for (const [torre, aptos] of Object.entries(porTorre)) {
+    const rows: any[][] = [
+      [`${torre} — Resumo`],
+      [],
+      ['Apto', 'Antes', 'Depois', 'Docs', 'Fotos', 'Status'],
+    ];
+    for (const s of aptos.sort((a, b) =>
+      a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true })
+    )) {
+      rows.push([
+        s.apartamento,
+      s.cybleAntesFeito ? 'Sim' : 'Nao',
+      s.cybleDepoisFeito ? 'Sim' : 'Nao',
+      String(s.qtdDocumentos),
+      String(s.qtdFotos),
+      statusApto(s),
+    ]);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, ws, torre.substring(0, 31));
+}
+
+  const filename = `vistoria-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
 }
 
 export function exportarCSV(status: ApartamentoStatus[]) {
@@ -14,8 +314,8 @@ export function exportarCSV(status: ApartamentoStatus[]) {
       [
         s.bloco,
         s.apartamento,
-        s.cybleAntesFeito ? 'Sim' : 'Não',
-        s.cybleDepoisFeito ? 'Sim' : 'Não',
+        s.cybleAntesFeito ? 'Sim' : 'Nao',
+        s.cybleDepoisFeito ? 'Sim' : 'Nao',
         s.qtdDocumentos,
         s.qtdFotos,
         statusApto(s),
@@ -24,10 +324,10 @@ export function exportarCSV(status: ApartamentoStatus[]) {
     .join('\n');
 
   const total = status.filter((s) => s.qtdFotos > 0).length;
-  const concluidos = status.filter((s) => statusApto(s) === 'Concluído').length;
+  const concluidos = status.filter((s) => statusApto(s) === 'Concluido').length;
   const pendentes = total - concluidos;
 
-  const resumo = `\n\nResumo;;${concluidos} concluídos;${pendentes} pendentes;${total} total;;`;
+  const resumo = `\n\nResumo;;${concluidos} concluidos;${pendentes} pendentes;${total} total;;`;
 
   const blob = new Blob(['\uFEFF' + header + rows + resumo], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -38,81 +338,541 @@ export function exportarCSV(status: ApartamentoStatus[]) {
   URL.revokeObjectURL(url);
 }
 
-export function exportarPDF(status: ApartamentoStatus[], titulo: string) {
+export async function compartilharPDF(status: ApartamentoStatus[], titulo: string) {
+  const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 14;
+
+  const dataHora = new Date().toLocaleString('pt-BR');
+  const total = status.length;
+  const concluidos = status.filter((s) => statusApto(s) === 'Concluido').length;
+  const andamento = status.filter((s) => statusApto(s) === 'Em andamento').length;
+  const pendentes = total - concluidos - andamento;
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+
+  doc.setFillColor(12, 15, 20);
+  doc.rect(0, 0, pageW, pageH, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(28);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Relatorio de Vistorias', margin, 60);
+
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(180, 180, 180);
+  doc.text(titulo, margin, 72);
+
+  doc.setFontSize(11);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Gerado em ${dataHora}`, margin, 84);
+
+  const cardY = 100;
+  const cardW = (pageW - margin * 2 - 18) / 4;
+  const cards = [
+    { label: 'Concluidos', value: `${concluidos}`, color: [52, 211, 153] as [number, number, number] },
+    { label: 'Andamento', value: `${andamento}`, color: [251, 191, 36] as [number, number, number] },
+    { label: 'Pendentes', value: `${pendentes}`, color: [239, 68, 68] as [number, number, number] },
+    { label: 'Progresso', value: `${pct}%`, color: [232, 130, 58] as [number, number, number] },
+  ];
+
+  cards.forEach((c, i) => {
+    const x = margin + i * (cardW + 6);
+    doc.setFillColor(25, 28, 35);
+    doc.roundedRect(x, cardY, cardW, 28, 3, 3, 'F');
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...c.color);
+    doc.text(c.value, x + cardW / 2, cardY + 14, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(160, 160, 160);
+    doc.text(c.label.toUpperCase(), x + cardW / 2, cardY + 22, { align: 'center' });
+  });
+
   const porTorre: Record<string, ApartamentoStatus[]> = {};
   for (const s of status) {
     if (!porTorre[s.bloco]) porTorre[s.bloco] = [];
     porTorre[s.bloco].push(s);
   }
 
+  const torres = Object.keys(porTorre).sort();
+  let pageIdx = 1;
+
+  for (const torre of torres) {
+    const aptos = porTorre[torre];
+    const torreConcluidos = aptos.filter((s) => statusApto(s) === 'Concluido').length;
+    const torrePct = aptos.length > 0 ? Math.round((torreConcluidos / aptos.length) * 100) : 0;
+
+    doc.addPage();
+    pageIdx++;
+    doc.setFillColor(12, 15, 20);
+    doc.rect(0, 0, pageW, pageH, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${torre}`, margin, 22);
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(180, 180, 180);
+    doc.text(`${torreConcluidos}/${aptos.length} concluidos (${torrePct}%)`, margin, 30);
+
+    const barY = 34;
+    const barW = pageW - margin * 2;
+    doc.setFillColor(35, 38, 45);
+    doc.roundedRect(margin, barY, barW, 3, 1.5, 1.5, 'F');
+    if (torrePct > 0) {
+      doc.setFillColor(52, 211, 153);
+      doc.roundedRect(margin, barY, barW * (torrePct / 100), 3, 1.5, 1.5, 'F');
+    }
+
+    const tableData = aptos
+      .sort((a, b) => a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true }))
+      .map((s) => [
+        s.apartamento,
+        s.cybleAntesFeito ? 'Sim' : 'Nao',
+        s.cybleDepoisFeito ? 'Sim' : 'Nao',
+        s.qtdDocumentos > 0 ? `${s.qtdDocumentos}` : '\u2014',
+        `${s.qtdFotos}`,
+        statusApto(s),
+      ]);
+
+    autoTable(doc, {
+      startY: 42,
+      margin: { left: margin, right: margin },
+      head: [['Apto', 'Antes', 'Depois', 'Docs', 'Fotos', 'Status']],
+      body: tableData,
+      styles: {
+        fillColor: [20, 23, 30],
+        textColor: [200, 200, 200],
+        lineColor: [35, 38, 45],
+        lineWidth: 0.3,
+        fontSize: 9,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [30, 33, 40],
+        textColor: [160, 160, 160],
+        fontStyle: 'bold',
+        fontSize: 8,
+      },
+      alternateRowStyles: {
+        fillColor: [16, 19, 26],
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 5) {
+          const val = String(data.cell.raw);
+          if (val === 'Concluido') data.cell.styles.textColor = [52, 211, 153];
+          else if (val === 'Em andamento') data.cell.styles.textColor = [251, 191, 36];
+          else data.cell.styles.textColor = [239, 68, 68];
+        }
+      },
+    });
+
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(
+      `Vistoria Cyble \u2014 Pagina ${pageIdx}`,
+      pageW / 2,
+      pageH - 8,
+      { align: 'center' }
+    );
+  }
+
+  doc.addPage();
+  doc.setFillColor(12, 15, 20);
+  doc.rect(0, 0, pageW, pageH, 'F');
+  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(10);
+  doc.text('Relatorio gerado automaticamente por Vistoria Cyble', pageW / 2, pageH / 2 - 10, { align: 'center' });
+  doc.text(dataHora, pageW / 2, pageH / 2, { align: 'center' });
+
+  const filename = `vistoria-${new Date().toISOString().slice(0, 10)}.pdf`;
+  const pdfBlob = new Blob([doc.output('blob')], { type: 'application/pdf' });
+  await shareFile(pdfBlob, filename, `Relatorio Vistoria Cyble - ${titulo}`);
+}
+
+export async function compartilharXLSX(status: ApartamentoStatus[], titulo: string) {
+  const XLSX = await import('xlsx');
+
+  const wb = XLSX.utils.book_new();
+
   const total = status.length;
-  const concluidos = status.filter((s) => statusApto(s) === 'Concluído').length;
-  const dataHora = new Date().toLocaleString('pt-BR');
+  const concluidos = status.filter((s) => statusApto(s) === 'Concluido').length;
+  const andamento = status.filter((s) => statusApto(s) === 'Em andamento').length;
+  const pendentes = total - concluidos - andamento;
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
 
-  let html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<title>Relatório — ${titulo}</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; padding: 30px; color: #222; font-size: 13px; }
-  h1 { font-size: 20px; margin-bottom: 4px; }
-  .meta { color: #666; font-size: 12px; margin-bottom: 20px; }
-  .resumo { display: flex; gap: 20px; margin-bottom: 24px; }
-  .resumo-box { background: #f5f5f5; border-radius: 6px; padding: 12px 16px; min-width: 120px; }
-  .resumo-box .num { font-size: 22px; font-weight: 700; }
-  .resumo-box .label { font-size: 11px; color: #666; text-transform: uppercase; }
-  h2 { font-size: 15px; margin: 18px 0 8px; border-bottom: 2px solid #eee; padding-bottom: 4px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  th { background: #f0f0f0; text-align: left; padding: 6px 8px; font-size: 11px; text-transform: uppercase; }
-  td { padding: 5px 8px; border-bottom: 1px solid #eee; }
-  .ok { color: #16a34a; font-weight: 600; }
-  .pend { color: #dc2626; }
-  .and { color: #d97706; }
-  .footer { margin-top: 30px; font-size: 10px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
-  @media print { body { padding: 15px; } }
-</style>
-</head>
-<body>
-<h1>Relatório de Vistorias — ${titulo}</h1>
-<div class="meta">Gerado em ${dataHora}</div>
+  const resumoData = [
+    ['Resumo da Vistoria'],
+    [],
+    ['Metrica', 'Valor'],
+    ['Total de Aptos', total],
+    ['Concluidos', concluidos],
+    ['Em Andamento', andamento],
+    ['Pendentes', pendentes],
+    ['Progresso', `${pct}%`],
+    [],
+    ['Gerado em', new Date().toLocaleString('pt-BR')],
+    ['Projeto', titulo],
+  ];
 
-<div class="resumo">
-  <div class="resumo-box"><div class="num">${concluidos}</div><div class="label">Concluídos</div></div>
-  <div class="resumo-box"><div class="num">${total - concluidos}</div><div class="label">Pendentes</div></div>
-  <div class="resumo-box"><div class="num">${total}</div><div class="label">Total</div></div>
-  <div class="resumo-box"><div class="num">${total > 0 ? Math.round((concluidos / total) * 100) : 0}%</div><div class="label">Progresso</div></div>
-</div>`;
+  const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
+  wsResumo['!cols'] = [{ wch: 20 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+
+  const detalhamento: any[][] = [
+    ['Torre', 'Apto', 'Antes', 'Depois', 'Docs', 'Total Fotos', 'Status'],
+  ];
+
+  const sorted = [...status].sort((a, b) => {
+    const blocCmp = a.bloco.localeCompare(b.bloco);
+    if (blocCmp !== 0) return blocCmp;
+    return a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true });
+  });
+
+  for (const s of sorted) {
+    detalhamento.push([
+      s.bloco,
+      s.apartamento,
+      s.cybleAntesFeito ? 'Sim' : 'Nao',
+      s.cybleDepoisFeito ? 'Sim' : 'Nao',
+      String(s.qtdDocumentos),
+      String(s.qtdFotos),
+      statusApto(s),
+    ]);
+  }
+
+  const wsDetalhe = XLSX.utils.aoa_to_sheet(detalhamento);
+  wsDetalhe['!cols'] = [
+    { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 },
+    { wch: 8 }, { wch: 12 }, { wch: 14 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsDetalhe, 'Detalhamento');
+
+  const porTorre: Record<string, ApartamentoStatus[]> = {};
+  for (const s of status) {
+    if (!porTorre[s.bloco]) porTorre[s.bloco] = [];
+    porTorre[s.bloco].push(s);
+  }
 
   for (const [torre, aptos] of Object.entries(porTorre)) {
-    const torreConcluidos = aptos.filter((s) => statusApto(s) === 'Concluído').length;
-    html += `
-<h2>${torre} — ${torreConcluidos}/${aptos.length} concluídos</h2>
-<table>
-  <thead><tr><th>Apto</th><th>Cyble Antes</th><th>Cyble Depois</th><th>Documentos</th><th>Total Fotos</th><th>Status</th></tr></thead>
-  <tbody>`;
-    for (const s of aptos) {
-      const cls = statusApto(s) === 'Concluído' ? 'ok' : statusApto(s) === 'Em andamento' ? 'and' : 'pend';
-      html += `<tr>
-        <td>${s.apartamento}</td>
-        <td>${s.cybleAntesFeito ? '✓' : '—'}</td>
-        <td>${s.cybleDepoisFeito ? '✓' : '—'}</td>
-        <td>${s.qtdDocumentos > 0 ? s.qtdDocumentos : '—'}</td>
-        <td>${s.qtdFotos}</td>
-        <td class="${cls}">${statusApto(s)}</td>
-      </tr>`;
+    const rows: any[][] = [
+      [`${torre} \u2014 Resumo`],
+      [],
+      ['Apto', 'Antes', 'Depois', 'Docs', 'Fotos', 'Status'],
+    ];
+    for (const s of aptos.sort((a, b) =>
+      a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true })
+    )) {
+      rows.push([
+        s.apartamento,
+        s.cybleAntesFeito ? 'Sim' : 'Nao',
+        s.cybleDepoisFeito ? 'Sim' : 'Nao',
+        String(s.qtdDocumentos),
+        String(s.qtdFotos),
+        statusApto(s),
+      ]);
     }
-    html += `</tbody></table>`;
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws, torre.substring(0, 31));
   }
 
-  html += `
-<div class="footer">Vistoria Cyble — Relatório gerado automaticamente</div>
-</body></html>`;
+  const xlsxBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const xlsxBlob = new Blob([xlsxBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const filename = `vistoria-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  await shareFile(xlsxBlob, filename, `Planilha Vistoria Cyble - ${titulo}`);
+}
 
-  const win = window.open('', '_blank');
-  if (win) {
-    win.document.write(html);
-    win.document.close();
+// ── Exportar fotos como ZIP ──
+export async function exportarZIP(
+  status: ApartamentoStatus[],
+  titulo: string,
+  opts?: { onProgress?: (msg: string) => void }
+) {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+
+  // Buscar todas as fotos online
+  let fotosOnline: { bloco: string; apartamento: string; foto_url: string; foto_index: number; data_leitura: string }[] = [];
+  try {
+    const resp = await fetch('/api/fotos');
+    const data = await resp.json();
+    fotosOnline = data.fotos || [];
+  } catch { /* offline, segue com zip vazio de online */ }
+
+  const aptosComFoto = status.filter((s) => s.qtdFotos > 0 || fotosOnline.some((f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento));
+  const total = aptosComFoto.length;
+  let done = 0;
+
+  for (const s of aptosComFoto) {
+    done++;
+    opts?.onProgress?.(`${done}/${total} — ${s.bloco} ${s.apartamento}`);
+
+    const folderName = `${s.bloco}/${s.apartamento}`;
+
+    // Fotos online
+    const onlineFotos = fotosOnline.filter(
+      (f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento
+    );
+    for (const f of onlineFotos) {
+      try {
+        const resp = await fetch(f.foto_url);
+        if (!resp.ok) continue;
+        const blob = await resp.blob();
+        const ext = f.foto_url.includes('.png') ? 'png' : 'jpg';
+        const catLabel = f.foto_index === 0 ? 'cyble_antes' : f.foto_index === 1 ? 'cyble_depois' : 'documento';
+        zip.file(`${folderName}/${catLabel}_${f.foto_index + 1}.${ext}`, blob);
+      } catch { /* skip */ }
+    }
   }
+
+  if (Object.keys(zip.files).length === 0) {
+    opts?.onProgress?.('Nenhuma foto encontrada');
+    return;
+  }
+
+  const content = await zip.generateAsync({ type: 'blob' }, (meta) => {
+    opts?.onProgress?.(`Compactando ${Math.round(meta.percent)}%`);
+  });
+
+  const filename = `vistoria-fotos-${new Date().toISOString().slice(0, 10)}.zip`;
+  await shareFile(content, filename, `Fotos Vistoria Cyble - ${titulo}`);
+}
+
+function normApto(a: string): string {
+  return a.replace(/^0+/, '') || '0';
+}
+
+// ── Relatório PDF com fotos ──
+export async function relatorioPDFComFotos(
+  status: ApartamentoStatus[],
+  titulo: string,
+  opts?: { onProgress?: (msg: string) => void }
+) {
+  const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  // Buscar todas as fotos online
+  let fotosOnline: { bloco: string; apartamento: string; foto_url: string; foto_index: number; data_leitura: string }[] = [];
+  try {
+    const resp = await fetch('/api/fotos');
+    const data = await resp.json();
+    fotosOnline = data.fotos || [];
+  } catch { /* offline */ }
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 14;
+
+  const dataHora = new Date().toLocaleString('pt-BR');
+  const total = status.length;
+  const concluidos = status.filter((s) => statusApto(s) === 'Concluido').length;
+  const andamento = status.filter((s) => statusApto(s) === 'Em andamento').length;
+  const pendentes = total - concluidos - andamento;
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+
+  // ── Capa ──
+  doc.setFillColor(12, 15, 20);
+  doc.rect(0, 0, pageW, pageH, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(28);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Relatorio com Fotos', margin, 60);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(180, 180, 180);
+  doc.text(titulo, margin, 72);
+  doc.setFontSize(11);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Gerado em ${dataHora}`, margin, 84);
+
+  const cardY = 100;
+  const cardW = (pageW - margin * 2 - 18) / 4;
+  const cards = [
+    { label: 'Concluidos', value: `${concluidos}`, color: [52, 211, 153] as [number, number, number] },
+    { label: 'Andamento', value: `${andamento}`, color: [251, 191, 36] as [number, number, number] },
+    { label: 'Pendentes', value: `${pendentes}`, color: [239, 68, 68] as [number, number, number] },
+    { label: 'Progresso', value: `${pct}%`, color: [232, 130, 58] as [number, number, number] },
+  ];
+  cards.forEach((c, i) => {
+    const x = margin + i * (cardW + 6);
+    doc.setFillColor(25, 28, 35);
+    doc.roundedRect(x, cardY, cardW, 28, 3, 3, 'F');
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...c.color);
+    doc.text(c.value, x + cardW / 2, cardY + 14, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(160, 160, 160);
+    doc.text(c.label.toUpperCase(), x + cardW / 2, cardY + 22, { align: 'center' });
+  });
+
+  // ── Páginas por apto com fotos ──
+  const aptosComFoto = status.filter((s) => s.qtdFotos > 0 || fotosOnline.some((f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento));
+  let pageIdx = 1;
+
+  // Agrupar por torre
+  const porTorre: Record<string, ApartamentoStatus[]> = {};
+  for (const s of aptosComFoto) {
+    if (!porTorre[s.bloco]) porTorre[s.bloco] = [];
+    porTorre[s.bloco].push(s);
+  }
+
+  for (const [torre, aptos] of Object.entries(porTorre).sort(([a], [b]) => a.localeCompare(b))) {
+    // Header da torre
+    doc.addPage();
+    pageIdx++;
+    doc.setFillColor(12, 15, 20);
+    doc.rect(0, 0, pageW, pageH, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${torre}`, margin, 22);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(180, 180, 180);
+    doc.text(`${aptos.length} apartamentos`, margin, 30);
+
+    let y = 38;
+
+    for (const s of aptos.sort((a, b) =>
+      a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true })
+    )) {
+      opts?.onProgress?.(`${s.bloco} ${s.apartamento}`);
+
+      // Checar espaço na página
+      if (y > pageH - 70) {
+        doc.addPage();
+        pageIdx++;
+        doc.setFillColor(12, 15, 20);
+        doc.rect(0, 0, pageW, pageH, 'F');
+        doc.setTextColor(180, 180, 180);
+        doc.setFontSize(10);
+        doc.text(`${torre} — continuação`, margin, 16);
+        y = 24;
+      }
+
+      // Header do apto
+      const statusStr = statusApto(s);
+      doc.setFillColor(25, 28, 35);
+      doc.roundedRect(margin, y, pageW - margin * 2, 8, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${s.apartamento}`, margin + 3, y + 5.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      if (statusStr === 'Concluido') doc.setTextColor(52, 211, 153);
+      else if (statusStr === 'Em andamento') doc.setTextColor(251, 191, 36);
+      else doc.setTextColor(239, 68, 68);
+      doc.text(statusStr, pageW - margin - 3, y + 5.5, { align: 'right' });
+      y += 11;
+
+      // Buscar fotos deste apto
+      const aptoFotos = fotosOnline.filter(
+        (f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento
+      ).sort((a, b) => a.foto_index - b.foto_index);
+
+      if (aptoFotos.length === 0) {
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(8);
+        doc.text('Nenhuma foto online', margin + 3, y + 4);
+        y += 8;
+        continue;
+      }
+
+      // Renderizar fotos (2 por linha, 80x60 cada)
+      const imgW = 80;
+      const imgH = 60;
+      const gap = 4;
+      const perRow = 2;
+
+      for (let i = 0; i < aptoFotos.length; i++) {
+        const col = i % perRow;
+        if (col === 0 && i > 0) y += imgH + gap + 4;
+
+        // Checar espaço
+        if (y + imgH + 4 > pageH - 15) {
+          doc.addPage();
+          pageIdx++;
+          doc.setFillColor(12, 15, 20);
+          doc.rect(0, 0, pageW, pageH, 'F');
+          doc.setTextColor(180, 180, 180);
+          doc.setFontSize(10);
+          doc.text(`${torre} ${s.apartamento} — fotos`, margin, 16);
+          y = 24;
+        }
+
+        const x = margin + col * (imgW + gap);
+        const catLabel = aptoFotos[i].foto_index === 0 ? 'Antes' : aptoFotos[i].foto_index === 1 ? 'Depois' : `Doc ${aptoFotos[i].foto_index - 1}`;
+
+        try {
+          const resp = await fetch(aptoFotos[i].foto_url);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const dataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+
+            // Calcular dimensões para caber no imgW x imgH
+            const img = await loadImage(dataUrl);
+            const scale = Math.min(imgW / img.width, imgH / img.height);
+            const drawW = img.width * scale;
+            const drawH = img.height * scale;
+            const offsetX = x + (imgW - drawW) / 2;
+            const offsetY = y + (imgH - drawH) / 2;
+
+            doc.setFillColor(35, 38, 45);
+            doc.roundedRect(x, y, imgW, imgH, 2, 2, 'F');
+            doc.addImage(dataUrl, 'JPEG', offsetX, offsetY, drawW, drawH);
+
+            // Label
+            doc.setTextColor(160, 160, 160);
+            doc.setFontSize(7);
+            doc.text(catLabel, x + 2, y + imgH + 3);
+          }
+        } catch { /* skip foto com erro */ }
+      }
+
+      y += imgH + gap + 8;
+    }
+
+    // Footer da torre
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Vistoria Cyble — Pagina ${pageIdx}`, pageW / 2, pageH - 8, { align: 'center' });
+  }
+
+  // Rodapé final
+  doc.addPage();
+  doc.setFillColor(12, 15, 20);
+  doc.rect(0, 0, pageW, pageH, 'F');
+  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(10);
+  doc.text('Relatorio com fotos gerado por Vistoria Cyble', pageW / 2, pageH / 2 - 10, { align: 'center' });
+  doc.text(dataHora, pageW / 2, pageH / 2, { align: 'center' });
+
+  const filename = `vistoria-fotos-${new Date().toISOString().slice(0, 10)}.pdf`;
+  doc.save(filename);
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
 }

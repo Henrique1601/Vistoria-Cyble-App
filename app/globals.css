@@ -7,13 +7,34 @@
   --font-geist-mono: 'Geist Mono', monospace;
 }
 
-* {
-  box-sizing: border-box;
-}
-
 html {
+  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light theme overrides */
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+/* Light theme: override Tailwind color tokens via utility classes applied at root */
+html.light {
+  --tw-bg-opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {
@@ -22,6 +43,24 @@ body {
   background: #0c0f14;
   color: #e2e8f0;
   font-family: var(--font-geist), system-ui, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.light body {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 ::selection {
@@ -48,9 +87,59 @@ body {
 
 @layer components {
   .tactile-press {
-    @apply transition-all duration-150;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+    touch-action: manipulation;
   }
   .tactile-press:active {
-    @apply scale-[0.97] -translate-y-[1px];
+    transform: scale(0.97);
   }
 }
+
+@layer utilities {
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: #1e2530;
+    border-radius: 0.5rem;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 40%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 60%, transparent 100%);
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+  html.light .skeleton {
+    background: #e2e8f0;
+  }
+  html.light .skeleton::after {
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 40%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.4) 60%, transparent 100%);
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Light theme color overrides using CSS variables */
+html.light .bg-base { background-color: #f8fafc; }
+html.light .bg-base-raised { background-color: #ffffff; }
+html.light .bg-base-overlay { background-color: #f1f5f9; }
+html.light .border-base-border { border-color: #e2e8f0; }
+html.light .border-base-border-subtle { border-color: #f1f5f9; }
+html.light .text-content { color: #1e293b; }
+html.light .text-content-secondary { color: #475569; }
+html.light .text-content-tertiary { color: #94a3b8; }
+html.light .bg-base-raised\/90 { background-color: rgba(255,255,255,0.9); }
+html.light .bg-base\/90 { background-color: rgba(248,250,252,0.9); }
+html.light .bg-base\/60 { background-color: rgba(248,250,252,0.6); }
+
+/* Light theme scrollbar */
+html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Light theme status dots */
+html.light .shadow-\[0_0_6px_rgba\(52\,211\,153\,0\.4\)\] { box-shadow: 0 0 6px rgba(52,211,153,0.3); }
+html.light .shadow-\[0_0_6px_rgba\(251\,191\,36\,0\.3\)\] { box-shadow: 0 0 6px rgba(251,191,36,0.25); }
+html.light .shadow-\[0_0_0_4px_rgba\(232\,130\,58\,0\.2\)\] { box-shadow: 0 0 0 4px rgba(232,130,58,0.15); }

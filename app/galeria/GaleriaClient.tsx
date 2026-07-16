@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
- MagnifyingGlass,
+  MagnifyingGlass,
   Calendar,
   Buildings,
   HouseLine,
   Image,
   X,
   ArrowsOut,
+  CaretLeft,
+  CaretRight,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 
@@ -40,6 +42,8 @@ export default function GaleriaClient() {
   const [filtroData, setFiltroData] = useState('');
   const [busca, setBusca] = useState('');
   const [fotoSelecionada, setFotoSelecionada] = useState<Foto | null>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     fetch('/api/fotos')
@@ -51,24 +55,86 @@ export default function GaleriaClient() {
       .catch(() => setLoading(false));
   }, []);
 
-  const blocos = [...new Set(fotos.map((f) => f.bloco))].sort();
-  const datas = [...new Set(fotos.map((f) => f.data_leitura))].sort().reverse();
+  const blocos = useMemo(() => [...new Set(fotos.map((f) => f.bloco))].sort(), [fotos]);
+  const datas = useMemo(() => [...new Set(fotos.map((f) => f.data_leitura))].sort().reverse(), [fotos]);
 
-  const filtradas = fotos.filter((f) => {
+  const filtradas = useMemo(() => fotos.filter((f) => {
     if (filtroBloco && f.bloco !== filtroBloco) return false;
     if (filtroData && f.data_leitura !== filtroData) return false;
     if (busca && !f.apartamento.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
-  });
+  }), [fotos, filtroBloco, filtroData, busca]);
 
-  const agrupadas = filtradas.reduce((acc, f) => {
-    const key = `${f.data_leitura}__${f.bloco}__${f.apartamento}`;
-    if (!acc[key]) acc[key] = { data: f.data_leitura, bloco: f.bloco, apartamento: f.apartamento, fotos: [] };
-    acc[key].fotos.push(f);
-    return acc;
-  }, {} as Record<string, { data: string; bloco: string; apartamento: string; fotos: Foto[] }>);
+  const grupos = useMemo(() => {
+    const agrupadas = filtradas.reduce((acc, f) => {
+      const key = `${f.data_leitura}__${f.bloco}__${f.apartamento}`;
+      if (!acc[key]) acc[key] = { data: f.data_leitura, bloco: f.bloco, apartamento: f.apartamento, fotos: [] };
+      acc[key].fotos.push(f);
+      return acc;
+    }, {} as Record<string, { data: string; bloco: string; apartamento: string; fotos: Foto[] }>);
+    return Object.values(agrupadas).sort((a, b) => b.data.localeCompare(a.data));
+  }, [filtradas]);
 
-  const grupos = Object.values(agrupadas).sort((a, b) => b.data.localeCompare(a.data));
+  const abrirLightbox = useCallback((f: Foto) => {
+    previousFocusRef.current = document.activeElement as HTMLElement;
+    setFotoSelecionada(f);
+  }, []);
+
+  const fecharLightbox = useCallback(() => {
+    setFotoSelecionada(null);
+    previousFocusRef.current?.focus();
+  }, []);
+
+  // Navegação no lightbox
+  const fotoIndex = useMemo(() => {
+    if (!fotoSelecionada) return -1;
+    return grupos.findIndex((g) => g.fotos.some((f) => f.id === fotoSelecionada.id));
+  }, [fotoSelecionada, grupos]);
+
+  const todasFotos = useMemo(() => {
+    return grupos.flatMap((g) => g.fotos);
+  }, [grupos]);
+
+  const navegarLightbox = useCallback((direcao: 'anterior' | 'proximo') => {
+    if (!fotoSelecionada) return;
+    const idx = todasFotos.findIndex((f) => f.id === fotoSelecionada.id);
+    if (idx === -1) return;
+    if (direcao === 'proximo' && idx < todasFotos.length - 1) {
+      setFotoSelecionada(todasFotos[idx + 1]);
+    } else if (direcao === 'anterior' && idx > 0) {
+      setFotoSelecionada(todasFotos[idx - 1]);
+    }
+  }, [fotoSelecionada, todasFotos]);
+
+  // Swipe gesture support
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0) navegarLightbox('proximo');
+      else navegarLightbox('anterior');
+    }
+  }, [navegarLightbox]);
+
+  useEffect(() => {
+    if (!fotoSelecionada) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') fecharLightbox();
+      if (e.key === 'ArrowRight') navegarLightbox('proximo');
+      if (e.key === 'ArrowLeft') navegarLightbox('anterior');
+    };
+    document.addEventListener('keydown', handleKey);
+    lightboxRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [fotoSelecionada, fecharLightbox, navegarLightbox]);
 
   return (
     <main className="min-h-[100dvh] bg-base">
@@ -81,9 +147,10 @@ export default function GaleriaClient() {
         >
           <Link
             href="/"
-            className="tactile-press w-10 h-10 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 transition-colors"
+            aria-label="Voltar para pagina inicial"
+            className="tactile-press w-10 h-10 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
           >
-            <ArrowLeft size={18} weight="bold" />
+            <ArrowLeft size={18} weight="bold" aria-hidden="true" />
           </Link>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Galeria de Leituras</h1>
@@ -183,17 +250,20 @@ export default function GaleriaClient() {
                       key={f.id}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
-                      onClick={() => setFotoSelecionada(f)}
-                      className="tactile-press relative aspect-[4/3] rounded-xl overflow-hidden border border-base-border hover:border-accent/30 transition-colors group"
+                      onClick={() => abrirLightbox(f)}
+                      aria-label={`Ver foto ${f.bloco} ${f.apartamento} ampliada`}
+                      className="tactile-press relative aspect-[4/3] rounded-xl overflow-hidden border border-base-border hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors group"
                     >
                       <img
                         src={f.foto_url}
-                        alt={`${f.bloco} ${f.apartamento}`}
+                        alt={`Foto de ${f.bloco} apartamento ${f.apartamento}`}
                         className="w-full h-full object-cover"
                         loading="lazy"
+                        width={320}
+                        height={240}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-base/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                        <ArrowsOut size={14} weight="bold" className="text-content" />
+                        <ArrowsOut size={14} weight="bold" className="text-content" aria-hidden="true" />
                       </div>
                     </motion.button>
                   ))}
@@ -204,34 +274,80 @@ export default function GaleriaClient() {
         )}
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {fotoSelecionada && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-base/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
-            onClick={() => setFotoSelecionada(null)}
+            onClick={fecharLightbox}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Foto ampliada"
+            style={{ overscrollBehavior: 'contain' }}
           >
             <motion.div
+              ref={lightboxRef}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={spring}
               className="relative max-w-4xl w-full"
               onClick={(e) => e.stopPropagation()}
+              tabIndex={-1}
             >
               <button
-                onClick={() => setFotoSelecionada(null)}
-                className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content transition-colors"
+                onClick={fecharLightbox}
+                aria-label="Fechar foto ampliada"
+                className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
               >
-                <X size={18} weight="bold" />
+                <X size={18} weight="bold" aria-hidden="true" />
               </button>
-              <img
-                src={fotoSelecionada.foto_url}
-                alt={`${fotoSelecionada.bloco} ${fotoSelecionada.apartamento}`}
-                className="w-full rounded-2xl border border-base-border"
-              />
+
+              {/* Navegação */}
+              {todasFotos.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navegarLightbox('anterior'); }}
+                    disabled={fotoIndex <= 0}
+                    aria-label="Foto anterior"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-base-raised/80 border border-base-border flex items-center justify-center text-content-secondary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors disabled:opacity-30 disabled:pointer-events-none backdrop-blur-sm z-10"
+                  >
+                    <CaretLeft size={18} weight="bold" aria-hidden="true" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navegarLightbox('proximo'); }}
+                    disabled={fotoIndex >= todasFotos.length - 1}
+                    aria-label="Proxima foto"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-base-raised/80 border border-base-border flex items-center justify-center text-content-secondary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors disabled:opacity-30 disabled:pointer-events-none backdrop-blur-sm z-10"
+                  >
+                    <CaretRight size={18} weight="bold" aria-hidden="true" />
+                  </button>
+                  <div className="absolute bottom-14 left-0 right-0 text-center">
+                    <span className="text-[11px] font-mono text-content-tertiary bg-base-raised/80 px-3 py-1 rounded-full backdrop-blur-sm">
+                      {fotoIndex + 1} / {todasFotos.length}
+                    </span>
+                  </div>
+                </>
+              )}
+
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={fotoSelecionada.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.15 }}
+                  src={fotoSelecionada.foto_url}
+                  alt={`Foto de ${fotoSelecionada.bloco} apartamento ${fotoSelecionada.apartamento}`}
+                  className="w-full rounded-2xl border border-base-border"
+                  width={800}
+                  height={600}
+                />
+              </AnimatePresence>
               <div className="mt-3 flex items-center gap-3 text-sm text-content-tertiary">
                 <span className="font-semibold text-content">{fotoSelecionada.bloco}</span>
                 <span>{fotoSelecionada.apartamento}</span>

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import SwRegister from './sw-register';
+import { ThemeProvider } from '@/lib/theme';
+import { ToastProvider } from '@/components/Toast';
 
 const geist = localFont({
   src: [
@@ -78,16 +80,29 @@ export const viewport: Viewport = {
   themeColor: '#0c0f14',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${geist.variable} ${geistMono.variable}`}>
+    <html lang="pt-BR" className={`${geist.variable} ${geistMono.variable} dark`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('vistoria_theme');if(t==='light')document.documentElement.classList.replace('dark','light');}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body>
-        <SwRegister />
-        {children}
+        <ThemeProvider>
+          <ToastProvider>
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:bg-accent focus:text-base focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold focus:outline-none">
+              Pular para conteudo
+            </a>
+            <SwRegister />
+            <div id="main-content" tabIndex={-1} />
+            {children}
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

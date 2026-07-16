@@ -8,5 +8,25 @@
   "theme_color": "#0c0f14",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Abrir Câmera",
+      "short_name": "Câmera",
+      "description": "Abrir tela de captura rápida",
+      "url": "/?action=camera",
+      "icons": [
+        { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+      ]
+    },
+    {
+      "name": "Galeria",
+      "short_name": "Galeria",
+      "description": "Ver todas as fotos salvas",
+      "url": "/galeria",
+      "icons": [
+        { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+      ]
+    }
   ]
 }

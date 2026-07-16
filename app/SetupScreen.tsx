@@ -146,7 +146,7 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
           className="mb-8"
         >
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_0_4px_rgba(232,130,58,0.2)]" />
+              <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_0_4px_rgba(232,130,58,0.2)]" aria-hidden="true" />
             <h1 className="text-2xl font-bold tracking-tight">Configuracao</h1>
           </div>
           <p className="text-sm text-content-tertiary ml-5">
@@ -162,29 +162,31 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
         >
           <button
             onClick={() => setMode('manual')}
+            aria-pressed={mode === 'manual'}
             className={`tactile-press flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${
               mode === 'manual'
                 ? 'bg-accent-dim border-accent text-accent'
                 : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
             }`}
           >
-            <ListNumbers size={16} weight="bold" />
+            <ListNumbers size={16} weight="bold" aria-hidden="true" />
             Manual
           </button>
           <button
             onClick={() => setMode('importar')}
+            aria-pressed={mode === 'importar'}
             className={`tactile-press flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${
               mode === 'importar'
                 ? 'bg-accent-dim border-accent text-accent'
                 : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
             }`}
           >
-            <Upload size={16} weight="bold" />
+            <Upload size={16} weight="bold" aria-hidden="true" />
             Importar arquivo
           </button>
         </motion.div>
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           {mode === 'manual' ? (
             <motion.div
               key="manual"
@@ -195,17 +197,20 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
             >
               <div className="bg-base-raised border border-base-border rounded-2xl p-5 mb-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Buildings size={16} weight="duotone" className="text-content-tertiary" />
-                  <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
+                  <Buildings size={16} weight="duotone" className="text-content-tertiary" aria-hidden="true" />
+                  <label htmlFor="num-blocos" className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
                     Quantidade de blocos/torres
-                  </span>
+                  </label>
                 </div>
                 <input
-                  type="text"
+                  id="num-blocos"
+                  type="number"
                   inputMode="numeric"
+                  min={1}
+                  max={20}
                   value={numBlocos}
                   onChange={(e) => setNumBlocos(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-                  className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content focus:outline-none focus:border-accent/50 focus:shadow-glow-accent transition-all"
+                  className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content focus:outline-none focus:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus:shadow-glow-accent transition-all"
                 />
               </div>
 
@@ -213,15 +218,16 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
                 {Array.from({ length: numBlocos }, (_, i) => (
                   <motion.div key={i} variants={item} className="bg-base-raised border border-base-border rounded-2xl p-5">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
+                      <label htmlFor={`bloco-${i}`} className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
                         Bloco {i + 1} — apartamentos (um por linha)
-                      </span>
+                      </label>
                     </div>
                     <textarea
+                      id={`bloco-${i}`}
                       value={textos[i] || ''}
                       onChange={(e) => updateTexto(i, e.target.value)}
-                      placeholder={'101\n102\n103\n...'}
-                      className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content placeholder:text-content-tertiary/50 focus:outline-none focus:border-accent/50 focus:shadow-glow-accent transition-all min-h-[100px] resize-y"
+                      placeholder={'101\n102\n103\u2026'}
+                      className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content placeholder:text-content-tertiary/50 focus:outline-none focus:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus:shadow-glow-accent transition-all min-h-[100px] resize-y"
                     />
                   </motion.div>
                 ))}
@@ -238,7 +244,7 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
             >
               <div className="bg-base-raised border border-base-border rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <FileText size={16} weight="duotone" className="text-content-tertiary" />
+                  <FileText size={16} weight="duotone" className="text-content-tertiary" aria-hidden="true" />
                   <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
                     Importar de arquivo (.json ou .txt)
                   </span>
@@ -252,9 +258,10 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
                 />
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+                  aria-label="Escolher arquivo JSON ou TXT para importar"
+                  className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
                 >
-                  <Upload size={16} weight="bold" />
+                  <Upload size={16} weight="bold" aria-hidden="true" />
                   Escolher arquivo
                 </button>
               </div>
@@ -266,15 +273,18 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
                   </span>
                 </div>
                 <textarea
+                  id="import-text"
                   value={importText}
                   onChange={(e) => { setImportText(e.target.value); setListaImportada(null); setImportError(''); }}
                   placeholder={'Torre A\n0031\n0032\n0033\n\nTorre B\n0101\n0102'}
-                  className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content placeholder:text-content-tertiary/50 focus:outline-none focus:border-accent/50 focus:shadow-glow-accent transition-all min-h-[140px] resize-y"
+                  aria-label="Cole o conteudo do arquivo aqui"
+                  className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-mono text-content placeholder:text-content-tertiary/50 focus:outline-none focus:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus:shadow-glow-accent transition-all min-h-[140px] resize-y"
                 />
                 <button
                   onClick={handleImport}
                   disabled={!importText.trim()}
-                  className="tactile-press w-full mt-3 flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  aria-label="Interpretar texto colado como lista de apartamentos"
+                  className="tactile-press w-full mt-3 flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
                 >
                   Interpretar lista
                 </button>
@@ -285,7 +295,7 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
                     animate={{ opacity: 1, y: 0 }}
                     className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-danger-dim/30 border border-danger/20"
                   >
-                    <Warning size={14} weight="bold" className="text-danger flex-shrink-0" />
+                    <Warning size={14} weight="bold" className="text-danger flex-shrink-0" aria-hidden="true" />
                     <span className="text-xs text-danger">{importError}</span>
                   </motion.div>
                 )}
@@ -298,7 +308,7 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
                   className="bg-base-raised border border-success/20 rounded-2xl p-5"
                 >
                   <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle size={16} weight="duotone" className="text-success" />
+                    <CheckCircle size={16} weight="duotone" className="text-success" aria-hidden="true" />
                     <span className="text-xs font-semibold uppercase tracking-widest text-success">
                       Previa — {Object.keys(listaImportada).length} torres/blocos, {totalImport} apartamentos
                     </span>
@@ -329,7 +339,8 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
           <button
             onClick={salvar}
             disabled={total === 0}
-            className="tactile-press w-full bg-accent text-base font-semibold text-sm rounded-xl px-6 py-3.5 hover:bg-accent-hover transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label={`Salvar e comecar vistoria com ${total} apartamentos`}
+            className="tactile-press w-full bg-accent text-base font-semibold text-sm rounded-xl px-6 py-3.5 hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors disabled:opacity-30 disabled:pointer-events-none"
           >
             Salvar e comecar ({total} apartamentos)
           </button>
