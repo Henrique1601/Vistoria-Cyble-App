@@ -108,7 +108,9 @@ export default function Home() {
   const [showEstatisticas, setShowEstatisticas] = useState(false);
   const [showEstatisticasTorre, setShowEstatisticasTorre] = useState(false);
   const [diasAlerta, setDiasAlerta] = useState(7);
-  const [showAtrasados, setShowAtrasados] = useState(true);
+  const [showAtrasados, setShowAtrasados] = useState(false);
+  const [itensPagina, setItensPagina] = useState<10 | 20 | 50 | 999>(20);
+  const [paginaAtual, setPaginaAtual] = useState(1);
   const { theme, toggle: toggleTheme } = useTheme();
   const { toast } = useToast();
   const [activeNav, setActiveNav] = useState<'inicio' | 'camera' | 'galeria' | 'exportar' | 'config'>('inicio');
@@ -119,7 +121,7 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [exportandoZIP, setExportandoZIP] = useState(false);
   const [exportandoFotos, setExportandoFotos] = useState(false);
-  const APP_VERSION = '2.3.0';
+  const APP_VERSION = '2.4.0';
   const [updateDisponivel, setUpdateDisponivel] = useState(false);
   const [versaoAtual, setVersaoAtual] = useState(APP_VERSION);
   const [versaoNova, setVersaoNova] = useState(APP_VERSION);
@@ -437,6 +439,16 @@ export default function Home() {
     return result;
   }, [blocoAtual, lista, statusMap, busca, ordem, aptosOnlineDoBloco, fotosCountMap]);
 
+  // Paginacao
+  const totalPaginas = itensPagina === 999 ? 1 : Math.ceil(aptosDoBloco.length / itensPagina);
+  const aptosPaginados = useMemo(() => {
+    if (itensPagina === 999) return aptosDoBloco;
+    const start = (paginaAtual - 1) * itensPagina;
+    return aptosDoBloco.slice(start, start + itensPagina);
+  }, [aptosDoBloco, paginaAtual, itensPagina]);
+
+  useEffect(() => { setPaginaAtual(1); }, [blocoAtual, busca, ordem]);
+
   // Global search results
   const resultadosBuscaGlobal = useMemo(() => {
     if (!buscaGlobal.trim() || buscaGlobal.length < 2) return [];
@@ -702,7 +714,7 @@ export default function Home() {
                 )}
               </div>
             )}
-            {aptosDoBloco.map((s) => (
+            {aptosPaginados.map((s) => (
               <motion.div
                 key={s.apartamento}
                 variants={item}
@@ -733,6 +745,80 @@ export default function Home() {
               </motion.div>
             ))}
           </motion.div>
+
+          {aptosDoBloco.length > 10 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...spring, delay: 0.2 }}
+              className="mt-4 flex flex-col gap-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  {([10, 20, 50, 999] as const).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => { setItensPagina(n); setPaginaAtual(1); }}
+                      className={`tactile-press px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all ${
+                        itensPagina === n
+                          ? 'bg-accent-dim border-accent text-accent'
+                          : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                      }`}
+                    >
+                      {n === 999 ? 'Tudo' : n}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[11px] text-content-tertiary font-mono">
+                  {paginaAtual}/{totalPaginas}
+                </span>
+              </div>
+              {totalPaginas > 1 && (
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+                    disabled={paginaAtual === 1}
+                    className="tactile-press px-3 py-1.5 rounded-xl text-xs font-medium bg-base-raised border border-base-border text-content-secondary hover:text-content disabled:opacity-30 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
+                  >
+                    Anterior
+                  </button>
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalPaginas || Math.abs(p - paginaAtual) <= 1)
+                      .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                        if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('...');
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i) =>
+                        p === '...' ? (
+                          <span key={`dots-${i}`} className="px-1 py-1 text-[11px] text-content-tertiary">...</span>
+                        ) : (
+                          <button
+                            key={p}
+                            onClick={() => setPaginaAtual(p as number)}
+                            className={`tactile-press w-8 h-8 rounded-lg text-[11px] font-medium border transition-all ${
+                              paginaAtual === p
+                                ? 'bg-accent-dim border-accent text-accent'
+                                : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                  </div>
+                  <button
+                    onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))}
+                    disabled={paginaAtual === totalPaginas}
+                    className="tactile-press px-3 py-1.5 rounded-xl text-xs font-medium bg-base-raised border border-base-border text-content-secondary hover:text-content disabled:opacity-30 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
+                  >
+                    Proximo
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
         <SyncBanner online={online} pendentes={pendentes} />
       </main>
@@ -1040,65 +1126,45 @@ export default function Home() {
         )}
 
         {/* Dashboard de atrasados */}
-        {!buscaGlobal && aptosEsquecidos.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring, delay: 0.2 }}
-            className="mb-6 bg-danger/5 border border-danger/20 rounded-2xl overflow-hidden"
-          >
-            <button
-              onClick={() => setShowAtrasados(!showAtrasados)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-danger/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-              aria-expanded={showAtrasados}
+        {!buscaGlobal && aptosEsquecidos.length > 0 && (() => {
+          const porBloco = aptosEsquecidos.reduce((acc, a) => {
+            if (!acc[a.bloco]) acc[a.bloco] = [];
+            acc[a.bloco].push(a);
+            return acc;
+          }, {} as Record<string, typeof aptosEsquecidos>);
+          const blocosOrdenados = Object.keys(porBloco).sort();
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...spring, delay: 0.2 }}
+              className="mb-6 bg-danger/5 border border-danger/20 rounded-2xl overflow-hidden"
             >
-              <div className="flex items-center gap-2">
-                <Warning size={14} weight="bold" className="text-danger" aria-hidden="true" />
-                <span className="text-xs font-semibold text-danger">
-                  {aptosEsquecidos.length} atrasado{aptosEsquecidos.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {!showAtrasados && (
-                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => setDiasAlerta(Math.max(1, diasAlerta - 1))}
-                      className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                      aria-label="Diminuir dias"
-                    >
-                      -
-                    </button>
-                    <span className="text-[11px] font-mono text-danger w-8 text-center">{diasAlerta}d</span>
-                    <button
-                      onClick={() => setDiasAlerta(diasAlerta + 1)}
-                      className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                      aria-label="Aumentar dias"
-                    >
-                      +
-                    </button>
+              <button
+                onClick={() => setShowAtrasados(!showAtrasados)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-danger/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                aria-expanded={showAtrasados}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Warning size={14} weight="bold" className="text-danger flex-shrink-0" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <span className="text-xs font-semibold text-danger">
+                      {aptosEsquecidos.length} atrasado{aptosEsquecidos.length !== 1 ? 's' : ''}
+                    </span>
+                    {!showAtrasados && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {blocosOrdenados.map((b) => (
+                          <span key={b} className="text-[10px] font-mono text-danger/70 bg-danger/10 px-1.5 py-0.5 rounded">
+                            {b}: {porBloco[b].length}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-                <motion.span
-                  animate={{ rotate: showAtrasados ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-danger"
-                >
-                  <ArrowDown size={14} weight="bold" />
-                </motion.span>
-              </div>
-            </button>
-
-            <AnimatePresence>
-              {showAtrasados && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: 'easeInOut' }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-4 pb-4">
-                    <div className="flex items-center justify-end gap-1.5 mb-2">
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {!showAtrasados && (
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => setDiasAlerta(Math.max(1, diasAlerta - 1))}
                         className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
@@ -1115,39 +1181,72 @@ export default function Home() {
                         +
                       </button>
                     </div>
-                    <div className="space-y-2">
-                      {Object.entries(
-                        aptosEsquecidos.reduce((acc, a) => {
-                          if (!acc[a.bloco]) acc[a.bloco] = [];
-                          acc[a.bloco].push(a);
-                          return acc;
-                        }, {} as Record<string, typeof aptosEsquecidos>)
-                      ).sort(([a], [b]) => a.localeCompare(b)).map(([bloco, aptos]) => (
-                        <div key={bloco} className="bg-danger/5 rounded-xl p-2.5">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[11px] font-semibold text-danger">{bloco}</span>
-                            <span className="text-[10px] font-mono text-danger/70">{aptos.length} apto{aptos.length !== 1 ? 's' : ''}</span>
+                  )}
+                  <motion.span
+                    animate={{ rotate: showAtrasados ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="text-danger"
+                  >
+                    <ArrowDown size={14} weight="bold" />
+                  </motion.span>
+                </div>
+              </button>
+
+              <AnimatePresence>
+                {showAtrasados && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4">
+                      <div className="flex items-center justify-end gap-1.5 mb-2">
+                        <button
+                          onClick={() => setDiasAlerta(Math.max(1, diasAlerta - 1))}
+                          className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                          aria-label="Diminuir dias"
+                        >
+                          -
+                        </button>
+                        <span className="text-[11px] font-mono text-danger w-8 text-center">{diasAlerta}d</span>
+                        <button
+                          onClick={() => setDiasAlerta(diasAlerta + 1)}
+                          className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                          aria-label="Aumentar dias"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {blocosOrdenados.map((bloco) => (
+                          <div key={bloco} className="bg-danger/5 rounded-xl p-2.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[11px] font-semibold text-danger">{bloco}</span>
+                              <span className="text-[10px] font-mono text-danger/70">{porBloco[bloco].length} apto{porBloco[bloco].length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {porBloco[bloco].map((a) => (
+                                <button
+                                  key={`${a.bloco}__${a.apartamento}`}
+                                  onClick={() => { setBlocoAtual(a.bloco); setAptoAtual(a.apartamento); setView('captura'); }}
+                                  className="tactile-press text-[10px] font-mono bg-danger/10 text-danger px-1.5 py-0.5 rounded hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                                >
+                                  {a.apartamento}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-1">
-                            {aptos.map((a) => (
-                              <button
-                                key={`${a.bloco}__${a.apartamento}`}
-                                onClick={() => { setBlocoAtual(a.bloco); setAptoAtual(a.apartamento); setView('captura'); }}
-                                className="tactile-press text-[10px] font-mono bg-danger/10 text-danger px-1.5 py-0.5 rounded hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                              >
-                                {a.apartamento}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })()}
 
         <motion.div
           variants={stagger}
