@@ -119,7 +119,7 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [exportandoZIP, setExportandoZIP] = useState(false);
   const [exportandoFotos, setExportandoFotos] = useState(false);
-  const APP_VERSION = '2.2.0';
+  const APP_VERSION = '2.3.0';
   const [updateDisponivel, setUpdateDisponivel] = useState(false);
   const [versaoAtual, setVersaoAtual] = useState(APP_VERSION);
   const [versaoNova, setVersaoNova] = useState(APP_VERSION);
@@ -425,8 +425,8 @@ export default function Home() {
 
     if (ordem === 'pendentes') {
       result.sort((a, b) => {
-        const aC = a.cybleAntesFeito && a.cybleDepoisFeito && a.qtdDocumentos > 0;
-        const bC = b.cybleAntesFeito && b.cybleDepoisFeito && b.qtdDocumentos > 0;
+        const aC = a.cybleAntesFeito && a.cybleDepoisFeito;
+        const bC = b.cybleAntesFeito && b.cybleDepoisFeito;
         if (aC === bC) return 0;
         return aC ? 1 : -1;
       });
@@ -484,7 +484,7 @@ export default function Home() {
       const total = allAptos.size;
       const completos = [...allAptos].filter((c) => {
         const st = statusMap.get(`${b}__${c}`);
-        const feitoLocal = st && st.cybleAntesFeito && st.cybleDepoisFeito && st.qtdDocumentos > 0;
+        const feitoLocal = st && st.cybleAntesFeito && st.cybleDepoisFeito;
         const feitoOnline = aptosOnline.has(normApto(c));
         return feitoLocal || feitoOnline;
       }).length;
@@ -592,7 +592,7 @@ export default function Home() {
     // Find next pending apto for continuous scan
     const aptoIdx = aptosDoBloco.findIndex((a) => a.apartamento === aptoAtual);
     const proximoApto = aptosDoBloco.slice(aptoIdx + 1).find(
-      (a) => !a.cybleAntesFeito || !a.cybleDepoisFeito || a.qtdDocumentos === 0
+      (a) => !a.cybleAntesFeito || !a.cybleDepoisFeito
     );
 
     return (
@@ -970,7 +970,7 @@ export default function Home() {
               </div>
               <div className="divide-y divide-base-border max-h-64 overflow-y-auto">
                 {resultadosBuscaGlobal.map((r) => {
-                  const completo = r.status && r.status.cybleAntesFeito && r.status.cybleDepoisFeito && r.status.qtdDocumentos > 0;
+                   const completo = r.status && r.status.cybleAntesFeito && r.status.cybleDepoisFeito;
                   const temFoto = r.status && (r.status.cybleAntesFeito || r.status.cybleDepoisFeito);
                   return (
                     <button
@@ -1503,7 +1503,7 @@ function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltr
   }, [fotosOnline]);
 
   const totalAptos = status.length;
-  const completosLocal = status.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0).length;
+  const completosLocal = status.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito).length;
   const completosOnline = aptosComFotoOnline.size;
   const completos = Math.max(completosLocal, completosOnline);
   const andamento = status.filter((s) => emAndamento(s)).length;
@@ -1617,7 +1617,7 @@ function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltr
 
 function emAndamento(s: ApartamentoStatus): boolean {
   const temFoto = s.cybleAntesFeito || s.cybleDepoisFeito;
-  const completo = s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0;
+  const completo = s.cybleAntesFeito && s.cybleDepoisFeito;
   return temFoto && !completo;
 }
 
@@ -1705,7 +1705,7 @@ function EstatisticasPorTorre({ status, fotosOnline, lista }: { status: Apartame
       for (const apto of allAptos) {
         porTorre[torre].total++;
         const local = status.find((s) => s.bloco === torre && s.apartamento === apto);
-        const hasLocal = local && local.cybleAntesFeito && local.cybleDepoisFeito && local.qtdDocumentos > 0;
+        const hasLocal = local && local.cybleAntesFeito && local.cybleDepoisFeito;
         const hasOnline = onlineAptos.has(normApto(apto));
         if (hasLocal || hasOnline) porTorre[torre].feitos++;
         porTorre[torre].fotos += (local?.qtdFotos || 0) + (fotosOnlineCount[`${torre}__${normApto(apto)}`] || 0);

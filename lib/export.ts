@@ -7,7 +7,7 @@ const CATEGORIA_LABELS: Record<string, string> = {
 };
 
 function statusApto(s: ApartamentoStatus): string {
-  if (s.cybleAntesFeito && s.cybleDepoisFeito && s.qtdDocumentos > 0) return 'Concluido';
+  if (s.cybleAntesFeito && s.cybleDepoisFeito) return 'Concluido';
   if (s.cybleAntesFeito || s.cybleDepoisFeito || s.qtdDocumentos > 0) return 'Em andamento';
   return 'Pendente';
 }
