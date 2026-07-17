@@ -119,7 +119,7 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [exportandoZIP, setExportandoZIP] = useState(false);
   const [exportandoFotos, setExportandoFotos] = useState(false);
-  const APP_VERSION = '2.1.0';
+  const APP_VERSION = '2.2.0';
   const [updateDisponivel, setUpdateDisponivel] = useState(false);
   const [versaoAtual, setVersaoAtual] = useState(APP_VERSION);
   const [versaoNova, setVersaoNova] = useState(APP_VERSION);
@@ -524,11 +524,52 @@ export default function Home() {
     return result;
   }, [fotosOnline, status, blocos, lista, fotosOnlineMap, diasAlerta]);
 
+  // Status mesclado (local + online) para exportação
+  const statusMerged = useMemo(() => {
+    const merged = new Map<string, ApartamentoStatus>();
+
+    // 1. Adicionar todos os status locais
+    for (const s of status) {
+      const key = `${s.bloco}__${s.apartamento}`;
+      merged.set(key, { ...s });
+    }
+
+    // 2. Adicionar aptos que existem apenas online (nao na lista local)
+    for (const b of blocos) {
+      const codigosLocais = new Set(lista?.[b] || []);
+      const entry = fotosOnlineMap.get(b);
+      const aptosOnline = entry?.aptos ?? new Set<string>();
+      for (const apto of aptosOnline) {
+        const key = `${b}__${apto}`;
+        if (!merged.has(key)) {
+          merged.set(key, {
+            bloco: b,
+            apartamento: apto,
+            cybleAntesFeito: true,
+            cybleDepoisFeito: true,
+            qtdDocumentos: 0,
+            qtdFotos: fotosCountMap.get(key) || 0,
+          });
+        }
+      }
+    }
+
+    // 3. Atualizar contagem de fotos (max entre local e online) para aptos existentes
+    for (const [key, s] of merged) {
+      const onlineCount = fotosCountMap.get(key) || 0;
+      if (onlineCount > s.qtdFotos) {
+        s.qtdFotos = onlineCount;
+      }
+    }
+
+    return [...merged.values()];
+  }, [status, blocos, lista, fotosOnlineMap, fotosCountMap]);
+
   // Status filtrado para exportação (por torre selecionada)
   const statusExportacao = useMemo(() => {
-    if (torresExportacao.size === 0) return status;
-    return status.filter((s) => torresExportacao.has(s.bloco));
-  }, [status, torresExportacao]);
+    if (torresExportacao.size === 0) return statusMerged;
+    return statusMerged.filter((s) => torresExportacao.has(s.bloco));
+  }, [statusMerged, torresExportacao]);
 
   if (!pinChecked) return null;
 

@@ -3,5 +3,5 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  return NextResponse.json({ version: '2.1.0' });
+  return NextResponse.json({ version: '2.2.0' });
 }

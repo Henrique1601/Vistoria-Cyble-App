@@ -1,4 +1,4 @@
-import { ApartamentoStatus } from './db';
+import { ApartamentoStatus, fotosDoApartamento } from './db';
 
 const CATEGORIA_LABELS: Record<string, string> = {
   cyble_antes: 'cyble_antes',
@@ -632,6 +632,33 @@ export async function exportarZIP(
         zip.file(`${folderName}/${catLabel}_${f.foto_index + 1}.${ext}`, blob);
       } catch { /* skip */ }
     }
+
+    // Fotos locais (não sincronizadas) do IndexedDB
+    try {
+      const fotosLocais = await fotosDoApartamento(s.bloco, s.apartamento);
+      for (const f of fotosLocais) {
+        if (f.synced && f.uploadUrl) {
+          // Se já está online e já foi adicionada, pular
+          const jaOnline = onlineFotos.some(
+            (of) => normApto(of.apartamento) === normApto(f.apartamento) &&
+              ((of.foto_index === 0 && f.categoria === 'cyble_antes') ||
+               (of.foto_index === 1 && f.categoria === 'cyble_depois') ||
+               (of.foto_index >= 2 && f.categoria === 'documento'))
+          );
+          if (jaOnline) continue;
+          try {
+            const resp = await fetch(f.uploadUrl);
+            if (!resp.ok) continue;
+            const blob = await resp.blob();
+            const catLabel = f.categoria === 'cyble_antes' ? 'cyble_antes' : f.categoria === 'cyble_depois' ? 'cyble_depois' : 'documento';
+            zip.file(`${folderName}/${catLabel}_local_${f.timestamp}.jpg`, blob);
+          } catch { /* skip */ }
+        } else if (f.blob && f.blob.size > 0) {
+          const catLabel = f.categoria === 'cyble_antes' ? 'cyble_antes' : f.categoria === 'cyble_depois' ? 'cyble_depois' : 'documento';
+          zip.file(`${folderName}/${catLabel}_local_${f.timestamp}.jpg`, f.blob);
+        }
+      }
+    } catch { /* skip se IndexedDB falhar */ }
   }
 
   if (Object.keys(zip.files).length === 0) {
@@ -778,30 +805,51 @@ export async function relatorioPDFComFotos(
       doc.text(statusStr, pageW - margin - 3, y + 5.5, { align: 'right' });
       y += 11;
 
-      // Buscar fotos deste apto
-      const aptoFotos = fotosOnline.filter(
+      // Buscar fotos online deste apto
+      const aptoFotosOnline = fotosOnline.filter(
         (f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento
       ).sort((a, b) => a.foto_index - b.foto_index);
 
-      if (aptoFotos.length === 0) {
+      // Buscar fotos locais deste apto
+      let aptoFotosLocais: { blob: Blob; categoria: string; timestamp: number; synced: boolean; uploadUrl?: string }[] = [];
+      try {
+        aptoFotosLocais = await fotosDoApartamento(s.bloco, s.apartamento);
+      } catch { /* offline */ }
+
+      // Filtrar locais que não estão online
+      const locaisNaoOnline = aptoFotosLocais.filter((f) => {
+        if (f.synced && f.uploadUrl) {
+          return !aptoFotosOnline.some(
+            (of) => ((of.foto_index === 0 && f.categoria === 'cyble_antes') ||
+                     (of.foto_index === 1 && f.categoria === 'cyble_depois') ||
+                     (of.foto_index >= 2 && f.categoria === 'documento'))
+          );
+        }
+        return true;
+      });
+
+      const totalFotos = aptoFotosOnline.length + locaisNaoOnline.length;
+
+      if (totalFotos === 0) {
         doc.setTextColor(100, 100, 100);
         doc.setFontSize(8);
-        doc.text('Nenhuma foto online', margin + 3, y + 4);
+        doc.text('Nenhuma foto', margin + 3, y + 4);
         y += 8;
         continue;
       }
 
-      // Renderizar fotos (2 por linha, 80x60 cada)
+      // Renderizar fotos online
       const imgW = 80;
       const imgH = 60;
       const gap = 4;
       const perRow = 2;
+      let fotoIdx = 0;
 
-      for (let i = 0; i < aptoFotos.length; i++) {
-        const col = i % perRow;
-        if (col === 0 && i > 0) y += imgH + gap + 4;
+      // Fotos online
+      for (let i = 0; i < aptoFotosOnline.length; i++) {
+        const col = fotoIdx % perRow;
+        if (col === 0 && fotoIdx > 0) y += imgH + gap + 4;
 
-        // Checar espaço
         if (y + imgH + 4 > pageH - 15) {
           doc.addPage();
           pageIdx++;
@@ -814,10 +862,10 @@ export async function relatorioPDFComFotos(
         }
 
         const x = margin + col * (imgW + gap);
-        const catLabel = aptoFotos[i].foto_index === 0 ? 'Antes' : aptoFotos[i].foto_index === 1 ? 'Depois' : `Doc ${aptoFotos[i].foto_index - 1}`;
+        const catLabel = aptoFotosOnline[i].foto_index === 0 ? 'Antes' : aptoFotosOnline[i].foto_index === 1 ? 'Depois' : `Doc ${aptoFotosOnline[i].foto_index - 1}`;
 
         try {
-          const resp = await fetch(aptoFotos[i].foto_url);
+          const resp = await fetch(aptoFotosOnline[i].foto_url);
           if (resp.ok) {
             const blob = await resp.blob();
             const dataUrl = await new Promise<string>((resolve) => {
@@ -826,7 +874,6 @@ export async function relatorioPDFComFotos(
               reader.readAsDataURL(blob);
             });
 
-            // Calcular dimensões para caber no imgW x imgH
             const img = await loadImage(dataUrl);
             const scale = Math.min(imgW / img.width, imgH / img.height);
             const drawW = img.width * scale;
@@ -838,12 +885,63 @@ export async function relatorioPDFComFotos(
             doc.roundedRect(x, y, imgW, imgH, 2, 2, 'F');
             doc.addImage(dataUrl, 'JPEG', offsetX, offsetY, drawW, drawH);
 
-            // Label
             doc.setTextColor(160, 160, 160);
             doc.setFontSize(7);
             doc.text(catLabel, x + 2, y + imgH + 3);
           }
         } catch { /* skip foto com erro */ }
+        fotoIdx++;
+      }
+
+      // Fotos locais não sincronizadas
+      for (let i = 0; i < locaisNaoOnline.length; i++) {
+        const col = fotoIdx % perRow;
+        if (col === 0 && fotoIdx > 0) y += imgH + gap + 4;
+
+        if (y + imgH + 4 > pageH - 15) {
+          doc.addPage();
+          pageIdx++;
+          doc.setFillColor(12, 15, 20);
+          doc.rect(0, 0, pageW, pageH, 'F');
+          doc.setTextColor(180, 180, 180);
+          doc.setFontSize(10);
+          doc.text(`${torre} ${s.apartamento} — fotos`, margin, 16);
+          y = 24;
+        }
+
+        const x = margin + col * (imgW + gap);
+        const catLabel = locaisNaoOnline[i].categoria === 'cyble_antes' ? 'Antes' : locaisNaoOnline[i].categoria === 'cyble_depois' ? 'Depois' : 'Documento';
+
+        try {
+          let blob = locaisNaoOnline[i].blob;
+          if (locaisNaoOnline[i].synced && locaisNaoOnline[i].uploadUrl && blob.size === 0) {
+            const resp = await fetch(locaisNaoOnline[i].uploadUrl!);
+            if (resp.ok) blob = await resp.blob();
+          }
+          if (blob.size === 0) continue;
+
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+
+          const img = await loadImage(dataUrl);
+          const scale = Math.min(imgW / img.width, imgH / img.height);
+          const drawW = img.width * scale;
+          const drawH = img.height * scale;
+          const offsetX = x + (imgW - drawW) / 2;
+          const offsetY = y + (imgH - drawH) / 2;
+
+          doc.setFillColor(35, 38, 45);
+          doc.roundedRect(x, y, imgW, imgH, 2, 2, 'F');
+          doc.addImage(dataUrl, 'JPEG', offsetX, offsetY, drawW, drawH);
+
+          doc.setTextColor(160, 160, 160);
+          doc.setFontSize(7);
+          doc.text(`${catLabel} (local)`, x + 2, y + imgH + 3);
+        } catch { /* skip foto com erro */ }
+        fotoIdx++;
       }
 
       y += imgH + gap + 8;
