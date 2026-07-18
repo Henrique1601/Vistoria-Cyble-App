@@ -64,8 +64,13 @@ import {
   formatarTimestampBackup,
 } from '@/lib/backup';
 import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto } from '@/lib/utils';
+import { getDiasAlerta, getItensPagina } from '@/lib/settings';
+import { addNotification, autoDismiss } from '@/lib/notifications';
+import NotificationCenter from '@/components/NotificationCenter';
+import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
+import TowerReportPanel from '@/components/TowerReportPanel';
 
-type View = 'blocos' | 'apartamentos' | 'captura';
+type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes';
 
 interface FotoOnline {
   id: number;
@@ -102,6 +107,7 @@ export default function Home() {
   const [diasAlerta, setDiasAlerta] = useState(7);
   const [showAtrasados, setShowAtrasados] = useState(false);
   const [itensPagina, setItensPagina] = useState<10 | 20 | 50 | 999>(20);
+  const [selectedTower, setSelectedTower] = useState<string | null>(null);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const { theme, toggle: toggleTheme } = useTheme();
   const { toast } = useToast();
@@ -113,7 +119,7 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [exportandoZIP, setExportandoZIP] = useState(false);
   const [exportandoFotos, setExportandoFotos] = useState(false);
-  const APP_VERSION = '2.4.0';
+  const APP_VERSION = '2.6.0';
   const [updateDisponivel, setUpdateDisponivel] = useState(false);
   const [versaoAtual, setVersaoAtual] = useState(APP_VERSION);
   const [versaoNova, setVersaoNova] = useState(APP_VERSION);
@@ -130,6 +136,8 @@ export default function Home() {
     const saved = localStorage.getItem('vistoria_pin');
     setPin(saved);
     setPinChecked(true);
+    setDiasAlerta(getDiasAlerta());
+    setItensPagina(getItensPagina() as 10 | 20 | 50 | 999);
   }, []);
 
   useEffect(() => {
@@ -159,6 +167,9 @@ export default function Home() {
           setVersaoAtual(event.data.currentVersion);
           setVersaoNova(event.data.latestVersion);
           setUpdateDisponivel(event.data.hasUpdate);
+          if (event.data.hasUpdate) {
+            addNotification({ tipo: 'update', titulo: 'Atualizacao disponivel', mensagem: `Nova versao ${event.data.latestVersion} disponivel.` });
+          }
         }
       });
       navigator.serviceWorker.ready?.then((reg) => {
@@ -202,9 +213,22 @@ export default function Home() {
   // Checar espaço do IndexedDB
   useEffect(() => {
     if (!pin) return;
-    checarEspacoStorage().then(setEspacoStorage);
+    let notified = false;
+    checarEspacoStorage().then((e) => {
+      setEspacoStorage(e);
+      if (e && e.pct > 85 && !notified) {
+        notified = true;
+        addNotification({ tipo: 'storage', titulo: 'Armazenamento quase cheio', mensagem: `${e.pct}% do espaco utilizado. Considere fazer backup e limpar fotos locais.` });
+      }
+    });
     const interval = setInterval(() => {
-      checarEspacoStorage().then(setEspacoStorage);
+      checarEspacoStorage().then((e) => {
+        setEspacoStorage(e);
+        if (e && e.pct > 85 && !notified) {
+          notified = true;
+          addNotification({ tipo: 'storage', titulo: 'Armazenamento quase cheio', mensagem: `${e.pct}% do espaco utilizado. Considere fazer backup e limpar fotos locais.` });
+        }
+      });
     }, 60000);
     return () => clearInterval(interval);
   }, [pin]);
@@ -378,6 +402,13 @@ export default function Home() {
       if (failed) break;
       const batch = pendentesLista.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(uploadOne));
+    }
+    if (failed) {
+      const nId = addNotification({ tipo: 'error', titulo: 'Erro na sincronizacao', mensagem: 'Uma ou mais fotos falharam ao enviar. Verifique sua conexao.' });
+      autoDismiss(nId, 8000);
+    } else if (pendentesLista.length > 0) {
+      const nId = addNotification({ tipo: 'sync', titulo: 'Sincronizado', mensagem: `${pendentesLista.length} foto(s) enviada(s) com sucesso.` });
+      autoDismiss(nId, 5000);
     }
     await refreshStatus();
   }
@@ -645,6 +676,23 @@ export default function Home() {
 
   if (!lista) {
     return <SetupScreen onDone={(l) => setLista(l)} />;
+  }
+
+  if (view === 'configuracoes') {
+    return (
+      <>
+        <ConfiguracoesClient onVoltar={() => setView('blocos')} />
+        <BottomNav
+          active="config"
+          onNavigate={(v) => {
+            setActiveNav(v as typeof activeNav);
+            haptic('selection');
+            if (v === 'camera') setModoEscaneamento(true);
+            else setView(v as View);
+          }}
+        />
+      </>
+    );
   }
 
   if (view === 'captura' && blocoAtual && aptoAtual) {
@@ -1040,7 +1088,7 @@ export default function Home() {
                 {theme === 'light' && <Moon size={16} weight="bold" aria-hidden="true" />}
                 {theme === 'auto' && <><Sun size={10} weight="bold" aria-hidden="true" /><Moon size={10} weight="bold" aria-hidden="true" className="ml-[-2px]" /></>}
               </button>
-              <button
+               <button
                 onClick={() => setModoEscaneamento(!modoEscaneamento)}
                 aria-label={modoEscaneamento ? 'Desativar modo escaneamento' : 'Ativar modo escaneamento rapido'}
                 className={`tactile-press w-9 h-9 rounded-xl border flex items-center justify-center focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors ${
@@ -1051,6 +1099,7 @@ export default function Home() {
               >
                 <Scan size={16} weight="bold" aria-hidden="true" />
               </button>
+              <NotificationCenter />
             </div>
           </div>
           <p className="text-sm text-content-tertiary ml-5">
@@ -1098,7 +1147,7 @@ export default function Home() {
           blocos={blocos}
           progressoMap={progressoMap}
           loading={loadingSkeleton}
-          onSelect={(b) => { haptic('light'); setBlocoAtual(b); setView('apartamentos'); setBusca(''); refreshStatus(); }}
+          onSelect={(b) => { haptic('light'); setSelectedTower(b); }}
         />
 
         <ExportSection
@@ -1149,9 +1198,31 @@ export default function Home() {
           haptic('selection');
           if (v === 'camera') {
             setModoEscaneamento(true);
+          } else if (v === 'config') {
+            setView('configuracoes');
+          } else if (v === 'inicio') {
+            setView('blocos');
+            setBlocoAtual(null);
           }
         }}
       />
+      <AnimatePresence>
+        {selectedTower && (
+          <TowerReportPanel
+            tower={selectedTower}
+            status={status}
+            fotosOnline={fotosOnline}
+            fotosCountMap={fotosCountMap}
+            onNavigateToApto={(bloco, apto) => {
+              setSelectedTower(null);
+              setBlocoAtual(bloco);
+              setAptoAtual(apto);
+              setView('captura');
+            }}
+            onClose={() => setSelectedTower(null)}
+          />
+        )}
+      </AnimatePresence>
       <SyncBanner online={online} pendentes={pendentes} />
     </main>
   );

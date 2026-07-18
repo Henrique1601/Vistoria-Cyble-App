@@ -1,0 +1,398 @@
+'use client';
+
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  ArrowLeft,
+  Moon,
+  Sun,
+  CircleHalf,
+  Camera,
+  Database,
+  Warning,
+  Trash,
+  ArrowDown,
+  ArrowUp,
+  Lock,
+  Info,
+  GithubLogo,
+  GearSix,
+} from '@phosphor-icons/react';
+import { useTheme } from '@/lib/theme';
+import { haptic } from '@/lib/haptic';
+import {
+  getQualidadeFoto,
+  setQualidadeFoto,
+  getScanMode,
+  setScanMode,
+  getDiasAlerta,
+  setDiasAlerta,
+  getItensPagina,
+  setItensPagina,
+} from '@/lib/settings';
+import { backupDados, restaurarDados, checarEspacoStorage } from '@/lib/db';
+import { fazerBackupManual } from '@/lib/backup';
+import { useToast } from '@/components/Toast';
+import { spring } from '@/lib/motion';
+
+const APP_VERSION = '2.6.0';
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-6">
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-content-tertiary mb-3">
+        {title}
+      </h3>
+      <div className="bg-base-raised border border-base-border rounded-2xl divide-y divide-base-border">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SettingRow({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3.5 gap-4">
+      <div className="min-w-0">
+        <span className="text-sm font-medium text-content">{label}</span>
+        {description && (
+          <p className="text-xs text-content-tertiary mt-0.5">{description}</p>
+        )}
+      </div>
+      <div className="flex-shrink-0">{children}</div>
+    </div>
+  );
+}
+
+function ToggleGroup({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: string; icon?: React.ReactNode }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex gap-1">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => { haptic('light'); onChange(opt.value); }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            value === opt.value
+              ? 'bg-accent text-base'
+              : 'bg-base-overlay text-content-secondary hover:text-content border border-base-border'
+          }`}
+        >
+          {opt.icon}
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void }) {
+  const { theme, toggle: toggleTheme } = useTheme();
+  const { toast } = useToast();
+  const [qualidade, setQualidade] = useState(getQualidadeFoto);
+  const [scanDefault, setScanDefault] = useState(getScanMode);
+  const [dias, setDias] = useState(getDiasAlerta);
+  const [itens, setItens] = useState(getItensPagina);
+  const [espaco, setEspaco] = useState<{ usado: number; total: number; pct: number } | null>(null);
+  const [clearing, setClearing] = useState(false);
+
+  // Load storage info on mount
+  useState(() => {
+    checarEspacoStorage().then(setEspaco);
+  });
+
+  const temIcon = theme === 'dark' ? <Moon size={14} /> : theme === 'light' ? <Sun size={14} /> : <CircleHalf size={14} />;
+
+  function handleTema(t: string) {
+    const newTheme = t as 'dark' | 'light' | 'auto';
+    // The theme provider handles persistence
+    toggleTheme();
+    // Force set if different
+    if (theme !== newTheme) {
+      localStorage.setItem('vistoria_theme', newTheme);
+      window.location.reload();
+    }
+  }
+
+  function handleQualidade(q: string) {
+    setQualidade(q as '50' | '75' | '90');
+    setQualidadeFoto(q as '50' | '75' | '90');
+    toast(`Qualidade alterada para ${q}%`, 'success');
+  }
+
+  function handleScanMode(v: string) {
+    const val = v === 'true';
+    setScanDefault(val);
+    setScanMode(val);
+    toast(val ? 'Modo escaneamento ativado por padrao' : 'Modo escaneamento desativado por padrao', 'info');
+  }
+
+  function handleDiasAlerta(d: string) {
+    const val = Math.max(1, Math.min(90, Number(d) || 7));
+    setDias(val);
+    setDiasAlerta(val);
+  }
+
+  function handleItensPagina(v: string) {
+    const val = Number(v) as 10 | 20 | 50 | 999;
+    setItens(val);
+    setItensPagina(val);
+  }
+
+  async function handleExportBackup() {
+    haptic('medium');
+    try {
+      await fazerBackupManual();
+      toast('Backup exportado com sucesso', 'success');
+    } catch {
+      toast('Erro ao exportar backup', 'error');
+    }
+  }
+
+  async function handleImportBackup() {
+    haptic('medium');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const result = await restaurarDados(text);
+        toast(`${result.fotos} fotos e ${result.syncLog} logs restaurados`, 'success');
+        window.location.reload();
+      } catch {
+        toast('Erro ao restaurar backup', 'error');
+      }
+    };
+    input.click();
+  }
+
+  async function handleClearLocalPhotos() {
+    if (!window.confirm('Excluir todas as fotos locais nao sincronizadas? Esta acao nao pode ser desfeita.')) return;
+    setClearing(true);
+    haptic('heavy');
+    try {
+      const { openDB } = await import('idb');
+      const db = await openDB('vistoria-cyble', 2);
+      await db.clear('fotos');
+      await db.clear('syncLog');
+      toast('Fotos locais excluidas', 'success');
+      checarEspacoStorage().then(setEspaco);
+    } catch {
+      toast('Erro ao limpar dados', 'error');
+    }
+    setClearing(false);
+  }
+
+  async function handleClearAll() {
+    if (!window.confirm('Excluir TODOS os dados do app? Fotos, configuracoes e historico serao perdidos.')) return;
+    if (!window.confirm('Tem certeza absoluta? Nao sera possivel recuperar os dados.')) return;
+    setClearing(true);
+    haptic('heavy');
+    try {
+      indexedDB.deleteDatabase('vistoria-cyble');
+      localStorage.clear();
+      toast('Todos os dados excluidos', 'success');
+      setTimeout(() => window.location.reload(), 1000);
+    } catch {
+      toast('Erro ao limpar dados', 'error');
+    }
+  }
+
+  function formatBytes(bytes: number) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  return (
+    <main className="min-h-[100dvh] bg-base">
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+        <motion.div
+          initial={{ opacity: 0, x: -12 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={spring}
+          className="flex items-center gap-3 mb-8"
+        >
+          <button
+            onClick={onVoltar}
+            aria-label="Voltar"
+            className="tactile-press w-10 h-10 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+          >
+            <ArrowLeft size={18} weight="bold" aria-hidden="true" />
+          </button>
+          <div className="flex items-center gap-2">
+            <GearSix size={20} weight="duotone" className="text-accent" />
+            <h1 className="text-xl font-semibold tracking-tight">Configuracoes</h1>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.1 }}>
+          <Section title="Aparencia">
+            <SettingRow label="Tema">
+              <ToggleGroup
+                value={theme}
+                onChange={handleTema}
+                options={[
+                  { label: 'Escuro', value: 'dark', icon: <Moon size={12} /> },
+                  { label: 'Claro', value: 'light', icon: <Sun size={12} /> },
+                  { label: 'Auto', value: 'auto', icon: <CircleHalf size={12} /> },
+                ]}
+              />
+            </SettingRow>
+          </Section>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.15 }}>
+          <Section title="Captura">
+            <SettingRow label="Qualidade da foto" description="Fotos maiores = mais detalhes, mais armazenamento">
+              <ToggleGroup
+                value={qualidade}
+                onChange={handleQualidade}
+                options={[
+                  { label: '50%', value: '50' },
+                  { label: '75%', value: '75' },
+                  { label: '90%', value: '90' },
+                ]}
+              />
+            </SettingRow>
+            <SettingRow label="Modo escaneamento" description="Abrir camera automaticamente ao entrar no apto">
+              <ToggleGroup
+                value={String(scanDefault)}
+                onChange={handleScanMode}
+                options={[
+                  { label: 'On', value: 'true', icon: <Camera size={12} /> },
+                  { label: 'Off', value: 'false' },
+                ]}
+              />
+            </SettingRow>
+          </Section>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.2 }}>
+          <Section title="Dados">
+            <SettingRow label="Dias para alerta" description="Aptos sem foto ha mais de X dias aparecem como atrasados">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { haptic('light'); handleDiasAlerta(String(Math.max(1, dias - 1))); }}
+                  className="w-8 h-8 rounded-lg bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content transition-colors"
+                  aria-label="Diminuir"
+                >
+                  <ArrowDown size={14} weight="bold" />
+                </button>
+                <span className="w-8 text-center text-sm font-mono font-semibold tabular-nums">{dias}</span>
+                <button
+                  onClick={() => { haptic('light'); handleDiasAlerta(String(Math.min(90, dias + 1))); }}
+                  className="w-8 h-8 rounded-lg bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content transition-colors"
+                  aria-label="Aumentar"
+                >
+                  <ArrowUp size={14} weight="bold" />
+                </button>
+              </div>
+            </SettingRow>
+            <SettingRow label="Itens por pagina" description="Quantidade de aptos exibidos na lista">
+              <ToggleGroup
+                value={String(itens)}
+                onChange={handleItensPagina}
+                options={[
+                  { label: '10', value: '10' },
+                  { label: '20', value: '20' },
+                  { label: '50', value: '50' },
+                  { label: 'Tudo', value: '999' },
+                ]}
+              />
+            </SettingRow>
+            <div className="px-4 py-3.5">
+              <button
+                onClick={handleExportBackup}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+              >
+                <ArrowDown size={16} weight="bold" />
+                Exportar backup
+              </button>
+            </div>
+            <div className="px-4 py-3.5">
+              <button
+                onClick={handleImportBackup}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+              >
+                <ArrowUp size={16} weight="bold" />
+                Importar backup
+              </button>
+            </div>
+            <div className="px-4 py-3.5">
+              <button
+                onClick={handleClearLocalPhotos}
+                disabled={clearing}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/20 disabled:opacity-40 transition-all"
+              >
+                <Trash size={16} weight="bold" />
+                {clearing ? 'Limpando...' : 'Limpar fotos locais'}
+              </button>
+            </div>
+            <div className="px-4 py-3.5">
+              <button
+                onClick={handleClearAll}
+                disabled={clearing}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/20 disabled:opacity-40 transition-all"
+              >
+                <Warning size={16} weight="bold" />
+                {clearing ? 'Limpando...' : 'Limpar tudo'}
+              </button>
+            </div>
+          </Section>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.25 }}>
+          <Section title="Sobre">
+            <SettingRow label="Versao" description={`Vistoria Cyble v${APP_VERSION}`}>
+              <Info size={16} className="text-content-tertiary" />
+            </SettingRow>
+            {espaco && (
+              <SettingRow label="Armazenamento" description={`${formatBytes(espaco.usado)} de ${formatBytes(espaco.total)} (${espaco.pct}%)`}>
+                <div className="w-16 h-2 bg-base-overlay rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      espaco.pct > 85 ? 'bg-danger' : espaco.pct > 60 ? 'bg-warn' : 'bg-success'
+                    }`}
+                    style={{ width: `${Math.min(100, espaco.pct)}%` }}
+                  />
+                </div>
+              </SettingRow>
+            )}
+            <div className="px-4 py-3.5">
+              <a
+                href="https://github.com/Henrique1601/Vistoria-Cyble-App"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+              >
+                <GithubLogo size={16} weight="bold" />
+                Ver no GitHub
+              </a>
+            </div>
+          </Section>
+        </motion.div>
+      </div>
+    </main>
+  );
+}
