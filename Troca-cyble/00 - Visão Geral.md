@@ -11,7 +11,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **Armazenamento nuvem:** Vercel Blob (`@vercel/blob`) + Neon PostgreSQL
 - **Fonts:** Space Grotesk (display), IBM Plex Mono (mono), Inter (body)
 - **Deploy:** Vercel (auto-deploy do GitHub)
-- **Versão atual:** 2.7.0
+- **Versão atual:** 2.8.0
 
 ## Funcionalidades
 1. **PIN de acesso** — autenticação simples via variável de ambiente `APP_PIN` (4821)

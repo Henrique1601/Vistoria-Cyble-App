@@ -403,6 +403,28 @@
 
 ---
 
+## v2.8.0 — Julho 2026
+
+### 59. Audit Log
+- **Status:** ✅
+- **Descrição:** Sistema de auditoria via IndexedDB. Registra ações: fotos capturadas/deletadas/anotadas/compartilhadas, sync iniciado/completado/falhou, exports (CSV/PDF/XLSX/ZIP/HTML), backup criado/restaurado, config alteradas, login/logout. Auto-trim para 500 registros, busca e filtros por tipo de ação.
+- **Uso:** Rastreabilidade de todas as ações do usuário
+- **Dependências:** Nenhuma
+
+### 60. Scan Mode Pro
+- **Status:** ✅
+- **Descrição:** Feedback sonoro e de vibração via Web Audio API. Tons diferenciados por evento (foto, sync, erro, completo, próximo apto). Vibração patterns configuráveis. Toggles de áudio e vibração no settings.
+- **Uso:** Feedback tátil durante escaneamento rápido
+- **Dependências:** Nenhuma
+
+### 61. HTML Report Export
+- **Status:** ✅
+- **Descrição:** Exportação de relatório HTML standalone com thumbs de fotos embutidos, stats por torre, progress bars, tema escuro. Interface `HtmlFoto` para mapeamento simplificado. Botão dedicado na seção de exportação.
+- **Uso:** Relatório visual compartilhável sem precisar de PDF
+- **Dependências:** Nenhuma
+
+---
+
 ## Notas
 - Todas as funcionalidades são independentes (podem ser implementadas em qualquer ordem)
 - Não dependem de novas APIs externas

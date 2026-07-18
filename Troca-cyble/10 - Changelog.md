@@ -1,5 +1,33 @@
 # Changelog — Vistoria Cyble
 
+## v2.8.0 (18/07/2026)
+
+### Audit Log
+- **`lib/auditLog.ts`** — Estado reativo de auditoria via IndexedDB
+  - Actions rastreadas: `photo_captured`, `photo_deleted`, `photo_annotated`, `photo_shared`, `sync_started`, `sync_completed`, `sync_failed`, `export_csv`, `export_pdf`, `export_xlsx`, `export_zip`, `export_html`, `backup_created`, `backup_restored`, `settings_changed`, `login`, `logout`
+  - Auto-trim para máx. 500 registros
+  - Search e filtro por tipo de ação
+- **`components/AuditLogScreen.tsx`** — Tela dedicada
+  - Header com contadores e busca
+  - Filtros: Todas / Fotos / Sync / Exports / Backup / Config
+  - Lista com ícone colorido por ação, descrição, timestamp relativo
+
+### Scan Mode Pro
+- **`lib/scanPro.ts`** — Feedback sonoro + vibração via Web Audio API
+  - Tons diferenciados por evento: foto capturada, foto sincronizada, categoria alterada, erro, completo, próximo apto
+  - Vibração patterns:拍 (photo), sync, error, success
+  - Toggles configuráveis: `audioEnabled`, `vibrationEnabled`
+  - Chamado em `CapturaScreen` ao salvar foto
+
+### HTML Report Export
+- **`lib/export/html.ts`** — Gerador de relatório HTML standalone
+  - `gerarRelatorioHTML()` gera HTML com thumbs de fotos embutidos, stats por torre, progress bars, tema escuro
+  - `downloadHTML()` para download no browser
+  - Interface `HtmlFoto` para mapeamento simplificado de fotos
+- **`components/ExportSection.tsx`** — Novo botão HTML na seção de exportação
+
+---
+
 ## v2.7.0 (18/07/2026)
 
 ### Fila de Sync Avançada
