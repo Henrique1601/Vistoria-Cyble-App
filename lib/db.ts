@@ -82,16 +82,6 @@ export async function carregarListaApartamentos(): Promise<Record<string, string
   return (await db.get('config', 'blocos')) ?? {};
 }
 
-export async function salvarPin(pin: string) {
-  const db = await getDb();
-  await db.put('config', pin, 'pin');
-}
-
-export async function carregarPin(): Promise<string | null> {
-  const db = await getDb();
-  return (await db.get('config', 'pin')) ?? null;
-}
-
 // --- Fotos ---
 export async function salvarFoto(rec: Omit<FotoRecord, 'id'>) {
   const db = await getDb();
@@ -139,10 +129,20 @@ export async function statusDeTodosApartamentos(
 ): Promise<ApartamentoStatus[]> {
   const db = await getDb();
   const all = await db.getAll('fotos');
+
+  const fotosMap = new Map<string, FotoRecord[]>();
+  for (const f of all) {
+    const key = `${f.bloco}__${f.apartamento}`;
+    const arr = fotosMap.get(key) || [];
+    arr.push(f);
+    fotosMap.set(key, arr);
+  }
+
   const result: ApartamentoStatus[] = [];
   for (const bloco of Object.keys(lista)) {
     for (const apto of lista[bloco]) {
-      const fotos = all.filter((f) => f.bloco === bloco && f.apartamento === apto);
+      const key = `${bloco}__${apto}`;
+      const fotos = fotosMap.get(key) || [];
       result.push({
         bloco,
         apartamento: apto,
@@ -157,15 +157,18 @@ export async function statusDeTodosApartamentos(
 }
 
 // --- Compressao de imagem ---
-export async function comprimirImagem(file: File, maxLargura = 1920, qualidade = 0.75): Promise<Blob> {
+const MAX_IMAGE_WIDTH = 1920;
+const IMAGE_QUALITY = 0.75;
+
+export async function comprimirImagem(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
-  const escala = Math.min(1, maxLargura / Math.max(bitmap.width, bitmap.height));
+  const escala = Math.min(1, MAX_IMAGE_WIDTH / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * escala);
   const h = Math.round(bitmap.height * escala);
   const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(bitmap, 0, 0, w, h);
-  return canvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
+  return canvas.convertToBlob({ type: 'image/jpeg', quality: IMAGE_QUALITY });
 }
 
 // --- Ultimas fotos (para acesso rapido) ---
@@ -181,12 +184,6 @@ export async function registrarSync(entry: Omit<SyncLogEntry, 'id'>) {
   await db.add('syncLog', entry as SyncLogEntry);
 }
 
-export async function historicoSync(): Promise<SyncLogEntry[]> {
-  const db = await getDb();
-  const all = await db.getAll('syncLog');
-  return all.sort((a, b) => b.timestamp - a.timestamp);
-}
-
 // --- Backup / Restore ---
 export async function backupDados(): Promise<Blob> {
   const db = await getDb();
@@ -197,7 +194,7 @@ export async function backupDados(): Promise<Blob> {
   const fotosSerializadas = await Promise.all(
     fotos.map(async (f) => {
       let blobBase64 = '';
-      if (f.blob && f.blob.size > 0) {
+      if (f.blob && f.blob.size > 0 && !f.synced) {
         blobBase64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
@@ -223,19 +220,18 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
   const dados = JSON.parse(json);
   const db = await getDb();
 
-  // Limpar dados existentes
   await db.clear('fotos');
   await db.clear('syncLog');
   await db.clear('config');
 
-  // Restaurar blocos
   if (dados.blocos) {
     await db.put('config', dados.blocos, 'blocos');
   }
 
-  // Restaurar fotos
   let fotosCount = 0;
   if (dados.fotos) {
+    const tx = db.transaction('fotos', 'readwrite');
+    const store = tx.objectStore('fotos');
     for (const f of dados.fotos) {
       let blob: Blob;
       if (f.blobBase64) {
@@ -245,12 +241,12 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
         blob = new Blob([], { type: 'image/jpeg' });
       }
       const { blobBase64, ...rest } = f;
-      await db.add('fotos', { ...rest, blob } as FotoRecord);
+      await store.add({ ...rest, blob } as FotoRecord);
       fotosCount++;
     }
+    await tx.done;
   }
 
-  // Restaurar syncLog
   let syncCount = 0;
   if (dados.syncLog) {
     for (const entry of dados.syncLog) {
@@ -262,7 +258,7 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
   return { fotos: fotosCount, syncLog: syncCount };
 }
 
-// --- Checar espaço do IndexedDB ---
+// --- Checar espaco do IndexedDB ---
 export async function checarEspacoStorage(): Promise<{ usado: number; total: number; pct: number } | null> {
   if (!navigator.storage?.estimate) return null;
   try {

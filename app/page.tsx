@@ -63,7 +63,7 @@ import {
   deveFazerBackup,
   formatarTimestampBackup,
 } from '@/lib/backup';
-import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput } from '@/lib/utils';
+import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto } from '@/lib/utils';
 
 type View = 'blocos' | 'apartamentos' | 'captura';
 
@@ -332,7 +332,13 @@ export default function Home() {
   async function tentarSincronizar() {
     if (!navigator.onLine || !pin) return;
     const pendentesLista = await fotosPendentes();
-    for (const foto of pendentesLista) {
+    if (pendentesLista.length === 0) return;
+
+    const CONCURRENCY = 3;
+    let failed = false;
+
+    async function uploadOne(foto: FotoRecord) {
+      if (failed) return;
       try {
         const form = new FormData();
         form.append('file', foto.blob, `${foto.categoria}.jpg`);
@@ -342,7 +348,7 @@ export default function Home() {
         form.append('timestamp', String(foto.timestamp));
         const resp = await fetch('/api/upload', {
           method: 'POST',
-          headers: { 'x-app-pin': pin },
+          headers: { 'x-app-pin': pin! },
           body: form,
         });
         if (resp.ok) {
@@ -353,19 +359,25 @@ export default function Home() {
             categoria: foto.categoria, url: data.url, ok: true,
           });
         } else {
+          failed = true;
           await registrarSync({
             timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
             categoria: foto.categoria, url: '', ok: false, erro: `HTTP ${resp.status}`,
           });
-          break;
         }
       } catch (e: any) {
+        failed = true;
         await registrarSync({
           timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
           categoria: foto.categoria, url: '', ok: false, erro: e?.message ?? 'offline',
         });
-        break;
       }
+    }
+
+    for (let i = 0; i < pendentesLista.length; i += CONCURRENCY) {
+      if (failed) break;
+      const batch = pendentesLista.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(uploadOne));
     }
     await refreshStatus();
   }
@@ -491,7 +503,7 @@ export default function Home() {
 
   // Dashboard with date filter
   const statusFiltradoPorData = useMemo(() => {
-    const hasDateFilter = dataFiltro || dataInicio || dataFiltro;
+    const hasDateFilter = dataFiltro || dataInicio;
     if (!hasDateFilter) return status;
 
     const aptosComFotoNoPeriodo = new Set<string>();
@@ -1185,8 +1197,6 @@ function SyncBanner({ online, pendentes }: { online: boolean; pendentes: number 
     </motion.div>
   );
 }
-
-function normApto(s: string) { return s.replace(/^0+/, '') || '0'; }
 
 function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltro, dataInicio, onFiltroDataChange, onFiltroInicioChange }: {
   status: ApartamentoStatus[];

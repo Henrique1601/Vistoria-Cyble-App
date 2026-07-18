@@ -123,6 +123,9 @@ export default function PhotoEditor({
     haptic('light');
   }, []);
 
+  const rafRef = useRef<number>(0);
+  const pendingPointRef = useRef<{ x: number; y: number } | null>(null);
+
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas || !estadoRef.current.desenhando) return;
@@ -131,34 +134,50 @@ export default function PhotoEditor({
     const ponto = obterPontoCanvas(canvas, estadoAtual, e.clientX, e.clientY);
 
     if (estadoAtual.ferramenta === 'caneta') {
-      setEstado((prev) => {
-        const acoes = [...prev.acoes];
-        const ultima = acoes[acoes.length - 1];
-        if (ultima?.tipo === 'caneta') {
-          acoes[acoes.length - 1] = {
-            ...ultima,
-            pontos: [...ultima.pontos, ponto],
-          };
-        }
-        return { ...prev, acoes };
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = 0;
+        const p = pendingPointRef.current;
+        if (!p) return;
+        pendingPointRef.current = null;
+        setEstado((prev) => {
+          const acoes = [...prev.acoes];
+          const ultima = acoes[acoes.length - 1];
+          if (ultima?.tipo === 'caneta') {
+            acoes[acoes.length - 1] = {
+              ...ultima,
+              pontos: [...ultima.pontos, p],
+            };
+          }
+          return { ...prev, acoes };
+        });
       });
+      pendingPointRef.current = ponto;
     } else if (estadoAtual.ferramenta === 'seta' && estadoAtual.pontoAtual) {
-      setEstado((prev) => {
-        const acoes = [...prev.acoes];
-        const ultima = acoes[acoes.length - 1];
-        if (ultima?.tipo === 'seta') {
-          acoes[acoes.length - 1] = { ...ultima, fim: ponto };
-        } else {
-          acoes.push({
-            tipo: 'seta',
-            inicio: estadoAtual.pontoAtual!,
-            fim: ponto,
-            cor: prev.cor,
-            espessura: prev.espessura,
-          });
-        }
-        return { ...prev, acoes };
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = 0;
+        const p = pendingPointRef.current;
+        if (!p) return;
+        pendingPointRef.current = null;
+        setEstado((prev) => {
+          const acoes = [...prev.acoes];
+          const ultima = acoes[acoes.length - 1];
+          if (ultima?.tipo === 'seta') {
+            acoes[acoes.length - 1] = { ...ultima, fim: p };
+          } else {
+            acoes.push({
+              tipo: 'seta',
+              inicio: estadoAtual.pontoAtual!,
+              fim: p,
+              cor: prev.cor,
+              espessura: prev.espessura,
+            });
+          }
+          return { ...prev, acoes };
+        });
       });
+      pendingPointRef.current = ponto;
     }
   }, []);
 

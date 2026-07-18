@@ -1,4 +1,7 @@
 import type { ApartamentoStatus } from '../db';
+import { normApto as _normApto } from '../utils';
+
+export { _normApto as normApto };
 
 export const CATEGORIA_LABELS: Record<string, string> = {
   cyble_antes: 'cyble_antes',
@@ -39,10 +42,6 @@ export async function shareFile(blob: Blob, filename: string, title: string) {
   a.click();
   URL.revokeObjectURL(url);
   return true;
-}
-
-export function normApto(a: string): string {
-  return a.replace(/^0+/, '') || '0';
 }
 
 export function loadImage(src: string): Promise<HTMLImageElement> {

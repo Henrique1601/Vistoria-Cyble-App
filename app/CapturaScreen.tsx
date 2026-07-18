@@ -21,22 +21,13 @@ import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { EmptyStatePhotos } from '@/components/EmptyState';
 import PhotoEditor from '@/components/PhotoEditor';
+import { spring, stagger, item } from '@/lib/motion';
 
 const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi: boolean }[] = [
   { key: 'cyble_antes', label: 'Cyble — Antes', icon: <Camera size={16} weight="duotone" />, multi: false },
   { key: 'cyble_depois', label: 'Cyble — Depois', icon: <Camera size={16} weight="duotone" />, multi: true },
   { key: 'documento', label: 'Documento do apartamento', icon: <FileText size={16} weight="duotone" />, multi: true },
 ];
-
-const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
-const stagger = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: spring },
-};
 
 export default function CapturaScreen({
   bloco,

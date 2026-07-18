@@ -1,3 +1,7 @@
+export function normApto(a: string): string {
+  return a.replace(/^0+/, '') || '0';
+}
+
 export function formatarDataParaInput(data: Date): string {
   const ano = data.getFullYear();
   const mes = (data.getMonth() + 1).toString().padStart(2, '0');
