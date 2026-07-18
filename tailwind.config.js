@@ -9,32 +9,32 @@ module.exports = {
     extend: {
       colors: {
         base: {
-          DEFAULT: '#0c0f14',
-          raised: '#141920',
-          overlay: '#1a2029',
-          border: '#253040',
-          'border-subtle': '#1c2533',
+          DEFAULT: 'var(--color-base)',
+          raised: 'var(--color-base-raised)',
+          overlay: 'var(--color-base-overlay)',
+          border: 'var(--color-base-border)',
+          'border-subtle': 'var(--color-base-border-subtle)',
         },
         content: {
-          DEFAULT: '#e2e8f0',
-          secondary: '#94a3b8',
-          tertiary: '#64748b',
+          DEFAULT: 'var(--color-content)',
+          secondary: 'var(--color-content-secondary)',
+          tertiary: 'var(--color-content-tertiary)',
         },
         accent: {
-          DEFAULT: '#e8823a',
-          dim: '#6b3a1a',
-          hover: '#f09248',
+          DEFAULT: 'var(--color-accent)',
+          dim: 'var(--color-accent-dim)',
+          hover: 'var(--color-accent-hover)',
         },
         success: {
-          DEFAULT: '#34d399',
-          dim: '#064e3b',
+          DEFAULT: 'var(--color-success)',
+          dim: 'var(--color-success-dim)',
         },
         danger: {
-          DEFAULT: '#f87171',
-          dim: '#7f1d1d',
+          DEFAULT: 'var(--color-danger)',
+          dim: 'var(--color-danger-dim)',
         },
         warn: {
-          DEFAULT: '#fbbf24',
+          DEFAULT: 'var(--color-warn)',
         },
       },
       fontFamily: {
@@ -48,9 +48,9 @@ module.exports = {
         '4xl': '2rem',
       },
       boxShadow: {
-        'diffusion': '0 20px 40px -15px rgba(0,0,0,0.3)',
+        'diffusion': '0 20px 40px -15px var(--shadow-diffusion-color)',
         'inner-refract': 'inset 0 1px 0 rgba(255,255,255,0.05)',
-        'glow-accent': '0 0 0 3px rgba(232,130,58,0.15)',
+        'glow-accent': '0 0 0 3px var(--shadow-glow-accent)',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

@@ -13,19 +13,66 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Light theme overrides */
+/* ── Dark theme (default) ── */
+:root {
+  --color-base: #0c0f14;
+  --color-base-raised: #141920;
+  --color-base-overlay: #1a2029;
+  --color-base-border: #253040;
+  --color-base-border-subtle: #1c2533;
+  --color-content: #e2e8f0;
+  --color-content-secondary: #94a3b8;
+  --color-content-tertiary: #64748b;
+  --color-accent: #e8823a;
+  --color-accent-dim: #6b3a1a;
+  --color-accent-hover: #f09248;
+  --color-success: #34d399;
+  --color-success-dim: #064e3b;
+  --color-danger: #f87171;
+  --color-danger-dim: #7f1d1d;
+  --color-warn: #fbbf24;
+  --shadow-diffusion-color: rgba(0,0,0,0.3);
+  --shadow-glow-accent: rgba(232,130,58,0.15);
+  --scrollbar-thumb: #253040;
+  --scrollbar-thumb-hover: #334155;
+  --skeleton-bg: #1e2530;
+  --skeleton-shimmer: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 40%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 60%, transparent 100%);
+}
+
+/* ── Light theme ── */
 html.light {
   color-scheme: light;
+  --color-base: #f8fafc;
+  --color-base-raised: #ffffff;
+  --color-base-overlay: #f1f5f9;
+  --color-base-border: #e2e8f0;
+  --color-base-border-subtle: #f1f5f9;
+  --color-content: #1e293b;
+  --color-content-secondary: #475569;
+  --color-content-tertiary: #94a3b8;
+  --color-accent: #e8823a;
+  --color-accent-dim: #fef3e2;
+  --color-accent-hover: #d97028;
+  --color-success: #10b981;
+  --color-success-dim: #d1fae5;
+  --color-danger: #ef4444;
+  --color-danger-dim: #fee2e2;
+  --color-warn: #f59e0b;
+  --shadow-diffusion-color: rgba(0,0,0,0.08);
+  --shadow-glow-accent: rgba(232,130,58,0.1);
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --skeleton-bg: #e2e8f0;
+  --skeleton-shimmer: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 40%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.4) 60%, transparent 100%);
 }
 
-html.light body {
-  background: #f8fafc;
-  color: #1e293b;
-}
-
-/* Light theme: override Tailwind color tokens via utility classes applied at root */
-html.light {
-  --tw-bg-opacity: 1;
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--color-base);
+  color: var(--color-content);
+  font-family: var(--font-geist), system-ui, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -35,20 +82,6 @@ html.light {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-body {
-  padding: 0;
-  margin: 0;
-  background: #0c0f14;
-  color: #e2e8f0;
-  font-family: var(--font-geist), system-ui, sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-html.light body {
-  background: #f8fafc;
-  color: #1e293b;
 }
 
 .sr-only {
@@ -68,6 +101,10 @@ html.light body {
   color: #fff;
 }
 
+html.light ::selection {
+  color: #1e293b;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -77,12 +114,12 @@ html.light body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #253040;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--scrollbar-thumb-hover);
 }
 
 @layer components {
@@ -99,21 +136,15 @@ html.light body {
   .skeleton {
     position: relative;
     overflow: hidden;
-    background: #1e2530;
+    background: var(--skeleton-bg);
     border-radius: 0.5rem;
   }
   .skeleton::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 40%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 60%, transparent 100%);
+    background: var(--skeleton-shimmer);
     animation: shimmer 1.8s ease-in-out infinite;
-  }
-  html.light .skeleton {
-    background: #e2e8f0;
-  }
-  html.light .skeleton::after {
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 40%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.4) 60%, transparent 100%);
   }
 }
 
@@ -122,24 +153,7 @@ html.light body {
   100% { transform: translateX(100%); }
 }
 
-/* Light theme color overrides using CSS variables */
-html.light .bg-base { background-color: #f8fafc; }
-html.light .bg-base-raised { background-color: #ffffff; }
-html.light .bg-base-overlay { background-color: #f1f5f9; }
-html.light .border-base-border { border-color: #e2e8f0; }
-html.light .border-base-border-subtle { border-color: #f1f5f9; }
-html.light .text-content { color: #1e293b; }
-html.light .text-content-secondary { color: #475569; }
-html.light .text-content-tertiary { color: #94a3b8; }
-html.light .bg-base-raised\/90 { background-color: rgba(255,255,255,0.9); }
-html.light .bg-base\/90 { background-color: rgba(248,250,252,0.9); }
-html.light .bg-base\/60 { background-color: rgba(248,250,252,0.6); }
-
-/* Light theme scrollbar */
-html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
-html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-/* Light theme status dots */
-html.light .shadow-\[0_0_6px_rgba\(52\,211\,153\,0\.4\)\] { box-shadow: 0 0 6px rgba(52,211,153,0.3); }
-html.light .shadow-\[0_0_6px_rgba\(251\,191\,36\,0\.3\)\] { box-shadow: 0 0 6px rgba(251,191,36,0.25); }
+/* Override status dot shadows for light theme */
+html.light .shadow-\[0_0_6px_rgba\(52\,211\,153\,0\.4\)\] { box-shadow: 0 0 6px rgba(16,185,129,0.3); }
+html.light .shadow-\[0_0_6px_rgba\(251\,191\,36\,0\.3\)\] { box-shadow: 0 0 6px rgba(245,158,11,0.25); }
 html.light .shadow-\[0_0_0_4px_rgba\(232\,130\,58\,0\.2\)\] { box-shadow: 0 0 0 4px rgba(232,130,58,0.15); }
