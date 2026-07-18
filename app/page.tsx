@@ -53,7 +53,7 @@ import {
   type ApartamentoStatus,
   type FotoRecord,
 } from '@/lib/db';
-import { exportarCSV, exportarPDF, exportarXLSX, compartilharPDF, compartilharXLSX, exportarZIP, relatorioPDFComFotos } from '@/lib/export';
+import { exportarCSV, exportarPDF, exportarXLSX, compartilharPDF, compartilharXLSX, exportarZIP, relatorioPDFComFotos, gerarRelatorioHTML, downloadHTML } from '@/lib/export';
 import { useTheme } from '@/lib/theme';
 import { Confetti, SuccessCheck } from '@/components/SuccessAnimation';
 import {
@@ -66,12 +66,14 @@ import {
 import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto } from '@/lib/utils';
 import { getDiasAlerta, getItensPagina } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
+import { logAudit } from '@/lib/auditLog';
 import NotificationCenter from '@/components/NotificationCenter';
 import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
 import TowerReportPanel from '@/components/TowerReportPanel';
 import SyncQueueScreen from '@/components/SyncQueueScreen';
+import AuditLogScreen from '@/components/AuditLogScreen';
 
-type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue';
+type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog';
 
 interface FotoOnline {
   id: number;
@@ -364,6 +366,8 @@ export default function Home() {
     const pendentesLista = await fotosPendentes();
     if (pendentesLista.length === 0) return;
 
+    logAudit('sync_started', `Sincronizando ${pendentesLista.length} foto(s)`);
+
     const CONCURRENCY = 3;
     let failed = false;
 
@@ -410,9 +414,11 @@ export default function Home() {
       await Promise.all(batch.map(uploadOne));
     }
     if (failed) {
+      logAudit('sync_failed', `Falha ao sincronizar ${pendentesLista.length} foto(s)`);
       const nId = addNotification({ tipo: 'error', titulo: 'Erro na sincronizacao', mensagem: 'Uma ou mais fotos falharam ao enviar. Verifique sua conexao.' });
       autoDismiss(nId, 8000);
     } else if (pendentesLista.length > 0) {
+      logAudit('sync_completed', `${pendentesLista.length} foto(s) sincronizada(s)`);
       const nId = addNotification({ tipo: 'sync', titulo: 'Sincronizado', mensagem: `${pendentesLista.length} foto(s) enviada(s) com sucesso.` });
       autoDismiss(nId, 5000);
     }
@@ -705,6 +711,23 @@ export default function Home() {
     return (
       <>
         <SyncQueueScreen onVoltar={() => setView('blocos')} />
+        <BottomNav
+          active="inicio"
+          onNavigate={(v) => {
+            setActiveNav(v as typeof activeNav);
+            haptic('selection');
+            if (v === 'camera') setModoEscaneamento(true);
+            else setView(v as View);
+          }}
+        />
+      </>
+    );
+  }
+
+  if (view === 'auditLog') {
+    return (
+      <>
+        <AuditLogScreen onVoltar={() => setView('blocos')} />
         <BottomNav
           active="inicio"
           onNavigate={(v) => {
@@ -1189,6 +1212,18 @@ export default function Home() {
           onCompartilharXLSX={async (s) => { setCompartilhando('xlsx'); await compartilharXLSX(s, 'Vistoria Cyble'); setCompartilhando(null); }}
           onExportZIP={async (s) => { setExportandoZIP(true); try { await exportarZIP(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoZIP(false); } }}
           onRelatorioPDFComFotos={async (s) => { setExportandoFotos(true); try { await relatorioPDFComFotos(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoFotos(false); } }}
+          onExportHTML={(s) => {
+            const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
+            for (const f of fotosOnline) {
+              const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
+              const arr = fotosMap.get(key) ?? [];
+              arr.push({ fotoUrl: f.foto_url, categoria: f.foto_url.includes('antes') ? 'cyble_antes' : f.foto_url.includes('depois') ? 'cyble_depois' : 'documento' });
+              fotosMap.set(key, arr);
+            }
+            const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
+            downloadHTML(html, `vistoria-cyble-${new Date().toISOString().slice(0, 10)}.html`);
+            logAudit('export_html', `Relatório HTML gerado (${s.length} aptos)`);
+          }}
           compartilhando={compartilhando}
           exportandoZIP={exportandoZIP}
           exportandoFotos={exportandoFotos}

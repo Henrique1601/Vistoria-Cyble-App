@@ -1,6 +1,6 @@
 'use client';
 
-import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar } from '@phosphor-icons/react';
+import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { spring } from '@/lib/motion';
 import type { ApartamentoStatus } from '@/lib/db';
@@ -21,6 +21,7 @@ interface ExportSectionProps {
   onCompartilharXLSX: (status: ApartamentoStatus[]) => void;
   onExportZIP: (status: ApartamentoStatus[]) => void;
   onRelatorioPDFComFotos: (status: ApartamentoStatus[]) => void;
+  onExportHTML: (status: ApartamentoStatus[]) => void;
   compartilhando: 'pdf' | 'xlsx' | null;
   exportandoZIP: boolean;
   exportandoFotos: boolean;
@@ -42,6 +43,7 @@ export function ExportSection({
   onCompartilharXLSX,
   onExportZIP,
   onRelatorioPDFComFotos,
+  onExportHTML,
   compartilhando,
   exportandoZIP,
   exportandoFotos,
@@ -174,6 +176,18 @@ export function ExportSection({
         >
           <FilePdf size={16} weight="bold" aria-hidden="true" />
           {exportandoFotos ? 'Gerando\u2026' : 'PDF + Fotos'}
+        </button>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={() => onExportHTML(statusExportacao)}
+          disabled={disabled}
+          aria-label="Baixar relatorio HTML interativo"
+          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <Code size={16} weight="bold" aria-hidden="true" />
+          HTML
         </button>
       </div>
     </motion.div>

@@ -19,6 +19,7 @@ import {
 import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, atualizarNota, FotoRecord, Categoria } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
+import { playScanFeedback } from '@/lib/scanPro';
 import { EmptyStatePhotos } from '@/components/EmptyState';
 import PhotoEditor from '@/components/PhotoEditor';
 import { spring, stagger, item } from '@/lib/motion';
@@ -144,6 +145,7 @@ export default function CapturaScreen({
       gps: gps || undefined,
     });
     haptic('success');
+    playScanFeedback('photo_captured');
     setEditingPhoto(null);
     await recarregar();
     onFotoSalva();
