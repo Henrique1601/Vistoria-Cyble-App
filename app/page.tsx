@@ -10,37 +10,33 @@ import {
   Clock,
   FileText,
   Warning,
-  SignOut,
   MagnifyingGlass,
   ArrowLeft,
   ArrowUpRight,
   SortAscending,
   Cloud,
   CloudSlash,
-  PencilSimple,
-  FileCsv,
-  FilePdf,
   FunnelSimple,
-  Images,
-  ShareNetwork,
   Calendar,
   X,
   Sun,
   Moon,
   TrendUp,
   Scan,
-  ChartBar,
   ArrowDown,
   ArrowClockwise,
-  Download,
-  Upload,
-  Info,
 } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import BottomNav from '@/components/BottomNav';
-import ProgressRing from '@/components/ProgressRing';
-import { EmptyStateBlocks, EmptyStateSearch, EmptyStatePhotos } from '@/components/EmptyState';
+import { EmptyStateSearch, EmptyStatePhotos } from '@/components/EmptyState';
+import { SearchBar, SearchResults } from '@/components/SearchBar';
+import { FotosRecentes } from '@/components/FotosRecentes';
+import { AtrasadosSection } from '@/components/AtrasadosSection';
+import { BlocosGrid } from '@/components/BlocosGrid';
+import { ExportSection } from '@/components/ExportSection';
+import { BottomLinks } from '@/components/BottomLinks';
 import { haptic } from '@/lib/haptic';
+import { spring, stagger, item } from '@/lib/motion';
 import PinGate from './PinGate';
 import SetupScreen from './SetupScreen';
 import CapturaScreen from './CapturaScreen';
@@ -71,19 +67,6 @@ interface FotoOnline {
   foto_url: string;
   foto_index: number;
 }
-
-const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
-const stagger = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06 },
-  },
-};
-const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: spring },
-};
 
 export default function Home() {
   const [pin, setPin] = useState<string | null>(null);
@@ -1013,439 +996,58 @@ export default function Home() {
 
         <Dashboard status={statusFiltradoPorData} pendentes={pendentes} fotosOnline={fotosOnline} datasDisponiveis={datasDisponiveis} dataFiltro={dataFiltro} onFiltroDataChange={setDataFiltro} />
 
-        {/* Busca Global */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 0.1 }}
-          className="relative mb-4"
-        >
-          <MagnifyingGlass size={16} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" />
-          <input
-            type="text"
-            placeholder="Buscar apto em todos os blocos\u2026"
-            value={buscaGlobal}
-            onChange={(e) => setBuscaGlobal(e.target.value)}
-            aria-label="Buscar apartamento em todos os blocos"
-            className="w-full bg-base-raised border border-base-border rounded-xl pl-10 pr-10 py-3 text-sm text-content placeholder:text-content-tertiary focus:outline-none focus:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
+        <SearchBar buscaGlobal={buscaGlobal} onBuscaChange={setBuscaGlobal} />
+
+        <SearchResults
+          resultados={resultadosBuscaGlobal}
+          onSelect={(bloco, apto) => { haptic('light'); setBlocoAtual(bloco); setAptoAtual(apto); setView('captura'); setBuscaGlobal(''); }}
+        />
+
+        {!buscaGlobal && (
+          <FotosRecentes
+            fotos={fotosRecentes}
+            onSelect={(bloco, apto) => { setBlocoAtual(bloco); setAptoAtual(apto); setView('captura'); }}
           />
-          {buscaGlobal && (
-            <button
-              onClick={() => setBuscaGlobal('')}
-              aria-label="Limpar busca"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-content-tertiary hover:text-content"
-            >
-              <X size={14} weight="bold" />
-            </button>
-          )}
-        </motion.div>
-
-        {/* Resultados da busca global */}
-        <AnimatePresence mode="wait">
-          {resultadosBuscaGlobal.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-4 bg-base-raised border border-accent/20 rounded-2xl overflow-hidden"
-            >
-              <div className="px-4 py-3 border-b border-base-border">
-                <span className="text-xs font-semibold uppercase tracking-widest text-accent">
-                  {resultadosBuscaGlobal.length} resultado{resultadosBuscaGlobal.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="divide-y divide-base-border max-h-64 overflow-y-auto">
-                {resultadosBuscaGlobal.map((r) => {
-                   const completo = r.status && r.status.cybleAntesFeito && r.status.cybleDepoisFeito;
-                  const temFoto = r.status && (r.status.cybleAntesFeito || r.status.cybleDepoisFeito);
-                  return (
-                    <button
-                      key={`${r.bloco}__${r.apto}`}
-                      onClick={() => { haptic('light'); setBlocoAtual(r.bloco); setAptoAtual(r.apto); setView('captura'); setBuscaGlobal(''); }}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-base-overlay/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-semibold text-accent">{r.bloco}</span>
-                        <span className="font-mono text-sm font-medium">{r.apto}</span>
-                        {r.status && r.status.qtdFotos > 0 && (
-                          <span className="text-[11px] font-mono text-content-tertiary bg-base-overlay px-2 py-0.5 rounded-md">
-                            {r.status.qtdFotos} foto{r.status.qtdFotos > 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <StatusDot done={r.status?.cybleAntesFeito || false} partial={r.status ? emAndamento(r.status) : false} label="Antes" />
-                        <StatusDot done={r.status?.cybleDepoisFeito || false} partial={r.status ? emAndamento(r.status) : false} label="Depois" />
-                        <StatusDot done={r.status?.qtdDocumentos ? r.status.qtdDocumentos > 0 : false} label="Doc" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Fotos recentes */}
-        {!buscaGlobal && fotosRecentes.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring, delay: 0.15 }}
-            className="mb-6"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">Fotos recentes</span>
-              <a href="/galeria" className="text-[11px] text-accent hover:text-accent-hover transition-colors">Ver todas</a>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {fotosRecentes.map((f) => {
-                const src = f.synced && f.uploadUrl ? f.uploadUrl : (f.blob.size > 0 ? URL.createObjectURL(f.blob) : '');
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => { setBlocoAtual(f.bloco); setAptoAtual(f.apartamento); setView('captura'); }}
-                    className="tactile-press flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-base-border hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors relative group"
-                    aria-label={`Ver ${f.bloco} ${f.apartamento}`}
-                  >
-                    {src ? (
-                      <img src={src} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-base-overlay flex items-center justify-center">
-                        <Camera size={16} className="text-content-tertiary" />
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 bg-base/80 text-[8px] text-content-tertiary text-center py-0.5 font-mono">
-                      {f.apartamento}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
         )}
 
-        {/* Dashboard de atrasados */}
-        {!buscaGlobal && aptosEsquecidos.length > 0 && (() => {
-          const porBloco = aptosEsquecidos.reduce((acc, a) => {
-            if (!acc[a.bloco]) acc[a.bloco] = [];
-            acc[a.bloco].push(a);
-            return acc;
-          }, {} as Record<string, typeof aptosEsquecidos>);
-          const blocosOrdenados = Object.keys(porBloco).sort();
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...spring, delay: 0.2 }}
-              className="mb-6 bg-danger/5 border border-danger/20 rounded-2xl overflow-hidden"
-            >
-              <button
-                onClick={() => setShowAtrasados(!showAtrasados)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-danger/10 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                aria-expanded={showAtrasados}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Warning size={14} weight="bold" className="text-danger flex-shrink-0" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <span className="text-xs font-semibold text-danger">
-                      {aptosEsquecidos.length} atrasado{aptosEsquecidos.length !== 1 ? 's' : ''}
-                    </span>
-                    {!showAtrasados && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {blocosOrdenados.map((b) => (
-                          <span key={b} className="text-[10px] font-mono text-danger/70 bg-danger/10 px-1.5 py-0.5 rounded">
-                            {b}: {porBloco[b].length}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {!showAtrasados && (
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => setDiasAlerta(Math.max(1, diasAlerta - 1))}
-                        className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                        aria-label="Diminuir dias"
-                      >
-                        -
-                      </button>
-                      <span className="text-[11px] font-mono text-danger w-8 text-center">{diasAlerta}d</span>
-                      <button
-                        onClick={() => setDiasAlerta(diasAlerta + 1)}
-                        className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                        aria-label="Aumentar dias"
-                      >
-                        +
-                      </button>
-                    </div>
-                  )}
-                  <motion.span
-                    animate={{ rotate: showAtrasados ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="text-danger"
-                  >
-                    <ArrowDown size={14} weight="bold" />
-                  </motion.span>
-                </div>
-              </button>
+        {!buscaGlobal && (
+          <AtrasadosSection
+            aptosEsquecidos={aptosEsquecidos}
+            showAtrasados={showAtrasados}
+            diasAlerta={diasAlerta}
+            onToggle={() => setShowAtrasados(!showAtrasados)}
+            onDiasChange={setDiasAlerta}
+            onSelect={(bloco, apto) => { setBlocoAtual(bloco); setAptoAtual(apto); setView('captura'); }}
+          />
+        )}
 
-              <AnimatePresence>
-                {showAtrasados && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25, ease: 'easeInOut' }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-4 pb-4">
-                      <div className="flex items-center justify-end gap-1.5 mb-2">
-                        <button
-                          onClick={() => setDiasAlerta(Math.max(1, diasAlerta - 1))}
-                          className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                          aria-label="Diminuir dias"
-                        >
-                          -
-                        </button>
-                        <span className="text-[11px] font-mono text-danger w-8 text-center">{diasAlerta}d</span>
-                        <button
-                          onClick={() => setDiasAlerta(diasAlerta + 1)}
-                          className="tactile-press w-6 h-6 rounded-lg bg-danger/10 text-danger text-xs font-bold hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                          aria-label="Aumentar dias"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        {blocosOrdenados.map((bloco) => (
-                          <div key={bloco} className="bg-danger/5 rounded-xl p-2.5">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[11px] font-semibold text-danger">{bloco}</span>
-                              <span className="text-[10px] font-mono text-danger/70">{porBloco[bloco].length} apto{porBloco[bloco].length !== 1 ? 's' : ''}</span>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {porBloco[bloco].map((a) => (
-                                <button
-                                  key={`${a.bloco}__${a.apartamento}`}
-                                  onClick={() => { setBlocoAtual(a.bloco); setAptoAtual(a.apartamento); setView('captura'); }}
-                                  className="tactile-press text-[10px] font-mono bg-danger/10 text-danger px-1.5 py-0.5 rounded hover:bg-danger/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                                >
-                                  {a.apartamento}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })()}
+        <BlocosGrid
+          blocos={blocos}
+          progressoMap={progressoMap}
+          loading={loadingSkeleton}
+          onSelect={(b) => { haptic('light'); setBlocoAtual(b); setView('apartamentos'); setBusca(''); refreshStatus(); }}
+        />
 
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-          className="space-y-3 mb-6"
-        >
-          {loadingSkeleton && blocos.length === 0
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={`skel-${i}`} className="bg-base-raised border border-base-border rounded-2xl p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="skeleton w-9 h-9 rounded-xl" />
-                      <div>
-                        <div className="skeleton w-20 h-4 rounded-md mb-1.5" />
-                        <div className="skeleton w-28 h-3 rounded-md" />
-                      </div>
-                    </div>
-                    <div className="skeleton w-10 h-10 rounded-full" />
-                  </div>
-                  <div className="skeleton w-full h-1 rounded-full" />
-                </div>
-              ))
-            : blocos.length === 0
-              ? <EmptyStateBlocks />
-              : blocos.map((b) => {
-              const prog = progressoMap.get(b) || { texto: '0/0', pct: 0 };
-              return (
-                <motion.div
-                  key={b}
-                  variants={item}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => { haptic('light'); setBlocoAtual(b); setView('apartamentos'); setBusca(''); refreshStatus(); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); haptic('light'); setBlocoAtual(b); setView('apartamentos'); setBusca(''); refreshStatus(); } }}
-                  className="tactile-press group bg-base-raised border border-base-border rounded-2xl p-5 cursor-pointer hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none hover:shadow-diffusion transition-all duration-300"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-base-overlay border border-base-border-subtle flex items-center justify-center group-hover:border-accent/30 transition-colors">
-                      <Buildings size={18} weight="duotone" className="text-content-secondary group-hover:text-accent transition-colors" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">{b}</div>
-                      <div className="text-[11px] text-content-tertiary font-mono">{prog.texto} concluidos</div>
-                    </div>
-                  </div>
-                  <ProgressRing percentage={prog.pct} size={40} strokeWidth={3} />
-                </div>
-                <div className="h-1 bg-base-overlay rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${prog.pct}%` }}
-                    transition={{ ...spring, delay: 0.3 }}
-                    className="h-full bg-success rounded-full"
-                  />
-                </div>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: 0.4 }}
-          className="mb-4"
-        >
-          {/* Filtro de torre para exportação */}
-          <div className="mb-3">
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowEstatisticas(!showEstatisticas)}
-                className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-              >
-                <ChartBar size={13} weight="bold" aria-hidden="true" />
-                {showEstatisticas ? 'Ocultar periodo' : 'Periodo'}
-              </button>
-              <button
-                onClick={() => setShowEstatisticasTorre(!showEstatisticasTorre)}
-                className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-              >
-                <Buildings size={13} weight="bold" aria-hidden="true" />
-                {showEstatisticasTorre ? 'Ocultar torres' : 'Por torre'}
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setTorresExportacao(new Set())}
-                className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all ${
-                  torresExportacao.size === 0
-                    ? 'bg-accent-dim border-accent text-accent'
-                    : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
-                }`}
-              >
-                Todas
-              </button>
-              {blocos.map((b) => (
-                <button
-                  key={b}
-                  onClick={() => {
-                    setTorresExportacao((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(b)) next.delete(b); else next.add(b);
-                      return next;
-                    });
-                  }}
-                  className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all ${
-                    torresExportacao.has(b)
-                      ? 'bg-accent-dim border-accent text-accent'
-                      : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
-                  }`}
-                >
-                  {b}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-3 mb-3">
-            <button
-              onClick={() => exportarCSV(statusExportacao)}
-              disabled={statusExportacao.length === 0}
-              aria-label="Exportar dados em CSV"
-              className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <FileCsv size={16} weight="bold" aria-hidden="true" />
-              CSV
-            </button>
-            <button
-              onClick={() => exportarPDF(statusExportacao, 'Vistoria Cyble')}
-              disabled={statusExportacao.length === 0}
-              aria-label="Baixar relatorio em PDF"
-              className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <FilePdf size={16} weight="bold" aria-hidden="true" />
-              PDF
-            </button>
-            <button
-              onClick={() => exportarXLSX(statusExportacao, 'Vistoria Cyble')}
-              disabled={statusExportacao.length === 0}
-              aria-label="Baixar planilha Excel XLSX"
-              className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <FileCsv size={16} weight="bold" aria-hidden="true" />
-              XLSX
-            </button>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={async () => { setCompartilhando('pdf'); await compartilharPDF(statusExportacao, 'Vistoria Cyble'); setCompartilhando(null); }}
-              disabled={statusExportacao.length === 0 || compartilhando !== null}
-              aria-label="Compartilhar relatorio PDF"
-              className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <ShareNetwork size={16} weight="bold" aria-hidden="true" />
-              {compartilhando === 'pdf' ? 'Compartilhando\u2026' : 'Compartilhar PDF'}
-            </button>
-            <button
-              onClick={async () => { setCompartilhando('xlsx'); await compartilharXLSX(statusExportacao, 'Vistoria Cyble'); setCompartilhando(null); }}
-              disabled={statusExportacao.length === 0 || compartilhando !== null}
-              aria-label="Compartilhar planilha XLSX"
-              className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <ShareNetwork size={16} weight="bold" aria-hidden="true" />
-              {compartilhando === 'xlsx' ? 'Compartilhando\u2026' : 'Compartilhar XLSX'}
-            </button>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={async () => {
-                setExportandoZIP(true);
-                try {
-                  await exportarZIP(statusExportacao, 'Vistoria Cyble', { onProgress: () => {} });
-                } finally { setExportandoZIP(false); }
-              }}
-              disabled={statusExportacao.length === 0 || exportandoZIP}
-              aria-label="Baixar fotos como ZIP"
-              className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <Download size={16} weight="bold" aria-hidden="true" />
-              {exportandoZIP ? 'Compactando\u2026' : 'Fotos ZIP'}
-            </button>
-            <button
-              onClick={async () => {
-                setExportandoFotos(true);
-                try {
-                  await relatorioPDFComFotos(statusExportacao, 'Vistoria Cyble', { onProgress: () => {} });
-                } finally { setExportandoFotos(false); }
-              }}
-              disabled={statusExportacao.length === 0 || exportandoFotos}
-              aria-label="Baixar relatorio com fotos em PDF"
-              className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <FilePdf size={16} weight="bold" aria-hidden="true" />
-              {exportandoFotos ? 'Gerando\u2026' : 'PDF + Fotos'}
-            </button>
-          </div>
-        </motion.div>
+        <ExportSection
+          blocos={blocos}
+          torresExportacao={torresExportacao}
+          onTorresChange={setTorresExportacao}
+          statusExportacao={statusExportacao}
+          showEstatisticas={showEstatisticas}
+          showEstatisticasTorre={showEstatisticasTorre}
+          onToggleEstatisticas={() => setShowEstatisticas(!showEstatisticas)}
+          onToggleEstatisticasTorre={() => setShowEstatisticasTorre(!showEstatisticasTorre)}
+          onExportCSV={exportarCSV}
+          onExportPDF={(s) => exportarPDF(s, 'Vistoria Cyble')}
+          onExportXLSX={(s) => exportarXLSX(s, 'Vistoria Cyble')}
+          onCompartilharPDF={async (s) => { setCompartilhando('pdf'); await compartilharPDF(s, 'Vistoria Cyble'); setCompartilhando(null); }}
+          onCompartilharXLSX={async (s) => { setCompartilhando('xlsx'); await compartilharXLSX(s, 'Vistoria Cyble'); setCompartilhando(null); }}
+          onExportZIP={async (s) => { setExportandoZIP(true); try { await exportarZIP(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoZIP(false); } }}
+          onRelatorioPDFComFotos={async (s) => { setExportandoFotos(true); try { await relatorioPDFComFotos(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoFotos(false); } }}
+          compartilhando={compartilhando}
+          exportandoZIP={exportandoZIP}
+          exportandoFotos={exportandoFotos}
+        />
         {showEstatisticas && (
           <EstatisticasPeriodo fotosOnline={fotosOnline} />
         )}
@@ -1453,81 +1055,18 @@ export default function Home() {
           <EstatisticasPorTorre status={status} fotosOnline={fotosOnline} lista={lista || {}} />
         )}
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="flex flex-wrap gap-4 mb-4"
-        >
-          <a
-            href="/galeria"
-            aria-label="Abrir galeria de fotos"
-            className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-          >
-            <Images size={13} weight="bold" aria-hidden="true" />
-            Galeria
-          </a>
-          <button
-            onClick={() => setLista(null)}
-            aria-label="Editar lista de apartamentos"
-            className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-          >
-            <PencilSimple size={13} weight="bold" aria-hidden="true" />
-            Editar lista
-          </button>
-          <button
-            onClick={handleBackup}
-            aria-label="Fazer backup dos dados"
-            className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-          >
-            <Download size={13} weight="bold" aria-hidden="true" />
-            Backup
-          </button>
-          <button
-            onClick={handleRestore}
-            aria-label="Restaurar dados de backup"
-            className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-          >
-            <Upload size={13} weight="bold" aria-hidden="true" />
-            Restaurar
-          </button>
-          <button
-            onClick={() => { localStorage.removeItem('vistoria_pin'); setPin(null); }}
-            aria-label="Sair da aplicacao"
-            className="tactile-press flex items-center gap-1.5 text-xs text-danger hover:text-danger/80 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-          >
-            <SignOut size={13} weight="bold" aria-hidden="true" />
-            Sair
-          </button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="flex items-center justify-center gap-2 text-[10px] text-content-tertiary/50"
-        >
-          <Info size={10} weight="bold" aria-hidden="true" />
-          <span>Vistoria Cyble v{APP_VERSION}</span>
-          {!online && <span className="text-danger font-semibold">• offline</span>}
-          {espacoStorage && (
-            <span className={espacoStorage.pct > 85 ? 'text-warning font-semibold' : ''}>
-              • {espacoStorage.pct}% storage
-            </span>
-          )}
-          {updateDisponivel && (
-            <button
-              onClick={() => {
-                setUpdateDisponivel(false);
-                navigator.serviceWorker?.controller?.postMessage('skipWaiting');
-                window.location.reload();
-              }}
-              className="text-accent font-semibold hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-            >
-              • nova versão disponível (v{versaoNova})
-            </button>
-          )}
-        </motion.div>
+        <BottomLinks
+          online={online}
+          appVersion={APP_VERSION}
+          espacoStorage={espacoStorage}
+          updateDisponivel={updateDisponivel}
+          versaoNova={versaoNova}
+          onBackup={handleBackup}
+          onRestore={handleRestore}
+          onLogout={() => { localStorage.removeItem('vistoria_pin'); setPin(null); }}
+          onUpdate={() => { setUpdateDisponivel(false); navigator.serviceWorker?.controller?.postMessage('skipWaiting'); window.location.reload(); }}
+          onEditLista={() => setLista(null)}
+        />
       </div>
       <BottomNav
         active={(view === 'blocos' && !blocoAtual) ? 'inicio' : activeNav}
