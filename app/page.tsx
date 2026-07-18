@@ -69,8 +69,9 @@ import { addNotification, autoDismiss } from '@/lib/notifications';
 import NotificationCenter from '@/components/NotificationCenter';
 import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
 import TowerReportPanel from '@/components/TowerReportPanel';
+import SyncQueueScreen from '@/components/SyncQueueScreen';
 
-type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes';
+type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue';
 
 interface FotoOnline {
   id: number;
@@ -695,6 +696,23 @@ export default function Home() {
     );
   }
 
+  if (view === 'syncQueue') {
+    return (
+      <>
+        <SyncQueueScreen onVoltar={() => setView('blocos')} />
+        <BottomNav
+          active="inicio"
+          onNavigate={(v) => {
+            setActiveNav(v as typeof activeNav);
+            haptic('selection');
+            if (v === 'camera') setModoEscaneamento(true);
+            else setView(v as View);
+          }}
+        />
+      </>
+    );
+  }
+
   if (view === 'captura' && blocoAtual && aptoAtual) {
     // Find next pending apto for continuous scan
     const aptoIdx = aptosDoBloco.findIndex((a) => a.apartamento === aptoAtual);
@@ -717,7 +735,7 @@ export default function Home() {
           } : undefined}
           fotosOnline={fotosOnline.filter((f) => f.bloco === blocoAtual && normApto(f.apartamento) === normApto(aptoAtual))}
         />
-        <SyncBanner online={online} pendentes={pendentes} />
+        <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
       </>
     );
   }
@@ -915,7 +933,7 @@ export default function Home() {
             </motion.div>
           )}
         </div>
-        <SyncBanner online={online} pendentes={pendentes} />
+        <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
       </main>
     );
   }
@@ -1223,16 +1241,16 @@ export default function Home() {
           />
         )}
       </AnimatePresence>
-      <SyncBanner online={online} pendentes={pendentes} />
+      <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
     </main>
   );
 }
 
 function StatusDot({ done, partial, label }: { done: boolean; partial?: boolean; label: string }) {
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex items-center gap-1">
       <div
-        className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
+        className={`w-2 h-2 rounded-full transition-colors duration-300 ${
           done ? 'bg-success shadow-[0_0_6px_rgba(52,211,153,0.4)]' :
           partial ? 'bg-warn shadow-[0_0_6px_rgba(251,191,36,0.3)]' :
           'bg-base-border'
@@ -1244,17 +1262,18 @@ function StatusDot({ done, partial, label }: { done: boolean; partial?: boolean;
   );
 }
 
-function SyncBanner({ online, pendentes }: { online: boolean; pendentes: number }) {
+function SyncBanner({ online, pendentes, onClick }: { online: boolean; pendentes: number; onClick?: () => void }) {
   if (pendentes === 0) return null;
   return (
-    <motion.div
+    <motion.button
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       exit={{ y: 100 }}
       transition={spring}
       role="status"
       aria-live="polite"
-      className={`fixed bottom-0 left-0 right-0 border-t px-4 py-3 text-xs font-medium flex justify-between items-center z-50 backdrop-blur-md ${
+      onClick={onClick}
+      className={`fixed bottom-0 left-0 right-0 border-t px-4 py-3 text-xs font-medium flex justify-between items-center z-50 backdrop-blur-md cursor-pointer hover:opacity-90 transition-opacity ${
         online
           ? 'bg-base-raised/90 border-accent/20 text-accent'
           : 'bg-base-raised/90 border-danger/20 text-danger'
@@ -1265,7 +1284,7 @@ function SyncBanner({ online, pendentes }: { online: boolean; pendentes: number 
         {online ? 'Sincronizando\u2026' : 'Sem internet \u2014 fotos salvas no aparelho'}
       </span>
       <span className="font-mono tabular-nums">{pendentes} pendente(s)</span>
-    </motion.div>
+    </motion.button>
   );
 }
 
