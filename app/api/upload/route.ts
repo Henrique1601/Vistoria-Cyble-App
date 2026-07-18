@@ -1,6 +1,6 @@
 import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
-import postgres from 'postgres';
+import { getSql, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES } from '@/lib/sql';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +21,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'campos faltando' }, { status: 400 });
   }
 
+  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+    return NextResponse.json(
+      { erro: `tipo de arquivo nao suportado: ${file.type}` },
+      { status: 400 },
+    );
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return NextResponse.json(
+      { erro: `arquivo muito grande: ${Math.round(file.size / 1024 / 1024)}MB (max 15MB)` },
+      { status: 400 },
+    );
+  }
+
   const ext = file.type === 'image/png' ? 'png' : 'jpg';
   const path = `vistorias/bloco-${bloco}/apto-${apartamento}/${categoria}-${timestamp}.${ext}`;
 
@@ -30,14 +44,12 @@ export async function POST(req: NextRequest) {
     token: process.env.BLOB_READ_WRITE_TOKEN,
   });
 
-  // Insert into Neon if DATABASE_URL is configured
   if (process.env.DATABASE_URL) {
     try {
-      const sql = postgres(process.env.DATABASE_URL, { ssl: 'require' });
+      const sql = getSql();
       const dataLeitura = new Date(Number(timestamp)).toISOString().split('T')[0];
       await sql`INSERT INTO fotos (bloco, apartamento, data_leitura, foto_url, foto_index)
                  VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${blob.url}, 0)`;
-      await sql.end();
     } catch {
       // Non-critical: photo still saved to Blob
     }
