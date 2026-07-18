@@ -20,6 +20,7 @@ import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, atualizar
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { EmptyStatePhotos } from '@/components/EmptyState';
+import PhotoEditor from '@/components/PhotoEditor';
 
 const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi: boolean }[] = [
   { key: 'cyble_antes', label: 'Cyble — Antes', icon: <Camera size={16} weight="duotone" />, multi: false },
@@ -61,6 +62,7 @@ export default function CapturaScreen({
   const [timer, setTimer] = useState(0);
   const [showCompare, setShowCompare] = useState(false);
   const [compartilhando, setCompartilhando] = useState<number | null>(null);
+  const [editingPhoto, setEditingPhoto] = useState<{ blob: Blob; categoria: Categoria } | null>(null);
   const { toast } = useToast();
   const deletedRef = useRef<Map<number, FotoRecord>>(new Map());
 
@@ -138,12 +140,19 @@ export default function CapturaScreen({
   async function handleFile(categoria: Categoria, file: File | null) {
     if (!file) return;
     haptic('medium');
-    const [comprimido, gps] = await Promise.all([comprimirImagem(file), getGPS()]);
+    const comprimido = await comprimirImagem(file);
+    setEditingPhoto({ blob: comprimido, categoria });
+  }
+
+  async function handleEditorSalvar(blob: Blob) {
+    if (!editingPhoto) return;
+    const [comprimido, gps] = await Promise.all([comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' })), getGPS()]);
     await salvarFoto({
-      bloco, apartamento, categoria, blob: comprimido, timestamp: Date.now(), synced: false,
+      bloco, apartamento, categoria: editingPhoto.categoria, blob: comprimido, timestamp: Date.now(), synced: false,
       gps: gps || undefined,
     });
     haptic('success');
+    setEditingPhoto(null);
     await recarregar();
     onFotoSalva();
   }
@@ -477,6 +486,16 @@ export default function CapturaScreen({
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {editingPhoto && (
+          <PhotoEditor
+            imagemBlob={editingPhoto.blob}
+            onSalvar={handleEditorSalvar}
+            onCancelar={() => setEditingPhoto(null)}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }

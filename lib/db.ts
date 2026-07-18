@@ -1,4 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { AcaoDesenho } from './drawing';
 
 export type Categoria = 'cyble_antes' | 'cyble_depois' | 'documento';
 
@@ -22,6 +23,7 @@ export interface FotoRecord {
   uploadUrl?: string;
   nota?: string;
   gps?: { lat: number; lng: number };
+  anotacoes?: AcaoDesenho[];
 }
 
 export interface SyncLogEntry {

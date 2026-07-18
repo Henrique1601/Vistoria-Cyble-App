@@ -14,6 +14,7 @@ interface BottomLinksProps {
   onLogout: () => void;
   onUpdate: () => void;
   onEditLista: () => void;
+  ultimoBackup: string;
 }
 
 export function BottomLinks({
@@ -27,6 +28,7 @@ export function BottomLinks({
   onLogout,
   onUpdate,
   onEditLista,
+  ultimoBackup,
 }: BottomLinksProps) {
   return (
     <>
@@ -92,6 +94,7 @@ export function BottomLinks({
             • {espacoStorage.pct}% storage
           </span>
         )}
+        <span>• backup: {ultimoBackup}</span>
         {updateDisponivel && (
           <button
             onClick={onUpdate}

@@ -56,6 +56,13 @@ import {
 import { exportarCSV, exportarPDF, exportarXLSX, compartilharPDF, compartilharXLSX, exportarZIP, relatorioPDFComFotos } from '@/lib/export';
 import { useTheme } from '@/lib/theme';
 import { Confetti, SuccessCheck } from '@/components/SuccessAnimation';
+import {
+  fazerBackupManual,
+  fazerBackupAutomatico,
+  obterUltimoBackup,
+  deveFazerBackup,
+  formatarTimestampBackup,
+} from '@/lib/backup';
 
 type View = 'blocos' | 'apartamentos' | 'captura';
 
@@ -113,6 +120,7 @@ export default function Home() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [espacoStorage, setEspacoStorage] = useState<{ usado: number; total: number; pct: number } | null>(null);
+  const [ultimoBackup, setUltimoBackup] = useState<string>('Nunca');
   const pullStartY = useRef(0);
   const mainRef = useRef<HTMLDivElement>(null);
 
@@ -199,6 +207,25 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [pin]);
 
+  // Carregar último backup e fazer backup automático
+  useEffect(() => {
+    if (!pin) return;
+    obterUltimoBackup().then((ts) => {
+      setUltimoBackup(formatarTimestampBackup(ts));
+    });
+    deveFazerBackup().then((deve) => {
+      if (deve) {
+        fazerBackupAutomatico().then((res) => {
+          if (res.ok) {
+            obterUltimoBackup().then((ts) => {
+              setUltimoBackup(formatarTimestampBackup(ts));
+            });
+          }
+        });
+      }
+    });
+  }, [pin]);
+
   // Sync automático em background (visibility change)
   useEffect(() => {
     const handler = () => {
@@ -244,14 +271,15 @@ export default function Home() {
   // Backup
   async function handleBackup() {
     haptic('medium');
-    const blob = await backupDados();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `vistoria-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('Backup salvo com sucesso', 'success');
+    const result = await fazerBackupManual();
+    if (result.ok) {
+      obterUltimoBackup().then((ts) => {
+        setUltimoBackup(formatarTimestampBackup(ts));
+      });
+      toast('Backup salvo com sucesso', 'success');
+    } else {
+      toast('Erro ao fazer backup', 'error');
+    }
   }
 
   // Restore
@@ -1066,6 +1094,7 @@ export default function Home() {
           onLogout={() => { localStorage.removeItem('vistoria_pin'); setPin(null); }}
           onUpdate={() => { setUpdateDisponivel(false); navigator.serviceWorker?.controller?.postMessage('skipWaiting'); window.location.reload(); }}
           onEditLista={() => setLista(null)}
+          ultimoBackup={ultimoBackup}
         />
       </div>
       <BottomNav
