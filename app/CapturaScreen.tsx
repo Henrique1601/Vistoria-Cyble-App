@@ -9,7 +9,7 @@ import {
   FileText,
   CloudCheck,
   Hourglass,
-  Image,
+  Image as ImageIcon,
   ChatText,
   ShareNetwork,
   ArrowsLeftRight,
@@ -64,6 +64,7 @@ export default function CapturaScreen({
 
   useEffect(() => {
     recarregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bloco, apartamento]);
 
   // Timer por apto
@@ -293,7 +294,7 @@ export default function CapturaScreen({
                               />
                             ) : (
                               <div className="w-16 h-16 rounded-xl bg-base-overlay border border-base-border flex items-center justify-center">
-                                <Image size={20} weight="light" className="text-content-tertiary" />
+                                <ImageIcon size={20} weight="light" className="text-content-tertiary" aria-hidden="true" />
                               </div>
                             )}
 
@@ -465,7 +466,7 @@ export default function CapturaScreen({
                           <img src={src} alt={cat} className="w-full aspect-square object-cover rounded-xl border border-base-border" />
                         ) : (
                           <div className="w-full aspect-square rounded-xl bg-base-overlay border border-base-border flex items-center justify-center">
-                            <Image size={24} weight="light" className="text-content-tertiary" />
+                            <ImageIcon size={24} weight="light" className="text-content-tertiary" aria-hidden="true" />
                           </div>
                         )}
                       </div>

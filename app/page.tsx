@@ -94,7 +94,6 @@ export default function Home() {
   const [ordem, setOrdem] = useState<'original' | 'pendentes'>('original');
   const [pendentes, setPendentes] = useState(0);
   const [online, setOnline] = useState(true);
-  const [lastActivity, setLastActivity] = useState(Date.now());
   const [fotosOnline, setFotosOnline] = useState<FotoOnline[]>([]);
   const [buscaGlobal, setBuscaGlobal] = useState('');
   const [dataFiltro, setDataFiltro] = useState('');
@@ -141,14 +140,16 @@ export default function Home() {
     setItensPagina(getItensPagina() as 10 | 20 | 50 | 999);
   }, []);
 
+  const lastActivityRef = useRef(Date.now());
+
   useEffect(() => {
     if (!pin) return;
     const TIMEOUT_MS = 30 * 60 * 1000;
     const events = ['mousedown', 'touchstart', 'keydown', 'scroll'];
-    const resetTimer = () => setLastActivity(Date.now());
+    const resetTimer = () => { lastActivityRef.current = Date.now(); };
     events.forEach((e) => window.addEventListener(e, resetTimer));
     const check = setInterval(() => {
-      if (Date.now() - lastActivity > TIMEOUT_MS) {
+      if (Date.now() - lastActivityRef.current > TIMEOUT_MS) {
         localStorage.removeItem('vistoria_pin');
         setPin(null);
       }
@@ -262,6 +263,7 @@ export default function Home() {
     };
     document.addEventListener('visibilitychange', handler);
     return () => document.removeEventListener('visibilitychange', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
 
   // Carregar fotos recentes
@@ -293,6 +295,7 @@ export default function Home() {
     }
     setPullDistance(0);
     pullStartY.current = 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pullDistance]);
 
   // Backup
@@ -338,6 +341,7 @@ export default function Home() {
 
   useEffect(() => {
     if (lista) refreshStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lista]);
 
   useEffect(() => {
@@ -352,6 +356,7 @@ export default function Home() {
       window.removeEventListener('offline', off);
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
 
   async function tentarSincronizar() {

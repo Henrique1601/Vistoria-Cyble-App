@@ -8,7 +8,7 @@ import {
   Calendar,
   Buildings,
   HouseLine,
-  Image,
+  Image as ImageIcon,
   X,
   ArrowsOut,
   CaretLeft,
@@ -222,7 +222,7 @@ export default function GaleriaClient() {
             animate={{ opacity: 1 }}
             className="text-center py-16"
           >
-            <Image size={40} weight="light" className="mx-auto text-content-tertiary mb-4" />
+            <ImageIcon size={40} weight="light" className="mx-auto text-content-tertiary mb-4" aria-hidden="true" />
             <p className="text-sm text-content-tertiary">
               {fotos.length === 0
                 ? 'Nenhuma foto importada ainda. Execute o script de importacao.'
