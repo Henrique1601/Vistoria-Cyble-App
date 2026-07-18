@@ -371,6 +371,38 @@
 
 ---
 
+## v2.6.0 — Julho 2026
+
+### 55. Painel de Relatório por Torre
+- **Status:** ✅
+- **Descrição:** Painel lateral (slide-in) ao clicar numa torre no dashboard. Mostra: cards de resumo (concluídos/em andamento/pendentes), barra de progresso animada, filtros de status, lista de aptos com badge, data última vistoria, contagem de fotos. Clique no apto navega para captura.
+- **Uso:** Visão detalhada de cada torre sem sair do dashboard
+- **Dependências:** Nenhuma
+
+### 56. Tela de Configurações
+- **Status:** ✅
+- **Descrição:** Tela dedicada acessível pelo tab "Config" no BottomNav. Seções: Aparência (tema dark/light/auto), Captura (qualidade foto 50/75/90%, modo escaneamento), Dados (dias alerta +/-, itens por página, exportar/importar backup, limpar fotos, limpar tudo), Sobre (versão, armazenamento com barra, link GitHub).
+- **Uso:** Configurar preferências do app de forma persistente
+- **Dependências:** Nenhuma
+
+### 57. Central de Notificações
+- **Status:** ✅
+- **Descrição:** Ícone de sino com badge no header. Dropdown com lista de notificações (sync, backup, update, storage, error, success). Auto-dismiss, mark read, clear all. State management pub/sub em `lib/notifications.ts`.
+- **Uso:** Acompanhar status de sync, backups, atualizações
+- **Dependências:** Nenhuma
+
+---
+
+## v2.7.0 — Julho 2026
+
+### 58. Fila de Sync Avançada
+- **Status:** ✅
+- **Descrição:** Tela dedicada acessível clicando no SyncBanner. Lista de fotos com status individual (pending/uploading/success/failed), retry com backoff exponencial (1s→30s, máx 5 tentativas), filtros (Todos/Pendente/Enviando/Enviado/Falhou), barra de progresso geral, retry individual, retry todas as falhas, limpar enviadas, cancelar sync, status online/offline.
+- **Uso:** Controle total sobre a sincronização de fotos
+- **Dependências:** Nenhuma
+
+---
+
 ## Notas
 - Todas as funcionalidades são independentes (podem ser implementadas em qualquer ordem)
 - Não dependem de novas APIs externas

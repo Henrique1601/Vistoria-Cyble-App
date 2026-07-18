@@ -6,20 +6,35 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 ## Stack
 - **Framework:** Next.js 14.2.35 (App Router)
 - **Linguagem:** TypeScript 5.5
-- **UI:** React 18.3
-- **Armazenamento local:** IndexedDB via `idb`
-- **Armazenamento nuvem:** Vercel Blob (`@vercel/blob`)
+- **UI:** React 18.3 + Framer Motion
+- **Armazenamento local:** IndexedDB via `idb` (v2 —FotoRecord com `anotacoes`, `gps`, `nota`)
+- **Armazenamento nuvem:** Vercel Blob (`@vercel/blob`) + Neon PostgreSQL
 - **Fonts:** Space Grotesk (display), IBM Plex Mono (mono), Inter (body)
-- **Deploy:** Vercel
+- **Deploy:** Vercel (auto-deploy do GitHub)
+- **Versão atual:** 2.7.0
 
 ## Funcionalidades
-1. **PIN de acesso** — autenticação simples via variável de ambiente `APP_PIN`
-2. **Configuração de blocos** — cadastro de apartamentos por bloco (uma vez só)
-3. **Captura de fotos** — 3 categorias: Cyble Antes, Cyble Depois, Documento
-4. **Status visual** — bolinhas verdes mostram progresso por apartamento
-5. **Busca** — filtrar apartamentos por número
+1. **PIN de acesso** — autenticação simples via variável de ambiente `APP_PIN` (4821)
+2. **Configuração de blocos** — cadastro de apartamentos por bloco (8 torres A–H, ~1280 aptos)
+3. **Captura de fotos** — 3 categorias: Cyble Antes, Cyble Depois (multi), Documento
+4. **Status visual** — bolinhas verdes/amarelas mostram progresso por apartamento
+5. **Busca** — filtrar apartamentos por número (global e por bloco)
 6. **Offline-first** — funciona sem internet, sincroniza automaticamente
-7. **PWA instalável** — ícone próprio, tela standalone
+7. **PWA instalável** — ícone próprio, tela standalone, atalhos
+8. **Exportação** — PDF, XLSX, CSV, ZIP (com fotos), PDF com fotos embutidas
+9. **Compartilhar** — Web Share API (WhatsApp, email, etc)
+10. **Dashboard** — progresso por torre, estatísticas, período, atrasados
+11. **Modo escaneamento** — captura rápida contínua com feedback visual
+12. **Tema** — Dark/Light/Auto (alternância automática 18h–6h)
+13. **Backup/Restore** — exportar/importar IndexedDB completo
+14. **GPS** — geolocalização automática por foto
+15. **Anotações** — desenho/texto livre nas fotos (PhotoEditor)
+16. **Notas por foto** — campo de texto em cada foto
+17. **Onboarding** — tour guiado de 5 passos
+18. **Notificações** — sino com badge, auto-dismiss, pub/sub
+19. **Configurações** — tema, qualidade foto, itens por página, dias alerta
+20. **Fila de sync** — status individual, retry, backoff exponencial, filtros
+21. **Relatório por torre** — painel lateral com stats detalhadas
 
 ## Fluxo Principal
 ```
