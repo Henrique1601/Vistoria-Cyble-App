@@ -63,6 +63,7 @@ import {
   deveFazerBackup,
   formatarTimestampBackup,
 } from '@/lib/backup';
+import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput } from '@/lib/utils';
 
 type View = 'blocos' | 'apartamentos' | 'captura';
 
@@ -91,6 +92,7 @@ export default function Home() {
   const [fotosOnline, setFotosOnline] = useState<FotoOnline[]>([]);
   const [buscaGlobal, setBuscaGlobal] = useState('');
   const [dataFiltro, setDataFiltro] = useState('');
+  const [dataInicio, setDataInicio] = useState('');
   const [compartilhando, setCompartilhando] = useState<'pdf' | 'xlsx' | null>(null);
   const [modoEscaneamento, setModoEscaneamento] = useState(false);
   const [fotosRecentes, setFotosRecentes] = useState<FotoRecord[]>([]);
@@ -489,13 +491,35 @@ export default function Home() {
 
   // Dashboard with date filter
   const statusFiltradoPorData = useMemo(() => {
-    if (!dataFiltro) return status;
-    const aptosComFotoNaData = new Set<string>();
+    const hasDateFilter = dataFiltro || dataInicio || dataFiltro;
+    if (!hasDateFilter) return status;
+
+    const aptosComFotoNoPeriodo = new Set<string>();
     fotosOnline.forEach((f) => {
-      if (f.data_leitura === dataFiltro) aptosComFotoNaData.add(`${f.bloco}__${normApto(f.apartamento)}`);
+      const dataFoto = f.data_leitura;
+      if (!dataFoto) return;
+
+      // Single date filter (backward compatibility)
+      if (dataFiltro && dataInicio) {
+        // Range filter
+        if (estaNoIntervalo(dataFoto, dataInicio, dataFiltro)) {
+          aptosComFotoNoPeriodo.add(`${f.bloco}__${normApto(f.apartamento)}`);
+        }
+      } else if (dataFiltro) {
+        // Single date (end date)
+        if (dataFoto === dataFiltro) {
+          aptosComFotoNoPeriodo.add(`${f.bloco}__${normApto(f.apartamento)}`);
+        }
+      } else if (dataInicio) {
+        // Start date only (from start date to today)
+        const hoje = formatarDataParaInput(new Date());
+        if (estaNoIntervalo(dataFoto, dataInicio, hoje)) {
+          aptosComFotoNoPeriodo.add(`${f.bloco}__${normApto(f.apartamento)}`);
+        }
+      }
     });
-    return status.filter((s) => aptosComFotoNaData.has(`${s.bloco}__${s.apartamento}`));
-  }, [status, dataFiltro, fotosOnline]);
+    return status.filter((s) => aptosComFotoNoPeriodo.has(`${s.bloco}__${s.apartamento}`));
+  }, [status, dataFiltro, dataInicio, fotosOnline]);
 
   const progressoMap = useMemo(() => {
     const map = new Map<string, { texto: string; pct: number }>();
@@ -1022,7 +1046,16 @@ export default function Home() {
           </p>
         </motion.div>
 
-        <Dashboard status={statusFiltradoPorData} pendentes={pendentes} fotosOnline={fotosOnline} datasDisponiveis={datasDisponiveis} dataFiltro={dataFiltro} onFiltroDataChange={setDataFiltro} />
+        <Dashboard
+          status={statusFiltradoPorData}
+          pendentes={pendentes}
+          fotosOnline={fotosOnline}
+          datasDisponiveis={datasDisponiveis}
+          dataFiltro={dataFiltro}
+          dataInicio={dataInicio}
+          onFiltroDataChange={setDataFiltro}
+          onFiltroInicioChange={setDataInicio}
+        />
 
         <SearchBar buscaGlobal={buscaGlobal} onBuscaChange={setBuscaGlobal} />
 
@@ -1155,13 +1188,15 @@ function SyncBanner({ online, pendentes }: { online: boolean; pendentes: number 
 
 function normApto(s: string) { return s.replace(/^0+/, '') || '0'; }
 
-function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltro, onFiltroDataChange }: {
+function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltro, dataInicio, onFiltroDataChange, onFiltroInicioChange }: {
   status: ApartamentoStatus[];
   pendentes: number;
   fotosOnline: FotoOnline[];
   datasDisponiveis: string[];
   dataFiltro: string;
+  dataInicio: string;
   onFiltroDataChange: (v: string) => void;
+  onFiltroInicioChange: (v: string) => void;
 }) {
   const aptosComFotoOnline = useMemo(() => {
     const set = new Set<string>();
@@ -1247,35 +1282,72 @@ function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltr
         ))}
       </motion.div>
 
-      {/* Filtro por data */}
+      {/* Filtro por período */}
       {datasDisponiveis.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring, delay: 0.3 }}
-          className="relative"
+          className="space-y-3"
         >
-          <Calendar size={14} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" />
-          <select
-            value={dataFiltro}
-            onChange={(e) => onFiltroDataChange(e.target.value)}
-            aria-label="Filtrar por data de leitura"
-            className="w-full bg-base-raised border border-base-border rounded-xl pl-9 pr-10 py-2.5 text-xs font-medium text-content-secondary appearance-none focus:outline-none focus:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
-          >
-            <option value="">Todas as datas</option>
-            {datasDisponiveis.map((d) => (
-              <option key={d} value={d}>{new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')}</option>
+          {/* Date range inputs */}
+          <div className="flex gap-2 items-center">
+            <div className="flex-1 relative">
+              <Calendar size={14} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" />
+              <input
+                type="date"
+                value={dataInicio}
+                onChange={(e) => onFiltroInicioChange(e.target.value)}
+                aria-label="Data inicial do período"
+                className="w-full bg-base-raised border border-base-border rounded-xl pl-9 pr-3 py-2.5 text-xs font-medium text-content-secondary focus:outline-none focus:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
+              />
+            </div>
+            <span className="text-content-tertiary text-xs">até</span>
+            <div className="flex-1 relative">
+              <Calendar size={14} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" />
+              <input
+                type="date"
+                value={dataFiltro}
+                onChange={(e) => onFiltroDataChange(e.target.value)}
+                aria-label="Data final do período"
+                className="w-full bg-base-raised border border-base-border rounded-xl pl-9 pr-3 py-2.5 text-xs font-medium text-content-secondary focus:outline-none focus:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
+              />
+            </div>
+            {(dataInicio || dataFiltro) && (
+              <button
+                onClick={() => {
+                  onFiltroInicioChange('');
+                  onFiltroDataChange('');
+                }}
+                aria-label="Limpar filtro de período"
+                className="w-9 h-9 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-tertiary hover:text-content transition-colors"
+              >
+                <X size={14} weight="bold" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick shortcuts */}
+          <div className="flex gap-2 flex-wrap">
+            {([
+              { label: 'Hoje', atalho: 'hoje' as const },
+              { label: '7 dias', atalho: 'semana' as const },
+              { label: '30 dias', atalho: 'mes' as const },
+              { label: '90 dias', atalho: 'trimestre' as const },
+            ]).map(({ label, atalho }) => (
+              <button
+                key={atalho}
+                onClick={() => {
+                  const periodo = obterPeriodoAtalho(atalho);
+                  onFiltroInicioChange(periodo.inicio);
+                  onFiltroDataChange(periodo.fim);
+                }}
+                className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider bg-base-overlay border border-base-border rounded-lg text-content-tertiary hover:text-content hover:border-accent/30 transition-colors"
+              >
+                {label}
+              </button>
             ))}
-          </select>
-          {dataFiltro && (
-            <button
-              onClick={() => onFiltroDataChange('')}
-              aria-label="Limpar filtro de data"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-content-tertiary hover:text-content"
-            >
-              <X size={12} weight="bold" />
-            </button>
-          )}
+          </div>
         </motion.div>
       )}
     </div>
