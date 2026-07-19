@@ -172,7 +172,7 @@
 - **Dependências:** Nenhuma
 
 ### 22. Notas por foto
-- **Status:** ⬜
+- **Status:** ✅
 - **Descrição:** Campo de texto livre em cada foto (ex: "vazamento no piso", "torque ok")
 - **Uso:** Registrar observações específicas sem precisar de outro sistema
 - **Dependências:** Nenhuma
@@ -421,6 +421,22 @@
 - **Status:** ✅
 - **Descrição:** Exportação de relatório HTML standalone com thumbs de fotos embutidos, stats por torre, progress bars, tema escuro. Interface `HtmlFoto` para mapeamento simplificado. Botão dedicado na seção de exportação.
 - **Uso:** Relatório visual compartilhável sem precisar de PDF
+- **Dependências:** Nenhuma
+
+---
+
+## v2.9.0 — Julho 2026
+
+### 62. Exportação por Período
+- **Status:** ✅
+- **Descrição:** Filtro de período do dashboard agora afeta todas as exportações. Indicador visual na seção de exportação mostrando período ativo e contagem de aptos filtrados.
+- **Uso:** Gerar relatórios de um período específico
+- **Dependências:** Feature 41 (Date Range Filter)
+
+### 63. Mapa de Progresso (Heatmap)
+- **Status:** ✅
+- **Descrição:** Grid colorido por torre onde cada célula = 1 apto. Verde (concluído), amarelo (em andamento), vermelho (pendente). Dot indicador de nota. Clicável — navega para o apto. Toggle na tela principal.
+- **Uso:** Visão visual rápida do progresso geral
 - **Dependências:** Nenhuma
 
 ---

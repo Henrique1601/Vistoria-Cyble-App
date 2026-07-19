@@ -1,5 +1,30 @@
 # Changelog — Vistoria Cyble
 
+## v2.9.0 (18/07/2026)
+
+### Notas por Foto
+- **`lib/db.ts`** — `ApartamentoStatus` agora inclui `notas?: string[]` (agregado das notas das fotos)
+- **`statusDeTodosApartamentos()`** coleta notas de todas as fotos do apto
+- **Badge de nota** (ícone 📝 + contador) na lista de aptos e no TowerReportPanel
+- **Exportações** — coluna "Notas" adicionada ao CSV, PDF e XLSX
+- Input de nota já existia no CapturaScreen (via `atualizarNota()`)
+
+### Exportação por Período
+- **`page.tsx`** — `statusExportacao` agora usa `statusFiltradoPorData` quando datas estão definidas
+- **`components/ExportSection.tsx`** — indicador visual de período ativo (ícone Calendar + range + contagem de aptos)
+- Filtro de período do dashboard agora afeta todas as exportações (CSV, PDF, XLSX, ZIP, HTML)
+
+### Mapa de Progresso (Heatmap)
+- **`components/ProgressHeatmap.tsx`** — NOVO componente
+  - Grid colorido por torre: cada célula = 1 apto
+  - Verde (concluído), amarelo (em andamento), vermelho (pendente)
+  - Dot indicador de nota (ponto accent no canto)
+  - Clicável — navega direto para o apto
+  - Toggle na tela principal para mostrar/esconder
+  - Tooltip com status e notas
+
+---
+
 ## v2.8.0 (18/07/2026)
 
 ### Audit Log
