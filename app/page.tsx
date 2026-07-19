@@ -75,7 +75,7 @@ import TowerReportPanel from '@/components/TowerReportPanel';
 import SyncQueueScreen from '@/components/SyncQueueScreen';
 import AuditLogScreen from '@/components/AuditLogScreen';
 
-type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog';
+type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar';
 
 interface FotoOnline {
   id: number;
@@ -773,6 +773,99 @@ export default function Home() {
     );
   }
 
+  if (view === 'exportar') {
+    return (
+      <>
+        <main className="min-h-dvh bg-base pb-24">
+          <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-base-border">
+            <button
+              onClick={() => setView('blocos')}
+              className="tactile-press w-9 h-9 rounded-xl bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content transition-colors"
+              aria-label="Voltar"
+            >
+              <ArrowLeft size={16} weight="bold" />
+            </button>
+            <h1 className="text-lg font-semibold text-content">Exportar</h1>
+          </div>
+          <div className="px-4 pt-4">
+            <ExportSection
+              blocos={blocos}
+              torresExportacao={torresExportacao}
+              onTorresChange={setTorresExportacao}
+              statusExportacao={statusExportacao}
+              showEstatisticas={showEstatisticas}
+              showEstatisticasTorre={showEstatisticasTorre}
+              onToggleEstatisticas={() => setShowEstatisticas(!showEstatisticas)}
+              onToggleEstatisticasTorre={() => setShowEstatisticasTorre(!showEstatisticasTorre)}
+              dataInicio={dataInicio}
+              dataFim={dataFiltro}
+              onExportCSV={exportarCSV}
+              onExportPDF={(s) => exportarPDF(s, 'Vistoria Cyble')}
+              onExportXLSX={(s) => exportarXLSX(s, 'Vistoria Cyble')}
+              onCompartilharPDF={async (s) => { setCompartilhando('pdf'); await compartilharPDF(s, 'Vistoria Cyble'); setCompartilhando(null); }}
+              onCompartilharXLSX={async (s) => { setCompartilhando('xlsx'); await compartilharXLSX(s, 'Vistoria Cyble'); setCompartilhando(null); }}
+              onExportZIP={async (s) => { setExportandoZIP(true); try { await exportarZIP(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoZIP(false); } }}
+              onRelatorioPDFComFotos={async (s) => { setExportandoFotos(true); try { await relatorioPDFComFotos(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoFotos(false); } }}
+              onExportHTML={(s) => {
+                const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
+                for (const f of fotosOnline) {
+                  const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
+                  const arr = fotosMap.get(key) ?? [];
+                  arr.push({ fotoUrl: f.foto_url, categoria: f.foto_url.includes('antes') ? 'cyble_antes' : f.foto_url.includes('depois') ? 'cyble_depois' : 'documento' });
+                  fotosMap.set(key, arr);
+                }
+                const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
+                downloadHTML(html, `vistoria-cyble-${new Date().toISOString().slice(0, 10)}.html`);
+                logAudit('export_html', `Relatório HTML gerado (${s.length} aptos)`);
+              }}
+              onShareReport={async (s) => {
+                setCompartilhando('report');
+                try {
+                  const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
+                  for (const f of fotosOnline) {
+                    const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
+                    const arr = fotosMap.get(key) ?? [];
+                    arr.push({ fotoUrl: f.foto_url, categoria: f.foto_url.includes('antes') ? 'cyble_antes' : f.foto_url.includes('depois') ? 'cyble_depois' : 'documento' });
+                    fotosMap.set(key, arr);
+                  }
+                  const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
+                  const res = await fetch('/api/share-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ html, filename: `vistoria-${new Date().toISOString().slice(0, 10)}.html` }),
+                  });
+                  const data = await res.json();
+                  if (data.ok && data.url) {
+                    await navigator.clipboard.writeText(data.url);
+                    toast('Link copiado para a area de transferencia', 'success');
+                    logAudit('export_html', `Link compartilhado (${s.length} aptos)`);
+                  } else {
+                    toast('Erro ao gerar link: ' + (data.erro || 'desconhecido'), 'error');
+                  }
+                } catch (err) {
+                  toast('Erro ao compartilhar relatório', 'error');
+                }
+                setCompartilhando(null);
+              }}
+              compartilhando={compartilhando}
+              exportandoZIP={exportandoZIP}
+              exportandoFotos={exportandoFotos}
+            />
+          </div>
+        </main>
+        <BottomNav
+          active="exportar"
+          onNavigate={(v) => {
+            setActiveNav(v as typeof activeNav);
+            haptic('selection');
+            if (v === 'camera') setModoEscaneamento(true);
+            else setView(v as View);
+          }}
+        />
+      </>
+    );
+  }
+
   if (view === 'captura' && blocoAtual && aptoAtual) {
     // Find next pending apto for continuous scan
     const aptoIdx = aptosDoBloco.findIndex((a) => a.apartamento === aptoAtual);
@@ -1234,69 +1327,6 @@ export default function Home() {
           onSelect={(b) => { haptic('light'); setSelectedTower(b); }}
         />
 
-        <ExportSection
-          blocos={blocos}
-          torresExportacao={torresExportacao}
-          onTorresChange={setTorresExportacao}
-          statusExportacao={statusExportacao}
-          showEstatisticas={showEstatisticas}
-          showEstatisticasTorre={showEstatisticasTorre}
-          onToggleEstatisticas={() => setShowEstatisticas(!showEstatisticas)}
-          onToggleEstatisticasTorre={() => setShowEstatisticasTorre(!showEstatisticasTorre)}
-          dataInicio={dataInicio}
-          dataFim={dataFiltro}
-          onExportCSV={exportarCSV}
-          onExportPDF={(s) => exportarPDF(s, 'Vistoria Cyble')}
-          onExportXLSX={(s) => exportarXLSX(s, 'Vistoria Cyble')}
-          onCompartilharPDF={async (s) => { setCompartilhando('pdf'); await compartilharPDF(s, 'Vistoria Cyble'); setCompartilhando(null); }}
-          onCompartilharXLSX={async (s) => { setCompartilhando('xlsx'); await compartilharXLSX(s, 'Vistoria Cyble'); setCompartilhando(null); }}
-          onExportZIP={async (s) => { setExportandoZIP(true); try { await exportarZIP(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoZIP(false); } }}
-          onRelatorioPDFComFotos={async (s) => { setExportandoFotos(true); try { await relatorioPDFComFotos(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoFotos(false); } }}
-          onExportHTML={(s) => {
-            const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
-            for (const f of fotosOnline) {
-              const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
-              const arr = fotosMap.get(key) ?? [];
-              arr.push({ fotoUrl: f.foto_url, categoria: f.foto_url.includes('antes') ? 'cyble_antes' : f.foto_url.includes('depois') ? 'cyble_depois' : 'documento' });
-              fotosMap.set(key, arr);
-            }
-            const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
-            downloadHTML(html, `vistoria-cyble-${new Date().toISOString().slice(0, 10)}.html`);
-            logAudit('export_html', `Relatório HTML gerado (${s.length} aptos)`);
-          }}
-          onShareReport={async (s) => {
-            setCompartilhando('report');
-            try {
-              const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
-              for (const f of fotosOnline) {
-                const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
-                const arr = fotosMap.get(key) ?? [];
-                arr.push({ fotoUrl: f.foto_url, categoria: f.foto_url.includes('antes') ? 'cyble_antes' : f.foto_url.includes('depois') ? 'cyble_depois' : 'documento' });
-                fotosMap.set(key, arr);
-              }
-              const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
-              const res = await fetch('/api/share-report', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ html, filename: `vistoria-${new Date().toISOString().slice(0, 10)}.html` }),
-              });
-              const data = await res.json();
-              if (data.ok && data.url) {
-                await navigator.clipboard.writeText(data.url);
-                toast('Link copiado para a area de transferencia', 'success');
-                logAudit('export_html', `Link compartilhado (${s.length} aptos)`);
-              } else {
-                toast('Erro ao gerar link: ' + (data.erro || 'desconhecido'), 'error');
-              }
-            } catch (err) {
-              toast('Erro ao compartilhar relatório', 'error');
-            }
-            setCompartilhando(null);
-          }}
-          compartilhando={compartilhando}
-          exportandoZIP={exportandoZIP}
-          exportandoFotos={exportandoFotos}
-        />
         <div className="mb-3">
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
