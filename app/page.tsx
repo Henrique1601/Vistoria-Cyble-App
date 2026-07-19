@@ -25,6 +25,7 @@ import {
   Scan,
   ArrowDown,
   ArrowClockwise,
+  ChatText,
 } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import BottomNav from '@/components/BottomNav';
@@ -34,6 +35,7 @@ import { FotosRecentes } from '@/components/FotosRecentes';
 import { AtrasadosSection } from '@/components/AtrasadosSection';
 import { BlocosGrid } from '@/components/BlocosGrid';
 import { ExportSection } from '@/components/ExportSection';
+import { ProgressHeatmap } from '@/components/ProgressHeatmap';
 import { BottomLinks } from '@/components/BottomLinks';
 import { haptic } from '@/lib/haptic';
 import { spring, stagger, item } from '@/lib/motion';
@@ -106,6 +108,7 @@ export default function Home() {
   const [torresExportacao, setTorresExportacao] = useState<Set<string>>(new Set());
   const [showEstatisticas, setShowEstatisticas] = useState(false);
   const [showEstatisticasTorre, setShowEstatisticasTorre] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [diasAlerta, setDiasAlerta] = useState(7);
   const [showAtrasados, setShowAtrasados] = useState(false);
   const [itensPagina, setItensPagina] = useState<10 | 20 | 50 | 999>(20);
@@ -667,11 +670,18 @@ export default function Home() {
     return [...merged.values()];
   }, [status, blocos, lista, fotosOnlineMap, fotosCountMap]);
 
-  // Status filtrado para exportação (por torre selecionada)
+  // Status filtrado para exportação (por torre e período)
   const statusExportacao = useMemo(() => {
-    if (torresExportacao.size === 0) return statusMerged;
-    return statusMerged.filter((s) => torresExportacao.has(s.bloco));
-  }, [statusMerged, torresExportacao]);
+    const base = (dataFiltro || dataInicio) ? statusFiltradoPorData : statusMerged;
+    if (torresExportacao.size === 0) return base;
+    return base.filter((s) => torresExportacao.has(s.bloco));
+  }, [statusMerged, statusFiltradoPorData, torresExportacao, dataFiltro, dataInicio]);
+
+  const handleNavigateToApto = useCallback((bloco: string, apto: string) => {
+    setBlocoAtual(bloco);
+    setAptoAtual(apto);
+    setView('captura');
+  }, []);
 
   if (!pinChecked) return null;
 
@@ -882,6 +892,12 @@ export default function Home() {
                   <StatusDot done={s.cybleAntesFeito} partial={emAndamento(s)} label="Antes" />
                   <StatusDot done={s.cybleDepoisFeito} partial={emAndamento(s)} label="Depois" />
                   <StatusDot done={s.qtdDocumentos > 0} label="Doc" />
+                  {s.notas && s.notas.length > 0 && (
+                    <span className="flex items-center gap-0.5 text-[9px] text-accent" title={s.notas.join(' | ')}>
+                      <ChatText size={10} weight="fill" />
+                      {s.notas.length}
+                    </span>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -1205,6 +1221,8 @@ export default function Home() {
           showEstatisticasTorre={showEstatisticasTorre}
           onToggleEstatisticas={() => setShowEstatisticas(!showEstatisticas)}
           onToggleEstatisticasTorre={() => setShowEstatisticasTorre(!showEstatisticasTorre)}
+          dataInicio={dataInicio}
+          dataFim={dataFiltro}
           onExportCSV={exportarCSV}
           onExportPDF={(s) => exportarPDF(s, 'Vistoria Cyble')}
           onExportXLSX={(s) => exportarXLSX(s, 'Vistoria Cyble')}
@@ -1228,6 +1246,28 @@ export default function Home() {
           exportandoZIP={exportandoZIP}
           exportandoFotos={exportandoFotos}
         />
+        <div className="mb-3">
+          <button
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+          >
+            <div className="grid grid-cols-3 gap-0.5">
+              <div className="w-1.5 h-1.5 rounded-sm bg-success/80" />
+              <div className="w-1.5 h-1.5 rounded-sm bg-warn/80" />
+              <div className="w-1.5 h-1.5 rounded-sm bg-danger/60" />
+              <div className="w-1.5 h-1.5 rounded-sm bg-success/80" />
+              <div className="w-1.5 h-1.5 rounded-sm bg-danger/60" />
+              <div className="w-1.5 h-1.5 rounded-sm bg-warn/80" />
+              <div className="w-1.5 h-1.5 rounded-sm bg-warn/80" />
+              <div className="w-1.5 h-1.5 rounded-sm bg-success/80" />
+              <div className="w-1.5 h-1.5 rounded-sm bg-success/80" />
+            </div>
+            {showHeatmap ? 'Ocultar mapa' : 'Mapa de progresso'}
+          </button>
+        </div>
+        {showHeatmap && (
+          <ProgressHeatmap status={status} onNavigateToApto={handleNavigateToApto} />
+        )}
         {showEstatisticas && (
           <EstatisticasPeriodo fotosOnline={fotosOnline} />
         )}

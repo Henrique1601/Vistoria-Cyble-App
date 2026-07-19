@@ -1,6 +1,6 @@
 'use client';
 
-import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code } from '@phosphor-icons/react';
+import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { spring } from '@/lib/motion';
 import type { ApartamentoStatus } from '@/lib/db';
@@ -14,6 +14,8 @@ interface ExportSectionProps {
   showEstatisticasTorre: boolean;
   onToggleEstatisticas: () => void;
   onToggleEstatisticasTorre: () => void;
+  dataInicio?: string;
+  dataFim?: string;
   onExportCSV: (status: ApartamentoStatus[]) => void;
   onExportPDF: (status: ApartamentoStatus[]) => void;
   onExportXLSX: (status: ApartamentoStatus[]) => void;
@@ -36,6 +38,8 @@ export function ExportSection({
   showEstatisticasTorre,
   onToggleEstatisticas,
   onToggleEstatisticasTorre,
+  dataInicio,
+  dataFim,
   onExportCSV,
   onExportPDF,
   onExportXLSX,
@@ -106,6 +110,18 @@ export function ExportSection({
           ))}
         </div>
       </div>
+
+      {(dataInicio || dataFim) && (
+        <div className="flex items-center gap-1.5 mb-3 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-lg">
+          <Calendar size={12} weight="bold" className="text-accent" />
+          <span className="text-[11px] text-accent font-medium">
+            Periodo: {dataInicio || '...'} ate {dataFim || '...'}
+          </span>
+          <span className="text-[10px] text-accent/60 ml-1">
+            ({statusExportacao.length} aptos)
+          </span>
+        </div>
+      )}
 
       <div className="flex gap-3 mb-3">
         <button

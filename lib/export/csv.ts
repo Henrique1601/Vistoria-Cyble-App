@@ -2,7 +2,7 @@ import type { ApartamentoStatus } from '../db';
 import { statusApto } from './utils';
 
 export function exportarCSV(status: ApartamentoStatus[]) {
-  const header = 'Torre;Apto;Cyble Antes;Cyble Depois;Documentos;Total Fotos;Status\n';
+  const header = 'Torre;Apto;Cyble Antes;Cyble Depois;Documentos;Total Fotos;Status;Notas\n';
   const rows = status
     .filter((s) => s.qtdFotos > 0)
     .map((s) =>
@@ -14,6 +14,7 @@ export function exportarCSV(status: ApartamentoStatus[]) {
         s.qtdDocumentos,
         s.qtdFotos,
         statusApto(s),
+        (s.notas || []).join(' | '),
       ].join(';')
     )
     .join('\n');

@@ -101,12 +101,13 @@ async function buildPDF(status: ApartamentoStatus[], titulo: string) {
         s.qtdDocumentos > 0 ? `${s.qtdDocumentos}` : '\u2014',
         `${s.qtdFotos}`,
         statusApto(s),
+        (s.notas || []).join(' | '),
       ]);
 
     autoTable(doc, {
       startY: 42,
       margin: { left: margin, right: margin },
-      head: [['Apto', 'Antes', 'Depois', 'Docs', 'Fotos', 'Status']],
+      head: [['Apto', 'Antes', 'Depois', 'Docs', 'Fotos', 'Status', 'Notas']],
       body: tableData,
       styles: {
         fillColor: [20, 23, 30],

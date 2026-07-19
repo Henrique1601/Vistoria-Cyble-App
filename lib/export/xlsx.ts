@@ -30,7 +30,7 @@ function buildXLSXWorkbook(status: ApartamentoStatus[], titulo: string) {
     XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
 
     const detalhamento: any[][] = [
-      ['Torre', 'Apto', 'Antes', 'Depois', 'Docs', 'Total Fotos', 'Status'],
+      ['Torre', 'Apto', 'Antes', 'Depois', 'Docs', 'Total Fotos', 'Status', 'Notas'],
     ];
 
     const sorted = [...status].sort((a, b) => {
@@ -48,13 +48,14 @@ function buildXLSXWorkbook(status: ApartamentoStatus[], titulo: string) {
         String(s.qtdDocumentos),
         String(s.qtdFotos),
         statusApto(s),
+        (s.notas || []).join(' | '),
       ]);
     }
 
     const wsDetalhe = XLSX.utils.aoa_to_sheet(detalhamento);
     wsDetalhe['!cols'] = [
       { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 },
-      { wch: 8 }, { wch: 12 }, { wch: 14 },
+      { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 30 },
     ];
     XLSX.utils.book_append_sheet(wb, wsDetalhe, 'Detalhamento');
 

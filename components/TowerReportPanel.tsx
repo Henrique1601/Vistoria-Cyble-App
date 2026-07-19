@@ -10,6 +10,7 @@ import {
   Camera,
   Cloud,
   ArrowRight,
+  ChatText,
 } from '@phosphor-icons/react';
 import type { ApartamentoStatus } from '@/lib/db';
 import { statusApto } from '@/lib/export/utils';
@@ -237,6 +238,11 @@ export default function TowerReportPanel({
                         {fotoCount > 0 && (
                           <span className="text-[10px] text-accent flex items-center gap-0.5">
                             <Cloud size={10} /> {fotoCount}
+                          </span>
+                        )}
+                        {s.notas && s.notas.length > 0 && (
+                          <span className="text-[10px] text-accent flex items-center gap-0.5" title={s.notas.join(' | ')}>
+                            <ChatText size={10} weight="fill" /> {s.notas.length}
                           </span>
                         )}
                       </div>

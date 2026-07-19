@@ -10,6 +10,7 @@ export interface ApartamentoStatus {
   cybleDepoisFeito: boolean;
   qtdDocumentos: number;
   qtdFotos: number;
+  notas?: string[];
 }
 
 export interface FotoRecord {
@@ -143,6 +144,7 @@ export async function statusDeTodosApartamentos(
     for (const apto of lista[bloco]) {
       const key = `${bloco}__${apto}`;
       const fotos = fotosMap.get(key) || [];
+      const notas = fotos.map((f) => f.nota).filter((n): n is string => !!n && n.trim().length > 0);
       result.push({
         bloco,
         apartamento: apto,
@@ -150,6 +152,7 @@ export async function statusDeTodosApartamentos(
         cybleDepoisFeito: fotos.some((f) => f.categoria === 'cyble_depois'),
         qtdDocumentos: fotos.filter((f) => f.categoria === 'documento').length,
         qtdFotos: fotos.length,
+        notas: notas.length > 0 ? notas : undefined,
       });
     }
   }
