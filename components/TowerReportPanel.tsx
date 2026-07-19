@@ -52,42 +52,10 @@ export default function TowerReportPanel({
 }: TowerReportPanelProps) {
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'Concluido' | 'Em andamento' | 'Pendente'>('todos');
 
-  const towerStatus = useMemo(() => {
-    const local = status.filter((s) => s.bloco === tower);
-
-    const onlineAptos = new Set<string>();
-    fotosOnline
-      .filter((f) => f.bloco === tower)
-      .forEach((f) => onlineAptos.add(normApto(f.apartamento)));
-
-    const localMap = new Map(local.map((s) => [normApto(s.apartamento), s]));
-
-    const allAptos = new Set<string>([
-      ...local.map((s) => normApto(s.apartamento)),
-      ...onlineAptos,
-    ]);
-
-    return [...allAptos].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((apto) => {
-      const existing = localMap.get(apto);
-      const hasOnline = onlineAptos.has(apto);
-      if (existing) {
-        return {
-          ...existing,
-          apartamento: apto,
-          cybleAntesFeito: existing.cybleAntesFeito || hasOnline,
-          cybleDepoisFeito: existing.cybleDepoisFeito || hasOnline,
-        };
-      }
-      return {
-        bloco: tower,
-        apartamento: apto,
-        cybleAntesFeito: true,
-        cybleDepoisFeito: true,
-        qtdDocumentos: 0,
-        qtdFotos: fotosCountMap.get(`${tower}__${apto}`) || 0,
-      };
-    });
-  }, [status, tower, fotosOnline, fotosCountMap]);
+  const towerStatus = useMemo(
+    () => status.filter((s) => s.bloco === tower),
+    [status, tower]
+  );
 
   const totalAptos = towerStatus.length;
   const concluidos = towerStatus.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito).length;

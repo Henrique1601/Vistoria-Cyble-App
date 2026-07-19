@@ -1317,7 +1317,7 @@ export default function Home() {
           </button>
         </div>
         {showHeatmap && (
-          <ProgressHeatmap status={status} onNavigateToApto={handleNavigateToApto} />
+          <ProgressHeatmap status={statusMerged} onNavigateToApto={handleNavigateToApto} />
         )}
         {showEstatisticas && (
           <EstatisticasPeriodo fotosOnline={fotosOnline} />
@@ -1359,7 +1359,7 @@ export default function Home() {
         {selectedTower && (
           <TowerReportPanel
             tower={selectedTower}
-            status={status}
+            status={statusMerged}
             fotosOnline={fotosOnline}
             fotosCountMap={fotosCountMap}
             onNavigateToApto={(bloco, apto) => {
