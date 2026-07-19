@@ -60,19 +60,20 @@ export default function TowerReportPanel({
       .filter((f) => f.bloco === tower)
       .forEach((f) => onlineAptos.add(normApto(f.apartamento)));
 
-    const localMap = new Map(local.map((s) => [s.apartamento, s]));
+    const localMap = new Map(local.map((s) => [normApto(s.apartamento), s]));
 
     const allAptos = new Set<string>([
-      ...local.map((s) => s.apartamento),
+      ...local.map((s) => normApto(s.apartamento)),
       ...onlineAptos,
     ]);
 
-    return [...allAptos].map((apto) => {
+    return [...allAptos].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((apto) => {
       const existing = localMap.get(apto);
       const hasOnline = onlineAptos.has(apto);
       if (existing) {
         return {
           ...existing,
+          apartamento: apto,
           cybleAntesFeito: existing.cybleAntesFeito || hasOnline,
           cybleDepoisFeito: existing.cybleDepoisFeito || hasOnline,
         };

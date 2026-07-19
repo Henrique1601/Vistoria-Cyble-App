@@ -453,7 +453,7 @@ export default function Home() {
   const statusMap = useMemo(() => {
     const map = new Map<string, ApartamentoStatus>();
     for (const s of status) {
-      map.set(`${s.bloco}__${s.apartamento}`, s);
+      map.set(`${s.bloco}__${normApto(s.apartamento)}`, s);
     }
     return map;
   }, [status]);
@@ -495,7 +495,7 @@ export default function Home() {
   const aptosDoBloco = useMemo(() => {
     if (!blocoAtual) return [];
 
-    const codigosLocais = lista?.[blocoAtual] || [];
+    const codigosLocais = (lista?.[blocoAtual] || []).map(normApto);
     const aptosOnlineList = [...aptosOnlineDoBloco];
 
     const allAptos = new Set<string>([
@@ -506,13 +506,12 @@ export default function Home() {
     const result = [...allAptos]
       .map((c) => {
         const local = statusMap.get(`${blocoAtual}__${c}`);
-        if (local) return local;
-        const cNorm = normApto(c);
-        const temFotoOnline = aptosOnlineDoBloco.has(cNorm);
+        if (local) return { ...local, apartamento: c };
+        const temFotoOnline = aptosOnlineDoBloco.has(c);
         return {
           bloco: blocoAtual, apartamento: c,
           cybleAntesFeito: temFotoOnline, cybleDepoisFeito: temFotoOnline,
-          qtdDocumentos: 0, qtdFotos: fotosCountMap.get(`${blocoAtual}__${cNorm}`) || 0,
+          qtdDocumentos: 0, qtdFotos: fotosCountMap.get(`${blocoAtual}__${c}`) || 0,
         };
       })
       .filter((s) => s.apartamento.toLowerCase().includes(busca.toLowerCase()));
@@ -603,7 +602,7 @@ export default function Home() {
   const progressoMap = useMemo(() => {
     const map = new Map<string, { texto: string; pct: number }>();
     for (const b of blocos) {
-      const codigosLocais = lista?.[b] || [];
+      const codigosLocais = (lista?.[b] || []).map(normApto);
       const entry = fotosOnlineMap.get(b);
       const aptosOnline = entry?.aptos ?? new Set<string>();
       const allAptos = new Set<string>([...codigosLocais, ...aptosOnline]);
@@ -611,7 +610,7 @@ export default function Home() {
       const completos = [...allAptos].filter((c) => {
         const st = statusMap.get(`${b}__${c}`);
         const feitoLocal = st && st.cybleAntesFeito && st.cybleDepoisFeito;
-        const feitoOnline = aptosOnline.has(normApto(c));
+        const feitoOnline = aptosOnline.has(c);
         return feitoLocal || feitoOnline;
       }).length;
       const pct = total > 0 ? Math.round((completos / total) * 100) : 0;
@@ -631,18 +630,17 @@ export default function Home() {
     // Also check local status
     status.forEach((s) => {
       if (s.cybleAntesFeito || s.cybleDepoisFeito) {
-        // Local photos don't have a clean date, so include them as "has photo"
-        aptosComFotoRecente.add(`${s.bloco}__${s.apartamento}`);
+        aptosComFotoRecente.add(`${s.bloco}__${normApto(s.apartamento)}`);
       }
     });
     const result: { bloco: string; apartamento: string }[] = [];
     for (const b of blocos) {
-      const codigosLocais = lista?.[b] || [];
+      const codigosLocais = (lista?.[b] || []).map(normApto);
       const entry = fotosOnlineMap.get(b);
       const aptosOnline = entry?.aptos ?? new Set<string>();
       const allAptos = new Set<string>([...codigosLocais, ...aptosOnline]);
       for (const c of allAptos) {
-        if (!aptosComFotoRecente.has(`${b}__${c}`) && !aptosComFotoRecente.has(`${b}__${normApto(c)}`)) {
+        if (!aptosComFotoRecente.has(`${b}__${c}`)) {
           result.push({ bloco: b, apartamento: c });
         }
       }
@@ -656,13 +654,12 @@ export default function Home() {
 
     // 1. Adicionar todos os status locais
     for (const s of status) {
-      const key = `${s.bloco}__${s.apartamento}`;
-      merged.set(key, { ...s });
+      const key = `${s.bloco}__${normApto(s.apartamento)}`;
+      merged.set(key, { ...s, apartamento: normApto(s.apartamento) });
     }
 
     // 2. Adicionar aptos que existem apenas online (nao na lista local)
     for (const b of blocos) {
-      const codigosLocais = new Set(lista?.[b] || []);
       const entry = fotosOnlineMap.get(b);
       const aptosOnline = entry?.aptos ?? new Set<string>();
       for (const apto of aptosOnline) {
@@ -676,6 +673,10 @@ export default function Home() {
             qtdDocumentos: 0,
             qtdFotos: fotosCountMap.get(key) || 0,
           });
+        } else {
+          const existing = merged.get(key)!;
+          existing.cybleAntesFeito = true;
+          existing.cybleDepoisFeito = true;
         }
       }
     }
@@ -689,7 +690,7 @@ export default function Home() {
     }
 
     return [...merged.values()];
-  }, [status, blocos, lista, fotosOnlineMap, fotosCountMap]);
+  }, [status, blocos, fotosOnlineMap, fotosCountMap]);
 
   // Status filtrado para exportação (por torre e período)
   const statusExportacao = useMemo(() => {
@@ -1435,10 +1436,27 @@ function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltr
   }, [fotosOnline]);
 
   const totalAptos = status.length;
-  const completosLocal = status.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito).length;
-  const completosOnline = aptosComFotoOnline.size;
-  const completos = Math.max(completosLocal, completosOnline);
-  const andamento = status.filter((s) => emAndamento(s)).length;
+
+  const aptosCompletos = useMemo(() => {
+    const set = new Set<string>();
+    status.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito).forEach((s) => {
+      set.add(`${s.bloco}__${normApto(s.apartamento)}`);
+    });
+    aptosComFotoOnline.forEach((key) => set.add(key));
+    return set;
+  }, [status, aptosComFotoOnline]);
+
+  const aptosAndamento = useMemo(() => {
+    const set = new Set<string>();
+    status.filter((s) => emAndamento(s)).forEach((s) => {
+      const key = `${s.bloco}__${normApto(s.apartamento)}`;
+      if (!aptosCompletos.has(key)) set.add(key);
+    });
+    return set;
+  }, [status, aptosCompletos]);
+
+  const completos = aptosCompletos.size;
+  const andamento = aptosAndamento.size;
   const totalFotosLocal = status.reduce((acc, s) => acc + s.qtdFotos, 0);
   const totalFotos = Math.max(totalFotosLocal, fotosOnline.length);
   const pct = totalAptos > 0 ? Math.round((completos / totalAptos) * 100) : 0;
