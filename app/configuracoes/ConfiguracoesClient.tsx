@@ -39,7 +39,7 @@ import { fazerBackupManual } from '@/lib/backup';
 import { useToast } from '@/components/Toast';
 import { spring } from '@/lib/motion';
 
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '3.0.0';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
