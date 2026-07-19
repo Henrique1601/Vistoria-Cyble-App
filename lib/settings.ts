@@ -4,6 +4,8 @@ const DEFAULTS = {
   scanMode: false,
   diasAlerta: 7,
   itensPagina: 20,
+  backupAutomatico: true,
+  backupIntervalo: 30 as 30 | 60 | 360 | 1440,
 };
 
 function get<T>(key: string, fallback: T): T {
@@ -61,4 +63,20 @@ export function getItensPagina() {
 
 export function setItensPagina(n: number) {
   set('itens_pagina', String(n));
+}
+
+export function getBackupAutomatico() {
+  return get('backup_automatico', String(DEFAULTS.backupAutomatico)) === 'true';
+}
+
+export function setBackupAutomatico(v: boolean) {
+  set('backup_automatico', String(v));
+}
+
+export function getBackupIntervalo() {
+  return Number(get('backup_intervalo', String(DEFAULTS.backupIntervalo))) as 30 | 60 | 360 | 1440;
+}
+
+export function setBackupIntervalo(n: 30 | 60 | 360 | 1440) {
+  set('backup_intervalo', String(n));
 }

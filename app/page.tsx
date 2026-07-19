@@ -66,7 +66,7 @@ import {
   formatarTimestampBackup,
 } from '@/lib/backup';
 import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto } from '@/lib/utils';
-import { getDiasAlerta, getItensPagina } from '@/lib/settings';
+import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
 import { logAudit } from '@/lib/auditLog';
 import NotificationCenter from '@/components/NotificationCenter';
@@ -102,7 +102,7 @@ export default function Home() {
   const [buscaGlobal, setBuscaGlobal] = useState('');
   const [dataFiltro, setDataFiltro] = useState('');
   const [dataInicio, setDataInicio] = useState('');
-  const [compartilhando, setCompartilhando] = useState<'pdf' | 'xlsx' | null>(null);
+  const [compartilhando, setCompartilhando] = useState<'pdf' | 'xlsx' | 'report' | null>(null);
   const [modoEscaneamento, setModoEscaneamento] = useState(false);
   const [fotosRecentes, setFotosRecentes] = useState<FotoRecord[]>([]);
   const [torresExportacao, setTorresExportacao] = useState<Set<string>>(new Set());
@@ -257,6 +257,27 @@ export default function Home() {
         });
       }
     });
+
+    // Backup periódico em background
+    const backupAuto = getBackupAutomatico();
+    const intervaloMs = getBackupIntervalo() * 60 * 1000;
+    const backupInterval = backupAuto ? setInterval(() => {
+      deveFazerBackup().then((deve) => {
+        if (deve) {
+          fazerBackupAutomatico().then((res) => {
+            if (res.ok) {
+              obterUltimoBackup().then((ts) => {
+                setUltimoBackup(formatarTimestampBackup(ts));
+              });
+              toast('Backup automatico realizado', 'success');
+              logAudit('backup_created', 'Backup automático agendado');
+            }
+          });
+        }
+      });
+    }, intervaloMs) : undefined;
+
+    return () => { if (backupInterval) clearInterval(backupInterval); };
   }, [pin]);
 
   // Sync automático em background (visibility change)
@@ -1241,6 +1262,35 @@ export default function Home() {
             const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
             downloadHTML(html, `vistoria-cyble-${new Date().toISOString().slice(0, 10)}.html`);
             logAudit('export_html', `Relatório HTML gerado (${s.length} aptos)`);
+          }}
+          onShareReport={async (s) => {
+            setCompartilhando('report');
+            try {
+              const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
+              for (const f of fotosOnline) {
+                const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
+                const arr = fotosMap.get(key) ?? [];
+                arr.push({ fotoUrl: f.foto_url, categoria: f.foto_url.includes('antes') ? 'cyble_antes' : f.foto_url.includes('depois') ? 'cyble_depois' : 'documento' });
+                fotosMap.set(key, arr);
+              }
+              const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
+              const res = await fetch('/api/share-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ html, filename: `vistoria-${new Date().toISOString().slice(0, 10)}.html` }),
+              });
+              const data = await res.json();
+              if (data.ok && data.url) {
+                await navigator.clipboard.writeText(data.url);
+                toast('Link copiado para a area de transferencia', 'success');
+                logAudit('export_html', `Link compartilhado (${s.length} aptos)`);
+              } else {
+                toast('Erro ao gerar link: ' + (data.erro || 'desconhecido'), 'error');
+              }
+            } catch (err) {
+              toast('Erro ao compartilhar relatório', 'error');
+            }
+            setCompartilhando(null);
           }}
           compartilhando={compartilhando}
           exportandoZIP={exportandoZIP}

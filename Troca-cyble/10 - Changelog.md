@@ -1,5 +1,44 @@
 # Changelog — Vistoria Cyble
 
+## v3.0.0 (18/07/2026)
+
+### Modo Multi-Foto
+- **`app/CapturaScreen.tsx`** — Novo botão "Manter na câmera" (ícone Repeat) no header
+  - Quando ativado em categorias multi-foto, mantém a câmera abria após salvar
+  - Permite capturar múltiplas fotos sem reabrir a câmera a cada vez
+  - Auto-reabre câmera 300ms após salvar para melhor UX
+
+### Compartilhar Relatório
+- **`app/api/share-report/route.ts`** — NOVO endpoint POST
+  - Upload do HTML para Vercel Blob (`v2/reports/`)
+  - Público com 7 dias de expiração
+  - Limite de 20 relatórios (limpeza automática)
+- **`components/ExportSection.tsx`** — Botão "Compartilhar Link" (estilo accent)
+  - Novo prop `onShareReport`
+  - Gera link público e copia para clipboard
+
+### Backup Agendado
+- **`lib/settings.ts`** — Novas preferências: `backupAutomatico` + `backupIntervalo`
+  - Intervalos: 30min, 1h, 6h, 24h
+- **`app/page.tsx`** — `setInterval` para backup periódico em background
+  - Respeita configuração do usuário
+  - Toast de confirmação a cada backup automático
+- **`app/configuracoes/ConfiguracoesClient.tsx`** — Toggles de configuração
+  - Toggle "Backup automático" (Sim/Não)
+  - Selector de intervalo quando ativo
+
+### Timer de Escaneamento
+- **`lib/db.ts`** — `FotoRecord` inclui `capturedAt?: string` (ISO timestamp)
+- **`lib/timer.ts`** — NOVO módulo de cálculo de tempo
+  - `calcularTempoApto()` — tempo entre primeira e última foto
+  - `calcularTempoPorTorre()` — estatísticas por torre
+  - `formatarTempo()` — formatação legível (minutos/segundos)
+- **`components/TowerReportPanel.tsx`** — Tempo médio por apto no tooltip
+- **`components/ProgressHeatmap.tsx`** — Cor do heatmap reflete tempo (verde = rápido, vermelho = lento)
+- **`lib/export/csv.ts`** + **`lib/export/pdf.ts`** + **`lib/export/xlsx.ts`** — Coluna "Tempo" adicionada
+
+---
+
 ## v2.9.0 (18/07/2026)
 
 ### Notas por Foto

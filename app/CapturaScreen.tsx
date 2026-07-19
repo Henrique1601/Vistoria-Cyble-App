@@ -15,6 +15,7 @@ import {
   ArrowsLeftRight,
   Clock,
   ArrowRight,
+  Repeat,
 } from '@phosphor-icons/react';
 import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, atualizarNota, FotoRecord, Categoria } from '@/lib/db';
 import { useToast } from '@/components/Toast';
@@ -55,6 +56,7 @@ export default function CapturaScreen({
   const [showCompare, setShowCompare] = useState(false);
   const [compartilhando, setCompartilhando] = useState<number | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<{ blob: Blob; categoria: Categoria } | null>(null);
+  const [keepInCamera, setKeepInCamera] = useState(false);
   const { toast } = useToast();
   const deletedRef = useRef<Map<number, FotoRecord>>(new Map());
 
@@ -140,8 +142,10 @@ export default function CapturaScreen({
   async function handleEditorSalvar(blob: Blob) {
     if (!editingPhoto) return;
     const [comprimido, gps] = await Promise.all([comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' })), getGPS()]);
+    const cat = editingPhoto.categoria;
+    const isMulti = CATEGORIAS.find((c) => c.key === cat)?.multi ?? false;
     await salvarFoto({
-      bloco, apartamento, categoria: editingPhoto.categoria, blob: comprimido, timestamp: Date.now(), synced: false,
+      bloco, apartamento, categoria: cat, blob: comprimido, timestamp: Date.now(), synced: false,
       gps: gps || undefined,
     });
     haptic('success');
@@ -149,6 +153,9 @@ export default function CapturaScreen({
     setEditingPhoto(null);
     await recarregar();
     onFotoSalva();
+    if (keepInCamera && isMulti) {
+      setTimeout(() => { inputsRef.current[cat]?.click(); }, 300);
+    }
   }
 
   async function handleDeletar(id: number) {
@@ -218,6 +225,17 @@ export default function CapturaScreen({
                 <ArrowsLeftRight size={16} weight="bold" aria-hidden="true" />
               </button>
             )}
+            <button
+              onClick={() => setKeepInCamera(!keepInCamera)}
+              aria-label={keepInCamera ? 'Desativar modo multi-foto' : 'Ativar modo multi-foto'}
+              className={`tactile-press w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
+                keepInCamera
+                  ? 'bg-accent-dim border-accent text-accent'
+                  : 'bg-base-raised border-base-border text-content-secondary hover:text-content hover:border-accent/30'
+              }`}
+            >
+              <Repeat size={16} weight="bold" aria-hidden="true" />
+            </button>
           </div>
         </motion.div>
 

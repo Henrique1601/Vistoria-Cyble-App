@@ -24,7 +24,8 @@ interface ExportSectionProps {
   onExportZIP: (status: ApartamentoStatus[]) => void;
   onRelatorioPDFComFotos: (status: ApartamentoStatus[]) => void;
   onExportHTML: (status: ApartamentoStatus[]) => void;
-  compartilhando: 'pdf' | 'xlsx' | null;
+  onShareReport: (status: ApartamentoStatus[]) => Promise<void>;
+  compartilhando: 'pdf' | 'xlsx' | 'report' | null;
   exportandoZIP: boolean;
   exportandoFotos: boolean;
 }
@@ -48,6 +49,7 @@ export function ExportSection({
   onExportZIP,
   onRelatorioPDFComFotos,
   onExportHTML,
+  onShareReport,
   compartilhando,
   exportandoZIP,
   exportandoFotos,
@@ -204,6 +206,15 @@ export function ExportSection({
         >
           <Code size={16} weight="bold" aria-hidden="true" />
           HTML
+        </button>
+        <button
+          onClick={() => onShareReport(statusExportacao)}
+          disabled={disabled || compartilhando !== null}
+          aria-label="Compartilhar relatorio como link"
+          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ShareNetwork size={16} weight="bold" aria-hidden="true" />
+          {compartilhando === 'report' ? 'Gerando link\u2026' : 'Compartilhar Link'}
         </button>
       </div>
     </motion.div>

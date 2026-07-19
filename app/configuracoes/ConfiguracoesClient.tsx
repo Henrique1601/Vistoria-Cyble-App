@@ -29,6 +29,10 @@ import {
   setDiasAlerta,
   getItensPagina,
   setItensPagina,
+  getBackupAutomatico,
+  setBackupAutomatico,
+  getBackupIntervalo,
+  setBackupIntervalo,
 } from '@/lib/settings';
 import { backupDados, restaurarDados, checarEspacoStorage } from '@/lib/db';
 import { fazerBackupManual } from '@/lib/backup';
@@ -108,6 +112,8 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
   const [scanDefault, setScanDefault] = useState(getScanMode);
   const [dias, setDias] = useState(getDiasAlerta);
   const [itens, setItens] = useState(getItensPagina);
+  const [backupAuto, setBackupAuto] = useState(getBackupAutomatico);
+  const [backupInt, setBackupInt] = useState(getBackupIntervalo);
   const [espaco, setEspaco] = useState<{ usado: number; total: number; pct: number } | null>(null);
   const [clearing, setClearing] = useState(false);
 
@@ -152,6 +158,18 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
     const val = Number(v) as 10 | 20 | 50 | 999;
     setItens(val);
     setItensPagina(val);
+  }
+
+  function handleBackupAuto(v: string) {
+    const val = v === 'true';
+    setBackupAuto(val);
+    setBackupAutomatico(val);
+  }
+
+  function handleBackupIntervalo(v: string) {
+    const val = Number(v) as 30 | 60 | 360 | 1440;
+    setBackupInt(val);
+    setBackupIntervalo(val);
   }
 
   async function handleExportBackup() {
@@ -321,6 +339,30 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
                 ]}
               />
             </SettingRow>
+            <SettingRow label="Backup automatico" description="Realiza backup periodicamente em background">
+              <ToggleGroup
+                value={String(backupAuto)}
+                onChange={handleBackupAuto}
+                options={[
+                  { label: 'Sim', value: 'true' },
+                  { label: 'Nao', value: 'false' },
+                ]}
+              />
+            </SettingRow>
+            {backupAuto && (
+              <SettingRow label="Intervalo do backup" description="Frequencia do backup automatico">
+                <ToggleGroup
+                  value={String(backupInt)}
+                  onChange={handleBackupIntervalo}
+                  options={[
+                    { label: '30m', value: '30' },
+                    { label: '1h', value: '60' },
+                    { label: '6h', value: '360' },
+                    { label: '24h', value: '1440' },
+                  ]}
+                />
+              </SettingRow>
+            )}
             <div className="px-4 py-3.5">
               <button
                 onClick={handleExportBackup}

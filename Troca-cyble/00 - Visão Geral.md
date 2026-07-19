@@ -11,7 +11,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **Armazenamento nuvem:** Vercel Blob (`@vercel/blob`) + Neon PostgreSQL
 - **Fonts:** Space Grotesk (display), IBM Plex Mono (mono), Inter (body)
 - **Deploy:** Vercel (auto-deploy do GitHub)
-- **Versão atual:** 2.9.0
+- **Versão atual:** 3.0.0
 
 ## Funcionalidades
 1. **PIN de acesso** — autenticação simples via variável de ambiente `APP_PIN` (4821)
@@ -32,9 +32,13 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 16. **Notas por foto** — campo de texto em cada foto
 17. **Onboarding** — tour guiado de 5 passos
 18. **Notificações** — sino com badge, auto-dismiss, pub/sub
-19. **Configurações** — tema, qualidade foto, itens por página, dias alerta
+19. **Configurações** — tema, qualidade foto, itens por página, dias alerta, backup agendado
 20. **Fila de sync** — status individual, retry, backoff exponencial, filtros
 21. **Relatório por torre** — painel lateral com stats detalhadas
+22. **Modo Multi-Foto** — manter câmera aberta para captura contínua
+23. **Compartilhar Relatório** — link público via Vercel Blob (7 dias)
+24. **Backup Agendado** — backup periódico automático configurável
+25. **Timer de Escaneamento** — tempo por apto via timestamps das fotos
 
 ## Fluxo Principal
 ```

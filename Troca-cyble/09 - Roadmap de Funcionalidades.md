@@ -441,6 +441,34 @@
 
 ---
 
+## v3.0.0 — Julho 2026
+
+### 64. Modo Multi-Foto
+- **Status:** ✅
+- **Descrição:** Botão "Manter na câmera" (ícone Repeat) no header do CapturaScreen. Quando ativado em categorias multi-foto, mantém a câmera aberta após salvar, permitindo capturar múltiplas fotos sem reabrir. Auto-reabre câmera 300ms após salvar.
+- **Uso:** Captura rápida de múltiplas fotos por categoria
+- **Dependências:** Feature 18 (Multi-foto)
+
+### 65. Compartilhar Relatório
+- **Status:** ✅
+- **Descrição:** Botão "Compartilhar Link" na seção de exportação. Upload do HTML para Vercel Blob (público, 7 dias, max 20 reports). Copia link para clipboard. Endpoint `/api/share-report`.
+- **Uso:** Compartilhar relatório visual com gestores via link
+- **Dependências:** Feature 61 (HTML Report Export)
+
+### 66. Backup Agendado
+- **Status:** ✅
+- **Descrição:** Backup periódico em background via setInterval. Configurações: toggle automático + intervalo (30min, 1h, 6h, 24h). Toast de confirmação. Settings na tela de configurações.
+- **Uso:** Backup automático sem intervenção manual
+- **Dependências:** Nenhuma
+
+### 67. Timer de Escaneamento
+- **Status:** ✅
+- **Descrição:** Cálculo de tempo por apto baseado nos timestamps das fotos. `lib/timer.ts` com funções `calcularTempoApto()`, `calcularTempoPorTorre()`, `formatarTempo()`. Coluna "Tempo" em CSV/PDF/XLSX. Cor do heatmap reflete velocidade.
+- **Uso:** Medir eficiência da equipe de vistoria
+- **Dependências:** Feature 63 (Heatmap)
+
+---
+
 ## Notas
 - Todas as funcionalidades são independentes (podem ser implementadas em qualquer ordem)
 - Não dependem de novas APIs externas
