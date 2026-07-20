@@ -54,15 +54,6 @@ export function AtrasadosSection({
             <span className="text-xs font-semibold text-danger">
               {aptosEsquecidos.length} atrasado{aptosEsquecidos.length !== 1 ? 's' : ''}
             </span>
-            {!showAtrasados && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {blocosOrdenados.map((b) => (
-                  <span key={b} className="text-[10px] font-mono text-danger/70 bg-danger/10 px-1.5 py-0.5 rounded">
-                    {b}: {porBloco[b].length}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

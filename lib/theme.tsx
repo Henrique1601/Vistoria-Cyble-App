@@ -8,9 +8,10 @@ interface ThemeContextValue {
   theme: Theme;
   resolvedTheme: 'dark' | 'light';
   toggle: () => void;
+  setTheme: (t: Theme) => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue>({ theme: 'dark', resolvedTheme: 'dark', toggle: () => {} });
+const ThemeContext = createContext<ThemeContextValue>({ theme: 'dark', resolvedTheme: 'dark', toggle: () => {}, setTheme: () => {} });
 
 export function useTheme() {
   return useContext(ThemeContext);
@@ -58,7 +59,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   });
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, toggle }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, toggle, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

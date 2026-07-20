@@ -125,97 +125,99 @@ export function ExportSection({
         </div>
       )}
 
-      <div className="flex gap-3 mb-3">
-        <button
-          onClick={() => onExportCSV(statusExportacao)}
-          disabled={disabled}
-          aria-label="Exportar dados em CSV"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <FileCsv size={16} weight="bold" aria-hidden="true" />
-          CSV
-        </button>
-        <button
-          onClick={() => onExportPDF(statusExportacao)}
-          disabled={disabled}
-          aria-label="Baixar relatorio em PDF"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <FilePdf size={16} weight="bold" aria-hidden="true" />
-          PDF
-        </button>
-        <button
-          onClick={() => onExportXLSX(statusExportacao)}
-          disabled={disabled}
-          aria-label="Baixar planilha Excel XLSX"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <FileCsv size={16} weight="bold" aria-hidden="true" />
-          XLSX
-        </button>
-      </div>
+      <div className="space-y-3">
+        <div className="flex gap-3">
+          <button
+            onClick={() => onExportCSV(statusExportacao)}
+            disabled={disabled}
+            aria-label="Exportar dados em CSV"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <FileCsv size={16} weight="bold" aria-hidden="true" />
+            CSV
+          </button>
+          <button
+            onClick={() => onExportPDF(statusExportacao)}
+            disabled={disabled}
+            aria-label="Baixar relatorio em PDF"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <FilePdf size={16} weight="bold" aria-hidden="true" />
+            PDF
+          </button>
+          <button
+            onClick={() => onExportXLSX(statusExportacao)}
+            disabled={disabled}
+            aria-label="Baixar planilha Excel XLSX"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <FileCsv size={16} weight="bold" aria-hidden="true" />
+            XLSX
+          </button>
+        </div>
 
-      <div className="flex gap-3">
-        <button
-          onClick={() => onCompartilharPDF(statusExportacao)}
-          disabled={disabled || compartilhando !== null}
-          aria-label="Compartilhar relatorio PDF"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <ShareNetwork size={16} weight="bold" aria-hidden="true" />
-          {compartilhando === 'pdf' ? 'Compartilhando\u2026' : 'Compartilhar PDF'}
-        </button>
-        <button
-          onClick={() => onCompartilharXLSX(statusExportacao)}
-          disabled={disabled || compartilhando !== null}
-          aria-label="Compartilhar planilha XLSX"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <ShareNetwork size={16} weight="bold" aria-hidden="true" />
-          {compartilhando === 'xlsx' ? 'Compartilhando\u2026' : 'Compartilhar XLSX'}
-        </button>
-      </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => onCompartilharPDF(statusExportacao)}
+            disabled={disabled || compartilhando !== null}
+            aria-label="Compartilhar relatorio PDF"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ShareNetwork size={16} weight="bold" aria-hidden="true" />
+            {compartilhando === 'pdf' ? 'Compartilhando\u2026' : 'Compartilhar PDF'}
+          </button>
+          <button
+            onClick={() => onCompartilharXLSX(statusExportacao)}
+            disabled={disabled || compartilhando !== null}
+            aria-label="Compartilhar planilha XLSX"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ShareNetwork size={16} weight="bold" aria-hidden="true" />
+            {compartilhando === 'xlsx' ? 'Compartilhando\u2026' : 'Compartilhar XLSX'}
+          </button>
+        </div>
 
-      <div className="flex gap-3">
-        <button
-          onClick={() => onExportZIP(statusExportacao)}
-          disabled={disabled || exportandoZIP}
-          aria-label="Baixar fotos como ZIP"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <Download size={16} weight="bold" aria-hidden="true" />
-          {exportandoZIP ? 'Compactando\u2026' : 'Fotos ZIP'}
-        </button>
-        <button
-          onClick={() => onRelatorioPDFComFotos(statusExportacao)}
-          disabled={disabled || exportandoFotos}
-          aria-label="Baixar relatorio com fotos em PDF"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <FilePdf size={16} weight="bold" aria-hidden="true" />
-          {exportandoFotos ? 'Gerando\u2026' : 'PDF + Fotos'}
-        </button>
-      </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => onExportZIP(statusExportacao)}
+            disabled={disabled || exportandoZIP}
+            aria-label="Baixar fotos como ZIP"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <Download size={16} weight="bold" aria-hidden="true" />
+            {exportandoZIP ? 'Compactando\u2026' : 'Fotos ZIP'}
+          </button>
+          <button
+            onClick={() => onRelatorioPDFComFotos(statusExportacao)}
+            disabled={disabled || exportandoFotos}
+            aria-label="Baixar relatorio com fotos em PDF"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <FilePdf size={16} weight="bold" aria-hidden="true" />
+            {exportandoFotos ? 'Gerando\u2026' : 'PDF + Fotos'}
+          </button>
+        </div>
 
-      <div className="flex gap-3">
-        <button
-          onClick={() => onExportHTML(statusExportacao)}
-          disabled={disabled}
-          aria-label="Baixar relatorio HTML interativo"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <Code size={16} weight="bold" aria-hidden="true" />
-          HTML
-        </button>
-        <button
-          onClick={() => onShareReport(statusExportacao)}
-          disabled={disabled || compartilhando !== null}
-          aria-label="Compartilhar relatorio como link"
-          className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <ShareNetwork size={16} weight="bold" aria-hidden="true" />
-          {compartilhando === 'report' ? 'Gerando link\u2026' : 'Compartilhar Link'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => onExportHTML(statusExportacao)}
+            disabled={disabled}
+            aria-label="Baixar relatorio HTML interativo"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <Code size={16} weight="bold" aria-hidden="true" />
+            HTML
+          </button>
+          <button
+            onClick={() => onShareReport(statusExportacao)}
+            disabled={disabled || compartilhando !== null}
+            aria-label="Compartilhar relatorio como link"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ShareNetwork size={16} weight="bold" aria-hidden="true" />
+            {compartilhando === 'report' ? 'Gerando link\u2026' : 'Compartilhar Link'}
+          </button>
+        </div>
       </div>
     </motion.div>
   );

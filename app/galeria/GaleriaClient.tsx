@@ -61,7 +61,7 @@ export default function GaleriaClient() {
   const filtradas = useMemo(() => fotos.filter((f) => {
     if (filtroBloco && f.bloco !== filtroBloco) return false;
     if (filtroData && f.data_leitura !== filtroData) return false;
-    if (busca && !f.apartamento.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (busca && !f.apartamento.toLowerCase().includes(busca.replace(/^0+/, '').toLowerCase())) return false;
     return true;
   }), [fotos, filtroBloco, filtroData, busca]);
 
@@ -302,7 +302,7 @@ export default function GaleriaClient() {
               <button
                 onClick={fecharLightbox}
                 aria-label="Fechar foto ampliada"
-                className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                className="absolute top-2 right-2 w-10 h-10 rounded-full bg-base/80 backdrop-blur-sm border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:bg-base-raised focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors z-20"
               >
                 <X size={18} weight="bold" aria-hidden="true" />
               </button>

@@ -17,6 +17,8 @@ import {
   Info,
   GithubLogo,
   GearSix,
+  Cloud,
+  ArrowClockwise,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
 import { haptic } from '@/lib/haptic';
@@ -106,7 +108,7 @@ function ToggleGroup({
 }
 
 export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void }) {
-  const { theme, toggle: toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [qualidade, setQualidade] = useState(getQualidadeFoto);
   const [scanDefault, setScanDefault] = useState(getScanMode);
@@ -116,23 +118,68 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
   const [backupInt, setBackupInt] = useState(getBackupIntervalo);
   const [espaco, setEspaco] = useState<{ usado: number; total: number; pct: number } | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   // Load storage info on mount
   useState(() => {
     checarEspacoStorage().then(setEspaco);
   });
 
+  async function handleSaveConfig() {
+    setSavingConfig(true);
+    haptic('medium');
+    try {
+      const { carregarListaApartamentos } = await import('@/lib/db');
+      const lista = await carregarListaApartamentos();
+      if (!lista) {
+        toast('Nenhuma configuracao local para salvar', 'error');
+        setSavingConfig(false);
+        return;
+      }
+      const res = await fetch('/api/building-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: 'Predio AcquaPlay', config: lista }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast('Configuracao salva na nuvem', 'success');
+        setLastSaved(new Date().toLocaleTimeString('pt-BR'));
+      } else {
+        toast('Erro ao salvar: ' + (data.error || 'desconhecido'), 'error');
+      }
+    } catch {
+      toast('Erro ao salvar configuracao', 'error');
+    }
+    setSavingConfig(false);
+  }
+
+  async function handleLoadConfig() {
+    setLoadingConfig(true);
+    haptic('medium');
+    try {
+      const res = await fetch('/api/building-config');
+      const data = await res.json();
+      if (data.config) {
+        toast('Configuracao carregada da nuvem', 'success');
+        setLastSaved(data.config.updated_at);
+      } else {
+        toast('Nenhuma configuracao na nuvem', 'error');
+      }
+    } catch {
+      toast('Erro ao carregar configuracao', 'error');
+    }
+    setLoadingConfig(false);
+  }
+
   const temIcon = theme === 'dark' ? <Moon size={14} /> : theme === 'light' ? <Sun size={14} /> : <CircleHalf size={14} />;
 
   function handleTema(t: string) {
     const newTheme = t as 'dark' | 'light' | 'auto';
-    // The theme provider handles persistence
-    toggleTheme();
-    // Force set if different
-    if (theme !== newTheme) {
-      localStorage.setItem('vistoria_theme', newTheme);
-      window.location.reload();
-    }
+    haptic('light');
+    setTheme(newTheme);
   }
 
   function handleQualidade(q: string) {
@@ -281,6 +328,47 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.15 }}>
+          <Section title="Predio">
+            <div className="px-4 py-3.5">
+              <p className="text-xs text-content-tertiary mb-3">
+                Salve a configuracao dos apartamentos e blocos na nuvem para acesso em outros dispositivos.
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleSaveConfig}
+                  disabled={savingConfig}
+                  className="tactile-press flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  {savingConfig ? (
+                    <ArrowClockwise size={16} weight="bold" className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Cloud size={16} weight="bold" aria-hidden="true" />
+                  )}
+                  {savingConfig ? 'Salvando...' : 'Salvar na nuvem'}
+                </button>
+                <button
+                  onClick={handleLoadConfig}
+                  disabled={loadingConfig}
+                  className="tactile-press flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  {loadingConfig ? (
+                    <ArrowClockwise size={16} weight="bold" className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Database size={16} weight="bold" aria-hidden="true" />
+                  )}
+                  {loadingConfig ? 'Carregando...' : 'Carregar da nuvem'}
+                </button>
+                {lastSaved && (
+                  <span className="text-[10px] text-content-tertiary text-center mt-1">
+                    Ultimo salvamento: {lastSaved}
+                  </span>
+                )}
+              </div>
+            </div>
+          </Section>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.2 }}>
           <Section title="Captura">
             <SettingRow label="Qualidade da foto" description="Fotos maiores = mais detalhes, mais armazenamento">
               <ToggleGroup

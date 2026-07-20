@@ -75,7 +75,7 @@ import TowerReportPanel from '@/components/TowerReportPanel';
 import SyncQueueScreen from '@/components/SyncQueueScreen';
 import AuditLogScreen from '@/components/AuditLogScreen';
 
-type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar';
+type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap';
 
 interface FotoOnline {
   id: number;
@@ -108,7 +108,6 @@ export default function Home() {
   const [torresExportacao, setTorresExportacao] = useState<Set<string>>(new Set());
   const [showEstatisticas, setShowEstatisticas] = useState(false);
   const [showEstatisticasTorre, setShowEstatisticasTorre] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(false);
   const [diasAlerta, setDiasAlerta] = useState(7);
   const [showAtrasados, setShowAtrasados] = useState(false);
   const [itensPagina, setItensPagina] = useState<10 | 20 | 50 | 999>(20);
@@ -543,7 +542,7 @@ export default function Home() {
   // Global search results
   const resultadosBuscaGlobal = useMemo(() => {
     if (!buscaGlobal.trim() || buscaGlobal.length < 2) return [];
-    const q = buscaGlobal.toLowerCase();
+    const q = normApto(buscaGlobal.toLowerCase());
     const results: { bloco: string; apto: string; status: ApartamentoStatus | null }[] = [];
     for (const b of blocos) {
       const codigosLocais = lista?.[b] || [];
@@ -551,7 +550,7 @@ export default function Home() {
       const aptosOnline = entry?.aptos ?? new Set<string>();
       const allAptos = new Set<string>([...codigosLocais, ...aptosOnline]);
       for (const c of allAptos) {
-        if (c.toLowerCase().includes(q)) {
+        if (normApto(c.toLowerCase()).includes(q)) {
           const st = statusMap.get(`${b}__${c}`) || null;
           results.push({ bloco: b, apto: c, status: st });
         }
@@ -732,7 +731,9 @@ export default function Home() {
             setActiveNav(v as typeof activeNav);
             haptic('selection');
             if (v === 'camera') setModoEscaneamento(true);
-            else setView(v as View);
+            else if (v === 'config') setView('configuracoes');
+            else if (v === 'exportar') setView('exportar');
+            else if (v === 'inicio') setView('blocos');
           }}
         />
       </>
@@ -749,7 +750,9 @@ export default function Home() {
             setActiveNav(v as typeof activeNav);
             haptic('selection');
             if (v === 'camera') setModoEscaneamento(true);
-            else setView(v as View);
+            else if (v === 'config') setView('configuracoes');
+            else if (v === 'exportar') setView('exportar');
+            else if (v === 'inicio') setView('blocos');
           }}
         />
       </>
@@ -766,7 +769,9 @@ export default function Home() {
             setActiveNav(v as typeof activeNav);
             haptic('selection');
             if (v === 'camera') setModoEscaneamento(true);
-            else setView(v as View);
+            else if (v === 'config') setView('configuracoes');
+            else if (v === 'exportar') setView('exportar');
+            else if (v === 'inicio') setView('blocos');
           }}
         />
       </>
@@ -859,7 +864,52 @@ export default function Home() {
             setActiveNav(v as typeof activeNav);
             haptic('selection');
             if (v === 'camera') setModoEscaneamento(true);
-            else setView(v as View);
+            else if (v === 'config') setView('configuracoes');
+            else if (v === 'exportar') setView('exportar');
+            else if (v === 'inicio') setView('blocos');
+          }}
+        />
+      </>
+    );
+  }
+
+  if (view === 'heatmap') {
+    return (
+      <>
+        <main className="min-h-[100dvh] bg-base">
+          <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={spring}
+              className="flex items-center gap-3 mb-6"
+            >
+              <button
+                onClick={() => setView('blocos')}
+                aria-label="Voltar"
+                className="tactile-press w-10 h-10 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+              >
+                <ArrowLeft size={18} weight="bold" aria-hidden="true" />
+              </button>
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">Mapa de Progresso</h1>
+                <p className="text-xs text-content-tertiary mt-0.5">
+                  Visao geral por torre e apartamento
+                </p>
+              </div>
+            </motion.div>
+            <ProgressHeatmap status={statusMerged} onNavigateToApto={handleNavigateToApto} />
+          </div>
+        </main>
+        <BottomNav
+          active="inicio"
+          onNavigate={(v) => {
+            setActiveNav(v as typeof activeNav);
+            haptic('selection');
+            if (v === 'camera') setModoEscaneamento(true);
+            else if (v === 'config') setView('configuracoes');
+            else if (v === 'exportar') setView('exportar');
+            else if (v === 'inicio') setView('blocos');
           }}
         />
       </>
@@ -1329,7 +1379,7 @@ export default function Home() {
 
         <div className="mb-3">
           <button
-            onClick={() => setShowHeatmap(!showHeatmap)}
+            onClick={() => { haptic('light'); setView('heatmap'); }}
             className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
           >
             <div className="grid grid-cols-3 gap-0.5">
@@ -1343,12 +1393,9 @@ export default function Home() {
               <div className="w-1.5 h-1.5 rounded-sm bg-success/80" />
               <div className="w-1.5 h-1.5 rounded-sm bg-success/80" />
             </div>
-            {showHeatmap ? 'Ocultar mapa' : 'Mapa de progresso'}
+            Mapa de progresso
           </button>
         </div>
-        {showHeatmap && (
-          <ProgressHeatmap status={statusMerged} onNavigateToApto={handleNavigateToApto} />
-        )}
         {showEstatisticas && (
           <EstatisticasPeriodo fotosOnline={fotosOnline} />
         )}
@@ -1379,6 +1426,8 @@ export default function Home() {
             setModoEscaneamento(true);
           } else if (v === 'config') {
             setView('configuracoes');
+          } else if (v === 'exportar') {
+            setView('exportar');
           } else if (v === 'inicio') {
             setView('blocos');
             setBlocoAtual(null);
