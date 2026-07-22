@@ -91,6 +91,7 @@ export default function Home() {
   const [userRole, setUserRole] = useState<string>('viewer');
   const [pinChecked, setPinChecked] = useState(false);
   const [lista, setLista] = useState<Record<string, string[]> | null>(null);
+  const [listaAnterior, setListaAnterior] = useState<Record<string, string[]> | null>(null);
   const [status, setStatus] = useState<ApartamentoStatus[]>([]);
   const [view, setView] = useState<View>('blocos');
   const [blocoAtual, setBlocoAtual] = useState<string | null>(null);
@@ -726,7 +727,7 @@ export default function Home() {
     return (
       <SetupScreen
         onDone={(l) => setLista(l)}
-        onCancel={() => setView('blocos')}
+        onCancel={() => { setLista(listaAnterior); setListaAnterior(null); setView('blocos'); }}
       />
     );
   }
@@ -1423,7 +1424,7 @@ export default function Home() {
           onRestore={handleRestore}
           onLogout={() => { localStorage.removeItem('vistoria_pin'); setPin(null); }}
           onUpdate={() => { setUpdateDisponivel(false); navigator.serviceWorker?.controller?.postMessage('skipWaiting'); window.location.reload(); }}
-          onEditLista={() => setLista(null)}
+          onEditLista={() => { setListaAnterior(lista); setLista(null); }}
           ultimoBackup={ultimoBackup}
         />
       </div>
