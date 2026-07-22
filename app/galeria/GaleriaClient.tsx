@@ -556,14 +556,6 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
               onClick={(e) => e.stopPropagation()}
               tabIndex={-1}
             >
-              <button
-                onClick={fecharLightbox}
-                aria-label="Fechar foto ampliada"
-                className="absolute top-3 right-3 w-11 h-11 rounded-full bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:bg-danger/20 hover:border-danger/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors z-20 shadow-lg"
-              >
-                <X size={20} weight="bold" aria-hidden="true" />
-              </button>
-
               {/* Botões de Editar e Excluir no Lightbox - Only for admin */}
               {isAdmin && (
                 <div className="absolute top-2 left-2 flex gap-2 z-20">
@@ -612,18 +604,29 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
               )}
 
               <AnimatePresence mode="wait">
-                <motion.img
+                <motion.div
                   key={fotoSelecionada.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.15 }}
-                  src={fotoSelecionada.foto_url}
-                  alt={`Foto de ${fotoSelecionada.bloco} apartamento ${fotoSelecionada.apartamento}`}
-                  className="w-full rounded-2xl border border-base-border"
-                  width={800}
-                  height={600}
-                />
+                  className="relative"
+                >
+                  <img
+                    src={fotoSelecionada.foto_url}
+                    alt={`Foto de ${fotoSelecionada.bloco} apartamento ${fotoSelecionada.apartamento}`}
+                    className="w-full rounded-2xl border border-base-border"
+                    width={800}
+                    height={600}
+                  />
+                  <button
+                    onClick={fecharLightbox}
+                    aria-label="Fechar foto ampliada"
+                    className="absolute top-3 right-3 w-10 h-10 rounded-full bg-base/80 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-danger/80 hover:border-danger/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors shadow-xl z-30"
+                  >
+                    <X size={20} weight="bold" aria-hidden="true" />
+                  </button>
+                </motion.div>
               </AnimatePresence>
               <div className="mt-3 flex items-center gap-3 text-sm text-content-tertiary">
                 <span className="font-semibold text-content">{fotoSelecionada.bloco}</span>
