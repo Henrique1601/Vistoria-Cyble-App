@@ -10,10 +10,20 @@ import {
   CheckCircle,
   ListNumbers,
   Buildings,
+  Cloud,
+  ArrowClockwise,
+  Database,
 } from '@phosphor-icons/react';
 import { salvarListaApartamentos } from '@/lib/db';
 
-type Mode = 'manual' | 'importar';
+type Mode = 'manual' | 'importar' | 'nuvem';
+
+interface BuildingConfig {
+  id: number;
+  nome: string;
+  config: Record<string, string[]>;
+  updated_at: string;
+}
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 const stagger = {
@@ -90,6 +100,9 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
   }
 
   const [listaImportada, setListaImportada] = useState<Record<string, string[]> | null>(null);
+  const [buildingConfigs, setBuildingConfigs] = useState<BuildingConfig[]>([]);
+  const [loadingBuildings, setLoadingBuildings] = useState(false);
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingConfig | null>(null);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -111,9 +124,27 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
     e.target.value = '';
   }
 
+  async function handleLoadBuildings() {
+    setLoadingBuildings(true);
+    try {
+      const res = await fetch('/api/building-config');
+      const data = await res.json();
+      setBuildingConfigs(data.buildings || []);
+      setSelectedBuilding(null);
+    } catch {
+      setBuildingConfigs([]);
+    }
+    setLoadingBuildings(false);
+  }
+
+  function handleSelectBuilding(b: BuildingConfig) {
+    setSelectedBuilding(b);
+    setListaImportada(b.config);
+  }
+
   async function salvar() {
     let lista: Record<string, string[]>;
-    if (mode === 'importar' && listaImportada) {
+    if ((mode === 'importar' || mode === 'nuvem') && listaImportada) {
       lista = listaImportada;
     } else {
       lista = {};
@@ -134,7 +165,7 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
   const totalImport = listaImportada
     ? Object.values(listaImportada).reduce((acc, arr) => acc + arr.length, 0)
     : 0;
-  const total = mode === 'importar' ? totalImport : totalManual;
+  const total = (mode === 'importar' || mode === 'nuvem') ? totalImport : totalManual;
 
   return (
     <main className="min-h-[100dvh] bg-base">
@@ -182,7 +213,19 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
             }`}
           >
             <Upload size={16} weight="bold" aria-hidden="true" />
-            Importar arquivo
+            Importar
+          </button>
+          <button
+            onClick={() => { setMode('nuvem'); if (buildingConfigs.length === 0) handleLoadBuildings(); }}
+            aria-pressed={mode === 'nuvem'}
+            className={`tactile-press flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${
+              mode === 'nuvem'
+                ? 'bg-accent-dim border-accent text-accent'
+                : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+            }`}
+          >
+            <Cloud size={16} weight="bold" aria-hidden="true" />
+            Nuvem
           </button>
         </motion.div>
 
@@ -233,7 +276,7 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
                 ))}
               </motion.div>
             </motion.div>
-          ) : (
+          ) : mode === 'importar' ? (
             <motion.div
               key="importar"
               initial={{ opacity: 0, x: 12 }}
@@ -315,6 +358,102 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
                   </div>
                   <div className="max-h-48 overflow-y-auto space-y-2">
                     {Object.entries(listaImportada).map(([nome, aptos]) => (
+                      <div key={nome} className="text-sm">
+                        <span className="font-semibold text-content">{nome}</span>
+                        <span className="text-content-tertiary ml-2">— {aptos.length} aptos</span>
+                        <div className="text-[11px] font-mono text-content-tertiary mt-0.5">
+                          {aptos.slice(0, 5).join(', ')}{aptos.length > 5 ? `... +${aptos.length - 5}` : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="nuvem"
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={spring}
+              className="space-y-4"
+            >
+              <div className="bg-base-raised border border-base-border rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Database size={16} weight="duotone" className="text-content-tertiary" aria-hidden="true" />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
+                    Predios salvos na nuvem
+                  </span>
+                </div>
+                {loadingBuildings ? (
+                  <div className="flex items-center justify-center gap-2 py-8 text-content-tertiary">
+                    <ArrowClockwise size={16} weight="bold" className="animate-spin" />
+                    <span className="text-sm">Carregando...</span>
+                  </div>
+                ) : buildingConfigs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Cloud size={32} weight="duotone" className="mx-auto mb-2 text-content-tertiary/50" />
+                    <p className="text-sm text-content-tertiary">Nenhum predio salvo na nuvem</p>
+                    <p className="text-xs text-content-tertiary mt-1">
+                      Salve primeiro em Configuracoes &gt; Aparencia
+                    </p>
+                    <button
+                      onClick={handleLoadBuildings}
+                      className="tactile-press mt-4 flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all mx-auto"
+                    >
+                      <ArrowClockwise size={14} weight="bold" aria-hidden="true" />
+                      Tentar novamente
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {buildingConfigs.map((b) => {
+                      const totalAptos = Object.values(b.config).reduce((acc, arr) => acc + arr.length, 0);
+                      const numBlocos = Object.keys(b.config).length;
+                      const isSelected = selectedBuilding?.id === b.id;
+                      return (
+                        <button
+                          key={b.id}
+                          onClick={() => handleSelectBuilding(b)}
+                          className={`tactile-press w-full text-left p-4 rounded-xl border transition-all ${
+                            isSelected
+                              ? 'bg-accent-dim border-accent text-accent'
+                              : 'bg-base-overlay border-base-border text-content hover:border-accent/30'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-semibold">{b.nome}</span>
+                            {isSelected && <CheckCircle size={16} weight="fill" className="text-accent" />}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-content-tertiary">
+                            <span>{numBlocos} blocos</span>
+                            <span>{totalAptos} apartamentos</span>
+                          </div>
+                          <div className="text-[10px] text-content-tertiary mt-1">
+                            Atualizado: {new Date(b.updated_at).toLocaleString('pt-BR')}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {selectedBuilding && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-base-raised border border-success/20 rounded-2xl p-5"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle size={16} weight="duotone" className="text-success" aria-hidden="true" />
+                    <span className="text-xs font-semibold uppercase tracking-widest text-success">
+                      {selectedBuilding.nome} — {Object.keys(selectedBuilding.config).length} blocos, {totalImport} apartamentos
+                    </span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {Object.entries(selectedBuilding.config).map(([nome, aptos]) => (
                       <div key={nome} className="text-sm">
                         <span className="font-semibold text-content">{nome}</span>
                         <span className="text-content-tertiary ml-2">— {aptos.length} aptos</span>

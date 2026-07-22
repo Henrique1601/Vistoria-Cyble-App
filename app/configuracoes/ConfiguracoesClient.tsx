@@ -162,11 +162,11 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
     try {
       const res = await fetch('/api/building-config');
       const data = await res.json();
-      if (data.config) {
-        toast('Configuracao carregada da nuvem', 'success');
-        setLastSaved(data.config.updated_at);
+      if (data.buildings && data.buildings.length > 0) {
+        toast(`${data.buildings.length} prédio(s) encontrado(s) na nuvem`, 'success');
+        setLastSaved(data.buildings[0].updated_at);
       } else {
-        toast('Nenhuma configuracao na nuvem', 'error');
+        toast('Nenhum prédio na nuvem', 'error');
       }
     } catch {
       toast('Erro ao carregar configuracao', 'error');

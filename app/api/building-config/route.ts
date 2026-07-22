@@ -10,11 +10,11 @@ export async function GET() {
 
   try {
     const sql = getSql();
-    const rows = await sql`SELECT id, nome, config, updated_at::text FROM building_config ORDER BY id LIMIT 1`;
+    const rows = await sql`SELECT id, nome, config, updated_at::text FROM building_config ORDER BY id`;
     if (rows.length === 0) {
-      return NextResponse.json({ config: null });
+      return NextResponse.json({ buildings: [] });
     }
-    return NextResponse.json({ config: rows[0] });
+    return NextResponse.json({ buildings: rows });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
