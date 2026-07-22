@@ -10,11 +10,21 @@ export async function GET() {
 
   try {
     const sql = getSql();
-    const rows = await sql`SELECT id, nome, config, updated_at::text FROM building_config ORDER BY id`;
+    const rows = await sql`SELECT id, nome, config::text, updated_at::text FROM building_config ORDER BY id`;
     if (rows.length === 0) {
       return NextResponse.json({ buildings: [] });
     }
-    return NextResponse.json({ buildings: rows });
+    const buildings = rows.map((r) => {
+      let config = JSON.parse(r.config as string);
+      if (typeof config === 'string') config = JSON.parse(config);
+      return {
+        id: r.id,
+        nome: r.nome,
+        config,
+        updated_at: r.updated_at,
+      };
+    });
+    return NextResponse.json({ buildings });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -29,11 +39,10 @@ export async function POST(req: NextRequest) {
   try {
     const { nome, config } = await req.json();
     const sql = getSql();
-    const configJson = JSON.stringify(config);
 
     await sql`
       INSERT INTO building_config (id, nome, config, updated_at)
-      VALUES (1, ${nome || 'Prédio AcquaPlay'}::text, ${configJson}::jsonb, now())
+      VALUES (1, ${nome || 'Prédio AcquaPlay'}::text, ${config}::jsonb, now())
       ON CONFLICT (id) DO UPDATE SET
         config = EXCLUDED.config,
         updated_at = now()
