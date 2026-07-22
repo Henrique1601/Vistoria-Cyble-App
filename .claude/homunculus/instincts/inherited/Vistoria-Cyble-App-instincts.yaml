@@ -1,0 +1,406 @@
+# Instincts generated from https://github.com/Henrique1601/Vistoria-Cyble-App
+# Generated: 2026-07-22T18:28:25.134Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: Vistoria-Cyble-App-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat
+
+## Evidence
+
+- 3 commits analyzed
+- Detected conventional commit pattern
+- Examples: feat: editar/excluir fotos na galeria + modelo gratuito mimo-v2.5-free, feat: seleção múltipla na galeria com exclusão em lote
+
+---
+id: Vistoria-Cyble-App-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Commit Length
+
+## Action
+
+Write moderate-length commit messages (~60 characters)
+
+## Evidence
+
+- Average commit message length: 60 chars
+- Based on 3 commits
+
+---
+id: Vistoria-Cyble-App-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: Vistoria-Cyble-App-import-alias
+trigger: "when importing modules"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Import Alias
+
+## Action
+
+Use path aliases (@/, ~/) instead of relative imports
+
+## Evidence
+
+- Import analysis shows alias pattern
+- Example: import { x } from '@/lib/x'
+
+---
+id: Vistoria-Cyble-App-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Export Style
+
+## Action
+
+Prefer default exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: default
+
+---
+id: Vistoria-Cyble-App-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: Vistoria-Cyble-App-workflow-feature-development-with-api-and-ui-update
+trigger: "when doing feature development with api and ui update"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Workflow Feature Development With Api And Ui Update
+
+## Action
+
+Follow the feature-development-with-api-and-ui-update workflow:
+1. Create or update an API route file in app/api/...
+2. Update the corresponding frontend component in app/galeria/GaleriaClient.tsx or similar UI file
+3. Optionally update documentation or agent/README files
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: app/api/*/route.ts, app/galeria/GaleriaClient.tsx
+
+---
+id: Vistoria-Cyble-App-workflow-feature-development-with-documentation-update
+trigger: "when doing feature development with documentation update"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Workflow Feature Development With Documentation Update
+
+## Action
+
+Follow the feature-development-with-documentation-update workflow:
+1. Implement feature in codebase (API, UI, or both)
+2. Update documentation files such as README.md, AGENTS.md, or agent markdowns
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: README.md, AGENTS.md, .opencode/agent/*.md
+
+---
+id: vistoria-cyble-app-instinct-file-naming
+trigger: "When creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct File Naming
+
+## Action
+
+Name the file using camelCase convention
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.files
+- Consistent file naming in app/ and .opencode/ folders
+
+---
+id: vistoria-cyble-app-instinct-function-naming
+trigger: "When defining a new function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Function Naming
+
+## Action
+
+Name the function using camelCase convention
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.functions
+
+---
+id: vistoria-cyble-app-instinct-class-naming
+trigger: "When defining a new class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Class Naming
+
+## Action
+
+Name the class using PascalCase convention
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.classes
+
+---
+id: vistoria-cyble-app-instinct-constant-naming
+trigger: "When defining a constant"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Constant Naming
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE convention
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.constants
+
+---
+id: vistoria-cyble-app-instinct-import-alias
+trigger: "When importing modules"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Import Alias
+
+## Action
+
+Use alias import style
+
+## Evidence
+
+- Pattern in codeStyle.importStyle
+
+---
+id: vistoria-cyble-app-instinct-export-default
+trigger: "When exporting modules"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Export Default
+
+## Action
+
+Use default export style
+
+## Evidence
+
+- Pattern in codeStyle.exportStyle
+
+---
+id: vistoria-cyble-app-instinct-try-catch-error-handling
+trigger: "When handling errors in code"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Try Catch Error Handling
+
+## Action
+
+Use try-catch blocks for error handling
+
+## Evidence
+
+- Pattern in errorHandling.style
+
+---
+id: vistoria-cyble-app-instinct-git-commit-format
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Git Commit Format
+
+## Action
+
+Use the conventional commit format with 'feat' prefix for features
+
+## Evidence
+
+- Pattern in commits.type and commits.prefixes
+- Examples: 'feat: editar/excluir fotos na galeria + modelo gratuito mimo-v2.5-free'
+
+---
+id: vistoria-cyble-app-instinct-git-commit-length
+trigger: "When writing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Git Commit Length
+
+## Action
+
+Keep the commit message concise, around 60 characters
+
+## Evidence
+
+- Pattern in commits.averageLength
+
+---
+id: vistoria-cyble-app-instinct-feature-api-ui-workflow
+trigger: "When adding or modifying a feature that affects both the API and the user interface"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Feature Api Ui Workflow
+
+## Action
+
+First, create or update an API route file in app/api/..., then update the corresponding frontend component in app/galeria/GaleriaClient.tsx or similar UI file, and optionally update documentation
+
+## Evidence
+
+- Workflow: feature-development-with-api-and-ui-update
+- Commit sequences and files: app/api/*/route.ts, app/galeria/GaleriaClient.tsx
+
+---
+id: vistoria-cyble-app-instinct-feature-docs-workflow
+trigger: "When adding a feature and ensuring documentation is up to date"
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Feature Docs Workflow
+
+## Action
+
+After implementing the feature, update documentation files such as README.md, AGENTS.md, or agent markdowns
+
+## Evidence
+
+- Workflow: feature-development-with-documentation-update
+- Commit sequences and files: README.md, AGENTS.md, .opencode/agent/*.md
+
+---
+id: vistoria-cyble-app-instinct-test-location
+trigger: "When adding or updating tests"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: Henrique1601/Vistoria-Cyble-App
+---
+
+# Vistoria Cyble App Instinct Test Location
+
+## Action
+
+Place test files in a separate directory as per project structure
+
+## Evidence
+
+- Pattern in architecture.folderStructure.testLocation
+
