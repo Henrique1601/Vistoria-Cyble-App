@@ -195,6 +195,21 @@ export default function Home() {
   }, [pin]);
 
   useEffect(() => {
+    const nav = localStorage.getItem('vistoria_navegar_para');
+    if (nav) {
+      localStorage.removeItem('vistoria_navegar_para');
+      try {
+        const { bloco, apto } = JSON.parse(nav);
+        if (bloco && apto) {
+          setBlocoAtual(bloco);
+          setAptoAtual(apto);
+          setView('captura');
+        }
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
     fetch('/api/fotos')
       .then((r) => r.json())
       .then((data) => setFotosOnline(data.fotos || []))

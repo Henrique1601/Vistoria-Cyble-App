@@ -432,9 +432,15 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
             {grupos.map((grupo) => (
               <motion.div key={`${grupo.data}__${grupo.bloco}__${grupo.apartamento}`} variants={item}>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('vistoria_navegar_para', JSON.stringify({ bloco: grupo.bloco, apto: grupo.apartamento }));
+                      window.location.href = '/';
+                    }}
+                    className="text-xs font-semibold uppercase tracking-widest text-content-tertiary hover:text-accent transition-colors underline-offset-2 hover:underline"
+                  >
                     {grupo.bloco} / {grupo.apartamento}
-                  </span>
+                  </button>
                   <span className="text-[11px] font-mono text-content-tertiary bg-base-overlay px-2 py-0.5 rounded-md">
                     {new Date(grupo.data + 'T12:00:00').toLocaleDateString('pt-BR')}
                   </span>
