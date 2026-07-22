@@ -22,6 +22,8 @@ import {
   Buildings,
   Images,
   FileText,
+  FileCsv,
+  FileXls,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
 import { haptic } from '@/lib/haptic';
@@ -39,7 +41,15 @@ import {
   getBackupIntervalo,
   setBackupIntervalo,
 } from '@/lib/settings';
-import { backupDados, restaurarDados, checarEspacoStorage } from '@/lib/db';
+import {
+  backupDados,
+  restaurarDados,
+  checarEspacoStorage,
+  exportarConfigCSV,
+  exportarConfigXLSX,
+  importarConfigCSV,
+  importarConfigXLSX,
+} from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { spring } from '@/lib/motion';
 
@@ -232,18 +242,6 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
     }
   }
 
-  async function handleExportConfig() {
-    haptic('medium');
-    try {
-      const { backupBlocos } = await import('@/lib/db');
-      const blob = await backupBlocos();
-      downloadBlob(blob, `configuracao-${dateStr()}.json`);
-      toast('Configuracao exportada', 'success');
-    } catch {
-      toast('Erro ao exportar configuracao', 'error');
-    }
-  }
-
   async function handleExportFotos() {
     haptic('medium');
     try {
@@ -253,6 +251,28 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
       toast('Fotos exportadas', 'success');
     } catch {
       toast('Erro ao exportar fotos', 'error');
+    }
+  }
+
+  async function handleExportConfigCSV() {
+    haptic('medium');
+    try {
+      const blob = await exportarConfigCSV();
+      downloadBlob(blob, `configuracao-${dateStr()}.csv`);
+      toast('Configuracao CSV exportada', 'success');
+    } catch {
+      toast('Erro ao exportar CSV', 'error');
+    }
+  }
+
+  async function handleExportConfigXLSX() {
+    haptic('medium');
+    try {
+      const blob = await exportarConfigXLSX();
+      downloadBlob(blob, `configuracao-${dateStr()}.xlsx`);
+      toast('Configuracao XLSX exportada', 'success');
+    } catch {
+      toast('Erro ao exportar XLSX', 'error');
     }
   }
 
@@ -275,20 +295,32 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
     haptic('medium');
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.json,.csv,.xlsx,.xls';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       try {
-        const text = await file.text();
-        const dados = JSON.parse(text);
-        const tipo = dados.tipo || 'completo';
-        const result = await restaurarDados(text);
-        const label = tipo === 'configuracao' ? 'Configuracao' : tipo === 'fotos' ? 'Fotos' : 'Backup completo';
-        toast(`${label}: ${result.blocos} blocos, ${result.fotos} fotos, ${result.syncLog} logs`, 'success');
-        window.location.reload();
+        const ext = file.name.split('.').pop()?.toLowerCase() || '';
+        if (ext === 'csv') {
+          const text = await file.text();
+          const result = await importarConfigCSV(text);
+          toast(`CSV: ${result.blocos} blocos, ${result.aptos} apartamentos`, 'success');
+          window.location.reload();
+        } else if (ext === 'xlsx' || ext === 'xls') {
+          const result = await importarConfigXLSX(file);
+          toast(`XLSX: ${result.blocos} blocos, ${result.aptos} apartamentos`, 'success');
+          window.location.reload();
+        } else {
+          const text = await file.text();
+          const dados = JSON.parse(text);
+          const tipo = dados.tipo || 'completo';
+          const result = await restaurarDados(text);
+          const label = tipo === 'configuracao' ? 'Configuracao' : tipo === 'fotos' ? 'Fotos' : 'Backup completo';
+          toast(`${label}: ${result.blocos} blocos, ${result.fotos} fotos, ${result.syncLog} logs`, 'success');
+          window.location.reload();
+        }
       } catch {
-        toast('Erro ao restaurar backup', 'error');
+        toast('Erro ao importar arquivo', 'error');
       }
     };
     input.click();
@@ -499,22 +531,31 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
                 className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
               >
                 <ArrowDown size={16} weight="bold" />
-                Backup completo (tudo)
+                Backup completo (JSON)
               </button>
-              <button
-                onClick={handleExportConfig}
-                className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
-              >
-                <Buildings size={16} weight="bold" />
-                Apenas configuracao (blocos/aptos)
-              </button>
-              <button
-                onClick={handleExportFotos}
-                className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
-              >
-                <Images size={16} weight="bold" />
-                Apenas fotos
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExportConfigCSV}
+                  className="tactile-press flex-1 flex items-center justify-center gap-1.5 bg-base-overlay border border-base-border rounded-xl px-3 py-2.5 text-xs font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+                >
+                  <FileCsv size={14} weight="bold" />
+                  Config CSV
+                </button>
+                <button
+                  onClick={handleExportConfigXLSX}
+                  className="tactile-press flex-1 flex items-center justify-center gap-1.5 bg-base-overlay border border-base-border rounded-xl px-3 py-2.5 text-xs font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+                >
+                  <FileXls size={14} weight="bold" />
+                  Config XLSX
+                </button>
+                <button
+                  onClick={handleExportFotos}
+                  className="tactile-press flex-1 flex items-center justify-center gap-1.5 bg-base-overlay border border-base-border rounded-xl px-3 py-2.5 text-xs font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+                >
+                  <Images size={14} weight="bold" />
+                  Fotos JSON
+                </button>
+              </div>
             </div>
             <div className="px-4 py-3.5">
               <button
@@ -522,7 +563,7 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
                 className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
               >
                 <ArrowUp size={16} weight="bold" />
-                Importar backup
+                Importar (JSON / CSV / XLSX)
               </button>
             </div>
             <div className="px-4 py-3.5">

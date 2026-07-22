@@ -333,3 +333,81 @@ export async function checarEspacoStorage(): Promise<{ usado: number; total: num
     return null;
   }
 }
+
+// --- Export configuracao CSV ---
+export async function exportarConfigCSV(): Promise<Blob> {
+  const blocos = await carregarListaApartamentos();
+  const header = 'Torre;Apartamentos\n';
+  const rows = Object.entries(blocos)
+    .map(([torre, aptos]) => `${torre};${aptos.join(',')}`)
+    .join('\n');
+  return new Blob(['\uFEFF' + header + rows + '\n'], { type: 'text/csv;charset=utf-8;' });
+}
+
+// --- Import configuracao CSV ---
+export async function importarConfigCSV(text: string): Promise<{ blocos: number; aptos: number }> {
+  const blocos: Record<string, string[]> = {};
+  let aptos = 0;
+  const lines = text.split('\n').filter((l) => l.trim());
+  for (const line of lines) {
+    if (line.startsWith('Torre;')) continue;
+    const sep = line.indexOf(';');
+    if (sep === -1) continue;
+    const torre = line.substring(0, sep).trim();
+    const aptosList = line
+      .substring(sep + 1)
+      .split(',')
+      .map((a) => a.trim())
+      .filter(Boolean);
+    if (torre && aptosList.length > 0) {
+      blocos[torre] = aptosList;
+      aptos += aptosList.length;
+    }
+  }
+  if (Object.keys(blocos).length === 0) throw new Error('Nenhum bloco encontrado no CSV');
+  await salvarListaApartamentos(blocos);
+  return { blocos: Object.keys(blocos).length, aptos };
+}
+
+// --- Export configuracao XLSX ---
+export async function exportarConfigXLSX(): Promise<Blob> {
+  const XLSX = await import('xlsx');
+  const blocos = await carregarListaApartamentos();
+  const wb = XLSX.utils.book_new();
+  const data: any[][] = [['Torre', 'Apartamentos']];
+  for (const [torre, aptos] of Object.entries(blocos)) {
+    data.push([torre, aptos.join(', ')]);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{ wch: 15 }, { wch: 80 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Configuracao');
+  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+// --- Import configuracao XLSX ---
+export async function importarConfigXLSX(file: File): Promise<{ blocos: number; aptos: number }> {
+  const XLSX = await import('xlsx');
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+  const blocos: Record<string, string[]> = {};
+  let aptos = 0;
+  for (const row of rows) {
+    if (!row || !row[0] || row[0] === 'Torre') continue;
+    const torre = String(row[0]).trim();
+    const aptosRaw = row[1] ? String(row[1]) : '';
+    const aptosList = aptosRaw
+      .split(/[,;]+/)
+      .map((a) => a.trim())
+      .filter(Boolean);
+    if (torre && aptosList.length > 0) {
+      blocos[torre] = aptosList;
+      aptos += aptosList.length;
+    }
+  }
+  if (Object.keys(blocos).length === 0) throw new Error('Nenhum bloco encontrado na planilha');
+  await salvarListaApartamentos(blocos);
+  return { blocos: Object.keys(blocos).length, aptos };
+}
