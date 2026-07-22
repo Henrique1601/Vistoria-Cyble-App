@@ -30,9 +30,15 @@ export async function POST(req: NextRequest) {
     const { nome, config } = await req.json();
     const sql = getSql();
     const configJson = JSON.stringify(config);
+
     await sql`
-      UPDATE building_config SET config = ${configJson}::jsonb, updated_at = now() WHERE id = 1
+      INSERT INTO building_config (id, nome, config, updated_at)
+      VALUES (1, ${nome || 'Prédio AcquaPlay'}::text, ${configJson}::jsonb, now())
+      ON CONFLICT (id) DO UPDATE SET
+        config = EXCLUDED.config,
+        updated_at = now()
     `;
+
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

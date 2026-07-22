@@ -324,47 +324,43 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
                 ]}
               />
             </SettingRow>
-          </Section>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.15 }}>
-          <Section title="Predio">
-            <div className="px-4 py-3.5">
-              <p className="text-xs text-content-tertiary mb-3">
-                Salve a configuracao dos apartamentos e blocos na nuvem para acesso em outros dispositivos.
-              </p>
-              <div className="flex flex-col gap-2">
+            <SettingRow label="Predio" description="Salvar e carregar configuracao dos blocos e apartamentos na nuvem">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={handleSaveConfig}
                   disabled={savingConfig}
-                  className="tactile-press flex items-center justify-center gap-2 bg-accent-dim border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  className="tactile-press flex items-center gap-1.5 bg-accent-dim border border-accent/30 rounded-lg px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  title="Salvar na nuvem"
                 >
                   {savingConfig ? (
-                    <ArrowClockwise size={16} weight="bold" className="animate-spin" aria-hidden="true" />
+                    <ArrowClockwise size={14} weight="bold" className="animate-spin" aria-hidden="true" />
                   ) : (
-                    <Cloud size={16} weight="bold" aria-hidden="true" />
+                    <Cloud size={14} weight="bold" aria-hidden="true" />
                   )}
-                  {savingConfig ? 'Salvando...' : 'Salvar na nuvem'}
+                  Salvar
                 </button>
                 <button
                   onClick={handleLoadConfig}
                   disabled={loadingConfig}
-                  className="tactile-press flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  className="tactile-press flex items-center gap-1.5 bg-base-overlay border border-base-border rounded-lg px-3 py-1.5 text-xs font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  title="Carregar da nuvem"
                 >
                   {loadingConfig ? (
-                    <ArrowClockwise size={16} weight="bold" className="animate-spin" aria-hidden="true" />
+                    <ArrowClockwise size={14} weight="bold" className="animate-spin" aria-hidden="true" />
                   ) : (
-                    <Database size={16} weight="bold" aria-hidden="true" />
+                    <Database size={14} weight="bold" aria-hidden="true" />
                   )}
-                  {loadingConfig ? 'Carregando...' : 'Carregar da nuvem'}
+                  Carregar
                 </button>
-                {lastSaved && (
-                  <span className="text-[10px] text-content-tertiary text-center mt-1">
-                    Ultimo salvamento: {lastSaved}
-                  </span>
-                )}
               </div>
-            </div>
+            </SettingRow>
+            {lastSaved && (
+              <div className="px-4 py-2 text-center">
+                <span className="text-[10px] text-content-tertiary">
+                  Ultimo salvamento: {lastSaved}
+                </span>
+              </div>
+            )}
           </Section>
         </motion.div>
 
