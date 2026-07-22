@@ -240,7 +240,7 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
       try {
         const text = await file.text();
         const result = await restaurarDados(text);
-        toast(`${result.fotos} fotos e ${result.syncLog} logs restaurados`, 'success');
+        toast(`${result.blocos} blocos, ${result.fotos} fotos e ${result.syncLog} logs restaurados`, 'success');
         window.location.reload();
       } catch {
         toast('Erro ao restaurar backup', 'error');

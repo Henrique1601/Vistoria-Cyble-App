@@ -219,7 +219,7 @@ export async function backupDados(): Promise<Blob> {
   return new Blob([JSON.stringify(dados)], { type: 'application/json' });
 }
 
-export async function restaurarDados(json: string): Promise<{ fotos: number; syncLog: number }> {
+export async function restaurarDados(json: string): Promise<{ fotos: number; syncLog: number; blocos: number }> {
   const dados = JSON.parse(json);
   const db = await getDb();
 
@@ -227,8 +227,16 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
   await db.clear('syncLog');
   await db.clear('config');
 
-  if (dados.blocos) {
+  let blocosCount = 0;
+  if (dados.blocos && typeof dados.blocos === 'object' && !Array.isArray(dados.blocos)) {
     await db.put('config', dados.blocos, 'blocos');
+    blocosCount = Object.keys(dados.blocos).length;
+  } else if (dados.lista && typeof dados.lista === 'object' && !Array.isArray(dados.lista)) {
+    await db.put('config', dados.lista, 'blocos');
+    blocosCount = Object.keys(dados.lista).length;
+  } else if (dados.config && typeof dados.config === 'object' && !Array.isArray(dados.config)) {
+    await db.put('config', dados.config, 'blocos');
+    blocosCount = Object.keys(dados.config).length;
   }
 
   let fotosCount = 0;
@@ -258,7 +266,7 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
     }
   }
 
-  return { fotos: fotosCount, syncLog: syncCount };
+  return { fotos: fotosCount, syncLog: syncCount, blocos: blocosCount };
 }
 
 // --- Checar espaco do IndexedDB ---

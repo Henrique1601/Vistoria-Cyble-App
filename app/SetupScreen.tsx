@@ -56,9 +56,15 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
       try {
         const obj = JSON.parse(trimmed);
         if (typeof obj === 'object' && obj !== null) {
+          if (obj.blocos && typeof obj.blocos === 'object' && !Array.isArray(obj.blocos)) {
+            return obj.blocos as Record<string, string[]>;
+          }
+          if (obj.lista && typeof obj.lista === 'object' && !Array.isArray(obj.lista)) {
+            return obj.lista as Record<string, string[]>;
+          }
           const lista: Record<string, string[]> = {};
           for (const [key, val] of Object.entries(obj)) {
-            if (Array.isArray(val)) {
+            if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'string') {
               lista[key] = val.map(String).map(s => s.trim()).filter(Boolean);
             } else if (typeof val === 'string') {
               lista[key] = val.split('\n').map(s => s.trim()).filter(Boolean);
