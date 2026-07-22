@@ -42,7 +42,8 @@ interface Foto {
   foto_index: number;
 }
 
-export default function GaleriaClient() {
+export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: string }) {
+  const isAdmin = userRole === 'admin';
   const [fotos, setFotos] = useState<Foto[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroBloco, setFiltroBloco] = useState('');
@@ -347,57 +348,59 @@ export default function GaleriaClient() {
           </div>
         </motion.div>
 
-        {/* Selection Toolbar */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-4"
-        >
-          <button
-            onClick={toggleSelectionMode}
-            className={`tactile-press flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-              selectionMode
-                ? 'bg-accent-dim border-accent text-accent'
-                : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
-            }`}
+        {/* Selection Toolbar - Only for admin */}
+        {isAdmin && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between mb-4"
           >
-            <ListChecks size={16} weight="bold" />
-            {selectionMode ? 'Cancelar seleção' : 'Selecionar'}
-          </button>
-          
-          {selectionMode && (
-            <motion.div
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-2"
+            <button
+              onClick={toggleSelectionMode}
+              className={`tactile-press flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                selectionMode
+                  ? 'bg-accent-dim border-accent text-accent'
+                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+              }`}
             >
-              <span className="text-xs text-content-tertiary font-mono">
-                {selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}
-              </span>
-              <button
-                onClick={selectAll}
-                className="tactile-press px-3 py-1.5 rounded-lg text-xs font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors"
+              <ListChecks size={16} weight="bold" />
+              {selectionMode ? 'Cancelar seleção' : 'Selecionar'}
+            </button>
+            
+            {selectionMode && (
+              <motion.div
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-2"
               >
-                Todas
-              </button>
-              <button
-                onClick={deselectAll}
-                disabled={selectedIds.size === 0}
-                className="tactile-press px-3 py-1.5 rounded-lg text-xs font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors disabled:opacity-30"
-              >
-                Nenhuma
-              </button>
-              <button
-                onClick={handleBulkDeleteClick}
-                disabled={selectedIds.size === 0}
-                className="tactile-press flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-danger text-base hover:bg-danger/90 transition-colors disabled:opacity-30"
-              >
-                <Trash size={12} weight="bold" />
-                Excluir
-              </button>
-            </motion.div>
-          )}
-        </motion.div>
+                <span className="text-xs text-content-tertiary font-mono">
+                  {selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={selectAll}
+                  className="tactile-press px-3 py-1.5 rounded-lg text-xs font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors"
+                >
+                  Todas
+                </button>
+                <button
+                  onClick={deselectAll}
+                  disabled={selectedIds.size === 0}
+                  className="tactile-press px-3 py-1.5 rounded-lg text-xs font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors disabled:opacity-30"
+                >
+                  Nenhuma
+                </button>
+                <button
+                  onClick={handleBulkDeleteClick}
+                  disabled={selectedIds.size === 0}
+                  className="tactile-press flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-danger text-base hover:bg-danger/90 transition-colors disabled:opacity-30"
+                >
+                  <Trash size={12} weight="bold" />
+                  Excluir
+                </button>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
 
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -453,7 +456,7 @@ export default function GaleriaClient() {
                             : 'border border-base-border hover:border-accent/30'
                         }`}
                       >
-                        {selectionMode ? (
+                        {selectionMode && isAdmin ? (
                           <button
                             onClick={() => toggleSelectFoto(f.id)}
                             aria-label={isSelected ? `Desselecionar foto ${f.apartamento}` : `Selecionar foto ${f.apartamento}`}
@@ -498,22 +501,24 @@ export default function GaleriaClient() {
                               </div>
                             </button>
                             
-                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleEditClick(f); }}
-                                className="w-6 h-6 rounded-full bg-accent/90 flex items-center justify-center text-base hover:bg-accent transition-colors"
-                                aria-label={`Editar foto ${f.apartamento}`}
-                              >
-                                <PencilSimple size={12} weight="bold" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDeleteClick(f); }}
-                                className="w-6 h-6 rounded-full bg-danger/90 flex items-center justify-center text-base hover:bg-danger transition-colors"
-                                aria-label={`Excluir foto ${f.apartamento}`}
-                              >
-                                <Trash size={12} weight="bold" />
-                              </button>
-                            </div>
+                            {isAdmin && (
+                              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleEditClick(f); }}
+                                  className="w-6 h-6 rounded-full bg-accent/90 flex items-center justify-center text-base hover:bg-accent transition-colors"
+                                  aria-label={`Editar foto ${f.apartamento}`}
+                                >
+                                  <PencilSimple size={12} weight="bold" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(f); }}
+                                  className="w-6 h-6 rounded-full bg-danger/90 flex items-center justify-center text-base hover:bg-danger transition-colors"
+                                  aria-label={`Excluir foto ${f.apartamento}`}
+                                >
+                                  <Trash size={12} weight="bold" />
+                                </button>
+                              </div>
+                            )}
                           </>
                         )}
                       </motion.div>
@@ -559,23 +564,25 @@ export default function GaleriaClient() {
                 <X size={18} weight="bold" aria-hidden="true" />
               </button>
 
-              {/* Botões de Editar e Excluir no Lightbox */}
-              <div className="absolute top-2 left-2 flex gap-2 z-20">
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleEditClick(fotoSelecionada); }}
-                  className="w-10 h-10 rounded-full bg-accent/90 backdrop-blur-sm flex items-center justify-center text-base hover:bg-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                  aria-label="Editar foto"
-                >
-                  <PencilSimple size={16} weight="bold" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(fotoSelecionada); }}
-                  className="w-10 h-10 rounded-full bg-danger/90 backdrop-blur-sm flex items-center justify-center text-base hover:bg-danger focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-                  aria-label="Excluir foto"
-                >
-                  <Trash size={16} weight="bold" />
-                </button>
-              </div>
+              {/* Botões de Editar e Excluir no Lightbox - Only for admin */}
+              {isAdmin && (
+                <div className="absolute top-2 left-2 flex gap-2 z-20">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEditClick(fotoSelecionada); }}
+                    className="w-10 h-10 rounded-full bg-accent/90 backdrop-blur-sm flex items-center justify-center text-base hover:bg-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                    aria-label="Editar foto"
+                  >
+                    <PencilSimple size={16} weight="bold" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteClick(fotoSelecionada); }}
+                    className="w-10 h-10 rounded-full bg-danger/90 backdrop-blur-sm flex items-center justify-center text-base hover:bg-danger focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                    aria-label="Excluir foto"
+                  >
+                    <Trash size={16} weight="bold" />
+                  </button>
+                </div>
+              )}
 
               {/* Navegação */}
               {todasFotos.length > 1 && (

@@ -1,11 +1,15 @@
-import { Metadata } from 'next';
+'use client';
+
+import { useState, useEffect } from 'react';
 import GaleriaClient from './GaleriaClient';
 
-export const metadata: Metadata = {
-  title: 'Galeria de Leituras',
-  description: 'Fotos das leituras de vistoria Cyble',
-};
-
 export default function GaleriaPage() {
-  return <GaleriaClient />;
+  const [userRole, setUserRole] = useState<string>('viewer');
+  
+  useEffect(() => {
+    const role = localStorage.getItem('vistoria_role') || 'viewer';
+    setUserRole(role);
+  }, []);
+  
+  return <GaleriaClient userRole={userRole} />;
 }

@@ -13,10 +13,12 @@ sincronizam sozinhas.
    - No projeto na Vercel: **Storage -> Create Database -> Blob**.
    - Isso já cria automaticamente a variável `BLOB_READ_WRITE_TOKEN`.
 4. Em **Settings -> Environment Variables**, adicione também:
-   - `APP_PIN` = um PIN numérico de sua escolha (ex: `4821`) — é a senha de
-     acesso ao app, já que ele vai ficar num link público da Vercel e as fotos
-     de documento podem ter dado pessoal dos moradores.
+   - `ADMIN_PIN` = PIN de administrador (ex: `4821`) — acesso total: editar, excluir fotos, selecionar múltiplas.
+   - `VIEWER_PIN` = PIN de visualização (ex: `1234`) — apenas visualizar fotos, sem editar nem excluir.
+   - `APP_PIN` = (legado) se configurado, funciona como admin para compatibilidade.
 5. Deploy.
+
+> **Dois níveis de acesso:** O PIN de administrador permite todas as ações (edição, exclusão, seleção múltipla). O PIN de visualização é seguro para compartilhar — quem entra com ele só vê as fotos, sem risco de apagar ou alterar nada.
 
 ## Instalando no celular
 

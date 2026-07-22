@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LockKey, Warning } from '@phosphor-icons/react';
+import { LockKey, Warning, Eye, PencilSimple } from '@phosphor-icons/react';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
-export default function PinGate({ onOk }: { onOk: (pin: string) => void }) {
+export default function PinGate({ onOk }: { onOk: (pin: string, role: string) => void }) {
   const [pin, setPin] = useState('');
   const [erro, setErro] = useState('');
   const [checking, setChecking] = useState(false);
@@ -22,7 +22,7 @@ export default function PinGate({ onOk }: { onOk: (pin: string) => void }) {
       });
       const data = await resp.json();
       if (data.ok) {
-        onOk(pin);
+        onOk(pin, data.role);
       } else {
         setErro('PIN incorreto');
       }

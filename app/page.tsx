@@ -88,6 +88,7 @@ interface FotoOnline {
 
 export default function Home() {
   const [pin, setPin] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('viewer');
   const [pinChecked, setPinChecked] = useState(false);
   const [lista, setLista] = useState<Record<string, string[]> | null>(null);
   const [status, setStatus] = useState<ApartamentoStatus[]>([]);
@@ -138,7 +139,9 @@ export default function Home() {
 
   useEffect(() => {
     const saved = localStorage.getItem('vistoria_pin');
+    const savedRole = localStorage.getItem('vistoria_role') || 'viewer';
     setPin(saved);
+    setUserRole(savedRole);
     setPinChecked(true);
     setDiasAlerta(getDiasAlerta());
     setItensPagina(getItensPagina() as 10 | 20 | 50 | 999);
@@ -709,9 +712,11 @@ export default function Home() {
   if (!pin) {
     return (
       <PinGate
-        onOk={(p) => {
+        onOk={(p, role) => {
           localStorage.setItem('vistoria_pin', p);
+          localStorage.setItem('vistoria_role', role);
           setPin(p);
+          setUserRole(role);
         }}
       />
     );
