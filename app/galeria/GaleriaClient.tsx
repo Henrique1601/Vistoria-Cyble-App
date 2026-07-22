@@ -17,6 +17,9 @@ import {
   PencilSimple,
   Check,
   Warning,
+  CheckCircle,
+  Circle,
+  ListChecks,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 
@@ -58,6 +61,11 @@ export default function GaleriaClient() {
   const [editBloco, setEditBloco] = useState('');
   const [editApartamento, setEditApartamento] = useState('');
   const [editing, setEditing] = useState(false);
+  
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   useEffect(() => {
     fetch('/api/fotos')
@@ -188,6 +196,59 @@ export default function GaleriaClient() {
     }
   }, [fotoToEdit, editBloco, editApartamento, fotoSelecionada]);
 
+  const toggleSelectionMode = useCallback(() => {
+    setSelectionMode((prev) => !prev);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelectFoto = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const allIds = filtradas.map((f) => f.id);
+    setSelectedIds(new Set(allIds));
+  }, [filtradas]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBulkDeleteClick = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    setShowBulkDeleteModal(true);
+  }, [selectedIds]);
+
+  const handleBulkDeleteConfirm = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const resp = await fetch('/api/fotos/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (resp.ok) {
+        setFotos((prev) => prev.filter((f) => !selectedIds.has(f.id)));
+        setSelectedIds(new Set());
+        setShowBulkDeleteModal(false);
+        setSelectionMode(false);
+      }
+    } catch (err) {
+      console.error('Erro ao excluir fotos:', err);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [selectedIds]);
+
   // Swipe gesture support
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -286,6 +347,58 @@ export default function GaleriaClient() {
           </div>
         </motion.div>
 
+        {/* Selection Toolbar */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between mb-4"
+        >
+          <button
+            onClick={toggleSelectionMode}
+            className={`tactile-press flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+              selectionMode
+                ? 'bg-accent-dim border-accent text-accent'
+                : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+            }`}
+          >
+            <ListChecks size={16} weight="bold" />
+            {selectionMode ? 'Cancelar seleção' : 'Selecionar'}
+          </button>
+          
+          {selectionMode && (
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-2"
+            >
+              <span className="text-xs text-content-tertiary font-mono">
+                {selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={selectAll}
+                className="tactile-press px-3 py-1.5 rounded-lg text-xs font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors"
+              >
+                Todas
+              </button>
+              <button
+                onClick={deselectAll}
+                disabled={selectedIds.size === 0}
+                className="tactile-press px-3 py-1.5 rounded-lg text-xs font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors disabled:opacity-30"
+              >
+                Nenhuma
+              </button>
+              <button
+                onClick={handleBulkDeleteClick}
+                disabled={selectedIds.size === 0}
+                className="tactile-press flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-danger text-base hover:bg-danger/90 transition-colors disabled:opacity-30"
+              >
+                <Trash size={12} weight="bold" />
+                Excluir
+              </button>
+            </motion.div>
+          )}
+        </motion.div>
+
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -327,49 +440,85 @@ export default function GaleriaClient() {
                   </span>
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                  {grupo.fotos.map((f) => (
-                    <motion.div
-                      key={f.id}
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
-                      className="relative aspect-[4/3] rounded-xl overflow-hidden border border-base-border hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors group"
-                    >
-                      <button
-                        onClick={() => abrirLightbox(f)}
-                        aria-label={`Ver foto ${f.bloco} ${f.apartamento} ampliada`}
-                        className="tactile-press w-full h-full"
+                  {grupo.fotos.map((f) => {
+                    const isSelected = selectedIds.has(f.id);
+                    return (
+                      <motion.div
+                        key={f.id}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        className={`relative aspect-[4/3] rounded-xl overflow-hidden transition-all group ${
+                          isSelected
+                            ? 'ring-2 ring-accent ring-offset-2 ring-offset-base border-accent'
+                            : 'border border-base-border hover:border-accent/30'
+                        }`}
                       >
-                        <img
-                          src={f.foto_url}
-                          alt={`Foto de ${f.bloco} apartamento ${f.apartamento}`}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          width={320}
-                          height={240}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-base/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                          <ArrowsOut size={14} weight="bold" className="text-content" aria-hidden="true" />
-                        </div>
-                      </button>
-                      
-                      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEditClick(f); }}
-                          className="w-6 h-6 rounded-full bg-accent/90 flex items-center justify-center text-base hover:bg-accent transition-colors"
-                          aria-label={`Editar foto ${f.apartamento}`}
-                        >
-                          <PencilSimple size={12} weight="bold" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(f); }}
-                          className="w-6 h-6 rounded-full bg-danger/90 flex items-center justify-center text-base hover:bg-danger transition-colors"
-                          aria-label={`Excluir foto ${f.apartamento}`}
-                        >
-                          <Trash size={12} weight="bold" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
+                        {selectionMode ? (
+                          <button
+                            onClick={() => toggleSelectFoto(f.id)}
+                            aria-label={isSelected ? `Desselecionar foto ${f.apartamento}` : `Selecionar foto ${f.apartamento}`}
+                            className="tactile-press w-full h-full relative"
+                          >
+                            <img
+                              src={f.foto_url}
+                              alt={`Foto de ${f.bloco} apartamento ${f.apartamento}`}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                              width={320}
+                              height={240}
+                            />
+                            <div className={`absolute inset-0 transition-colors ${
+                              isSelected ? 'bg-accent/20' : 'bg-base/10'
+                            }`} />
+                            <div className="absolute top-2 left-2 z-10">
+                              {isSelected ? (
+                                <CheckCircle size={24} weight="fill" className="text-accent drop-shadow-lg" />
+                              ) : (
+                                <Circle size={24} weight="regular" className="text-base/80 drop-shadow-lg" />
+                              )}
+                            </div>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => abrirLightbox(f)}
+                              aria-label={`Ver foto ${f.bloco} ${f.apartamento} ampliada`}
+                              className="tactile-press w-full h-full"
+                            >
+                              <img
+                                src={f.foto_url}
+                                alt={`Foto de ${f.bloco} apartamento ${f.apartamento}`}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                width={320}
+                                height={240}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-base/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                                <ArrowsOut size={14} weight="bold" className="text-content" aria-hidden="true" />
+                              </div>
+                            </button>
+                            
+                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleEditClick(f); }}
+                                className="w-6 h-6 rounded-full bg-accent/90 flex items-center justify-center text-base hover:bg-accent transition-colors"
+                                aria-label={`Editar foto ${f.apartamento}`}
+                              >
+                                <PencilSimple size={12} weight="bold" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteClick(f); }}
+                                className="w-6 h-6 rounded-full bg-danger/90 flex items-center justify-center text-base hover:bg-danger transition-colors"
+                                aria-label={`Excluir foto ${f.apartamento}`}
+                              >
+                                <Trash size={12} weight="bold" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </motion.div>
             ))}
@@ -591,6 +740,55 @@ export default function GaleriaClient() {
                   className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-base hover:bg-accent-hover transition-colors disabled:opacity-50"
                 >
                   {editing ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Confirmação de Exclusão em Lote */}
+      <AnimatePresence>
+        {showBulkDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-base/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            onClick={() => setShowBulkDeleteModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-base-raised border border-base-border rounded-2xl p-6 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
+                  <Warning size={20} className="text-danger" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-content">Excluir fotos selecionadas</h3>
+                  <p className="text-sm text-content-tertiary">Esta ação não pode ser desfeita</p>
+                </div>
+              </div>
+              <p className="text-sm text-content-secondary mb-6">
+                Tem certeza que deseja excluir <strong>{selectedIds.size} foto{selectedIds.size !== 1 ? 's' : ''}</strong> selecionada{selectedIds.size !== 1 ? 's' : ''}?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowBulkDeleteModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleBulkDeleteConfirm}
+                  disabled={bulkDeleting}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-danger text-base hover:bg-danger/90 transition-colors disabled:opacity-50"
+                >
+                  {bulkDeleting ? 'Excluindo...' : `Excluir ${selectedIds.size}`}
                 </button>
               </div>
             </motion.div>
