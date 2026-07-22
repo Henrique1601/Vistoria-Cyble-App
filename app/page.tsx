@@ -124,7 +124,7 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [exportandoZIP, setExportandoZIP] = useState(false);
   const [exportandoFotos, setExportandoFotos] = useState(false);
-  const APP_VERSION = '3.0.0';
+  const APP_VERSION = '3.1.0';
   const [updateDisponivel, setUpdateDisponivel] = useState(false);
   const [versaoAtual, setVersaoAtual] = useState(APP_VERSION);
   const [versaoNova, setVersaoNova] = useState(APP_VERSION);

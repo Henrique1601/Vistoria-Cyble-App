@@ -6,7 +6,16 @@ export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const pin = req.headers.get('x-app-pin');
-  if (!process.env.APP_PIN || pin !== process.env.APP_PIN) {
+
+  function isValidPin(): boolean {
+    if (!pin) return false;
+    if (process.env.ADMIN_PIN && pin === process.env.ADMIN_PIN) return true;
+    if (process.env.VIEWER_PIN && pin === process.env.VIEWER_PIN) return true;
+    if (process.env.APP_PIN && pin === process.env.APP_PIN) return true;
+    return false;
+  }
+
+  if (!isValidPin()) {
     return NextResponse.json({ erro: 'PIN invalido' }, { status: 401 });
   }
 

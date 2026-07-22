@@ -1,7 +1,7 @@
 const CACHE_SHELL = 'vistoria-shell-v2';
 const CACHE_API = 'vistoria-api-v1';
 const CACHE_FOTOS = 'vistoria-fotos-v1';
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '3.1.0';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
