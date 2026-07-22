@@ -1,0 +1,27 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "vistoria-agent",
+  "instructions": ["AGENTS.md", "README.md", "Troca-cyble/00 - Visão Geral.md"],
+  "agent": {
+    "vistoria-agent": {
+      "model": "opencode/mimo-v2.5-free",
+      "mode": "primary",
+      "description": "Agent para desenvolvimento e manutenção do app Vistoria Cyble"
+    }
+  },
+  "references": {
+    "docs": {
+      "path": "Troca-cyble",
+      "description": "Documentação do projeto Vistoria Cyble"
+    }
+  },
+  "permission": {
+    "edit": "allow",
+    "bash": {
+      "npm *": "allow",
+      "npx *": "allow",
+      "git *": "allow",
+      "*": "ask"
+    }
+  }
+}

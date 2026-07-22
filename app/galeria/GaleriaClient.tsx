@@ -13,6 +13,10 @@ import {
   ArrowsOut,
   CaretLeft,
   CaretRight,
+  Trash,
+  PencilSimple,
+  Check,
+  Warning,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 
@@ -44,6 +48,16 @@ export default function GaleriaClient() {
   const [fotoSelecionada, setFotoSelecionada] = useState<Foto | null>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [fotoToDelete, setFotoToDelete] = useState<Foto | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [fotoToEdit, setFotoToEdit] = useState<Foto | null>(null);
+  const [editBloco, setEditBloco] = useState('');
+  const [editApartamento, setEditApartamento] = useState('');
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     fetch('/api/fotos')
@@ -105,6 +119,74 @@ export default function GaleriaClient() {
       setFotoSelecionada(todasFotos[idx - 1]);
     }
   }, [fotoSelecionada, todasFotos]);
+
+  const handleDeleteClick = useCallback((f: Foto) => {
+    setFotoToDelete(f);
+    setShowDeleteModal(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!fotoToDelete) return;
+    setDeleting(true);
+    try {
+      const resp = await fetch('/api/fotos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: fotoToDelete.id }),
+      });
+      if (resp.ok) {
+        setFotos((prev) => prev.filter((f) => f.id !== fotoToDelete.id));
+        setShowDeleteModal(false);
+        setFotoToDelete(null);
+        if (fotoSelecionada?.id === fotoToDelete.id) {
+          setFotoSelecionada(null);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao deletar foto:', err);
+    } finally {
+      setDeleting(false);
+    }
+  }, [fotoToDelete, fotoSelecionada]);
+
+  const handleEditClick = useCallback((f: Foto) => {
+    setFotoToEdit(f);
+    setEditBloco(f.bloco);
+    setEditApartamento(f.apartamento);
+    setShowEditModal(true);
+  }, []);
+
+  const handleEditConfirm = useCallback(async () => {
+    if (!fotoToEdit) return;
+    setEditing(true);
+    try {
+      const resp = await fetch('/api/fotos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: fotoToEdit.id, 
+          bloco: editBloco, 
+          apartamento: editApartamento 
+        }),
+      });
+      if (resp.ok) {
+        setFotos((prev) => prev.map((f) => 
+          f.id === fotoToEdit.id 
+            ? { ...f, bloco: editBloco, apartamento: editApartamento }
+            : f
+        ));
+        setShowEditModal(false);
+        setFotoToEdit(null);
+        if (fotoSelecionada?.id === fotoToEdit.id) {
+          setFotoSelecionada((prev) => prev ? { ...prev, bloco: editBloco, apartamento: editApartamento } : null);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao editar foto:', err);
+    } finally {
+      setEditing(false);
+    }
+  }, [fotoToEdit, editBloco, editApartamento, fotoSelecionada]);
 
   // Swipe gesture support
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -246,26 +328,47 @@ export default function GaleriaClient() {
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                   {grupo.fotos.map((f) => (
-                    <motion.button
+                    <motion.div
                       key={f.id}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
-                      onClick={() => abrirLightbox(f)}
-                      aria-label={`Ver foto ${f.bloco} ${f.apartamento} ampliada`}
-                      className="tactile-press relative aspect-[4/3] rounded-xl overflow-hidden border border-base-border hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors group"
+                      className="relative aspect-[4/3] rounded-xl overflow-hidden border border-base-border hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors group"
                     >
-                      <img
-                        src={f.foto_url}
-                        alt={`Foto de ${f.bloco} apartamento ${f.apartamento}`}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        width={320}
-                        height={240}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-base/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                        <ArrowsOut size={14} weight="bold" className="text-content" aria-hidden="true" />
+                      <button
+                        onClick={() => abrirLightbox(f)}
+                        aria-label={`Ver foto ${f.bloco} ${f.apartamento} ampliada`}
+                        className="tactile-press w-full h-full"
+                      >
+                        <img
+                          src={f.foto_url}
+                          alt={`Foto de ${f.bloco} apartamento ${f.apartamento}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          width={320}
+                          height={240}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-base/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                          <ArrowsOut size={14} weight="bold" className="text-content" aria-hidden="true" />
+                        </div>
+                      </button>
+                      
+                      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEditClick(f); }}
+                          className="w-6 h-6 rounded-full bg-accent/90 flex items-center justify-center text-base hover:bg-accent transition-colors"
+                          aria-label={`Editar foto ${f.apartamento}`}
+                        >
+                          <PencilSimple size={12} weight="bold" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(f); }}
+                          className="w-6 h-6 rounded-full bg-danger/90 flex items-center justify-center text-base hover:bg-danger transition-colors"
+                          aria-label={`Excluir foto ${f.apartamento}`}
+                        >
+                          <Trash size={12} weight="bold" />
+                        </button>
                       </div>
-                    </motion.button>
+                    </motion.div>
                   ))}
                 </div>
               </motion.div>
@@ -306,6 +409,24 @@ export default function GaleriaClient() {
               >
                 <X size={18} weight="bold" aria-hidden="true" />
               </button>
+
+              {/* Botões de Editar e Excluir no Lightbox */}
+              <div className="absolute top-2 left-2 flex gap-2 z-20">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleEditClick(fotoSelecionada); }}
+                  className="w-10 h-10 rounded-full bg-accent/90 backdrop-blur-sm flex items-center justify-center text-base hover:bg-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                  aria-label="Editar foto"
+                >
+                  <PencilSimple size={16} weight="bold" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(fotoSelecionada); }}
+                  className="w-10 h-10 rounded-full bg-danger/90 backdrop-blur-sm flex items-center justify-center text-base hover:bg-danger focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                  aria-label="Excluir foto"
+                >
+                  <Trash size={16} weight="bold" />
+                </button>
+              </div>
 
               {/* Navegação */}
               {todasFotos.length > 1 && (
@@ -354,6 +475,123 @@ export default function GaleriaClient() {
                 <span className="font-mono text-xs">
                   {new Date(fotoSelecionada.data_leitura + 'T12:00:00').toLocaleDateString('pt-BR')}
                 </span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AnimatePresence>
+        {showDeleteModal && fotoToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-base/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            onClick={() => { setShowDeleteModal(false); setFotoToDelete(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-base-raised border border-base-border rounded-2xl p-6 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
+                  <Warning size={20} className="text-danger" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-content">Excluir foto</h3>
+                  <p className="text-sm text-content-tertiary">Esta ação não pode ser desfeita</p>
+                </div>
+              </div>
+              <p className="text-sm text-content-secondary mb-6">
+                Tem certeza que deseja excluir a foto do apartamento <strong>{fotoToDelete.apartamento}</strong> do bloco <strong>{fotoToDelete.bloco}</strong>?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowDeleteModal(false); setFotoToDelete(null); }}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-danger text-base hover:bg-danger/90 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Edição */}
+      <AnimatePresence>
+        {showEditModal && fotoToEdit && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-base/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            onClick={() => { setShowEditModal(false); setFotoToEdit(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-base-raised border border-base-border rounded-2xl p-6 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                  <PencilSimple size={20} className="text-accent" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-content">Editar foto</h3>
+                  <p className="text-sm text-content-tertiary">Altere o bloco ou apartamento</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-content-secondary mb-1.5">Bloco</label>
+                  <input
+                    type="text"
+                    value={editBloco}
+                    onChange={(e) => setEditBloco(e.target.value)}
+                    className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm text-content focus:outline-none focus:border-accent/50 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-content-secondary mb-1.5">Apartamento</label>
+                  <input
+                    type="text"
+                    value={editApartamento}
+                    onChange={(e) => setEditApartamento(e.target.value)}
+                    className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm text-content focus:outline-none focus:border-accent/50 transition-colors"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowEditModal(false); setFotoToEdit(null); }}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-base-overlay border border-base-border text-content-secondary hover:text-content transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleEditConfirm}
+                  disabled={editing || !editBloco.trim() || !editApartamento.trim()}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-base hover:bg-accent-hover transition-colors disabled:opacity-50"
+                >
+                  {editing ? 'Salvando...' : 'Salvar'}
+                </button>
               </div>
             </motion.div>
           </motion.div>
