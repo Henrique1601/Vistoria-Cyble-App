@@ -559,9 +559,9 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
               <button
                 onClick={fecharLightbox}
                 aria-label="Fechar foto ampliada"
-                className="absolute top-2 right-2 w-10 h-10 rounded-full bg-base/80 backdrop-blur-sm border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:bg-base-raised focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors z-20"
+                className="absolute top-3 right-3 w-11 h-11 rounded-full bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:bg-danger/20 hover:border-danger/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors z-20 shadow-lg"
               >
-                <X size={18} weight="bold" aria-hidden="true" />
+                <X size={20} weight="bold" aria-hidden="true" />
               </button>
 
               {/* Botões de Editar e Excluir no Lightbox - Only for admin */}
