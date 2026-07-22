@@ -210,6 +210,7 @@ export async function backupDados(): Promise<Blob> {
 
   const dados = {
     versao: 2,
+    tipo: 'completo',
     data: new Date().toISOString(),
     fotos: fotosSerializadas,
     syncLog,
@@ -219,15 +220,68 @@ export async function backupDados(): Promise<Blob> {
   return new Blob([JSON.stringify(dados)], { type: 'application/json' });
 }
 
+export async function backupBlocos(): Promise<Blob> {
+  const db = await getDb();
+  const blocos = await db.get('config', 'blocos');
+  const dados = {
+    versao: 2,
+    tipo: 'configuracao',
+    data: new Date().toISOString(),
+    blocos: blocos || {},
+  };
+  return new Blob([JSON.stringify(dados)], { type: 'application/json' });
+}
+
+export async function backupFotos(): Promise<Blob> {
+  const db = await getDb();
+  const fotos = await db.getAll('fotos');
+  const syncLog = await db.getAll('syncLog');
+
+  const fotosSerializadas = await Promise.all(
+    fotos.map(async (f) => {
+      let blobBase64 = '';
+      if (f.blob && f.blob.size > 0) {
+        blobBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(f.blob);
+        });
+      }
+      return { ...f, blobBase64, blob: undefined };
+    })
+  );
+
+  const dados = {
+    versao: 2,
+    tipo: 'fotos',
+    data: new Date().toISOString(),
+    fotos: fotosSerializadas,
+    syncLog,
+  };
+  return new Blob([JSON.stringify(dados)], { type: 'application/json' });
+}
+
 export async function restaurarDados(json: string): Promise<{ fotos: number; syncLog: number; blocos: number }> {
   const dados = JSON.parse(json);
   const db = await getDb();
+  const tipo = dados.tipo || 'completo';
+
+  let blocosCount = 0;
+  let fotosCount = 0;
+  let syncCount = 0;
+
+  if (tipo === 'configuracao') {
+    if (dados.blocos && typeof dados.blocos === 'object' && !Array.isArray(dados.blocos)) {
+      await db.put('config', dados.blocos, 'blocos');
+      blocosCount = Object.keys(dados.blocos).length;
+    }
+    return { fotos: 0, syncLog: 0, blocos: blocosCount };
+  }
 
   await db.clear('fotos');
   await db.clear('syncLog');
   await db.clear('config');
 
-  let blocosCount = 0;
   if (dados.blocos && typeof dados.blocos === 'object' && !Array.isArray(dados.blocos)) {
     await db.put('config', dados.blocos, 'blocos');
     blocosCount = Object.keys(dados.blocos).length;
@@ -239,7 +293,6 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
     blocosCount = Object.keys(dados.config).length;
   }
 
-  let fotosCount = 0;
   if (dados.fotos) {
     const tx = db.transaction('fotos', 'readwrite');
     const store = tx.objectStore('fotos');
@@ -258,7 +311,6 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
     await tx.done;
   }
 
-  let syncCount = 0;
   if (dados.syncLog) {
     for (const entry of dados.syncLog) {
       await db.add('syncLog', entry as SyncLogEntry);

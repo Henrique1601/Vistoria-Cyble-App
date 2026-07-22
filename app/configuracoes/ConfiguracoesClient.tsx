@@ -19,6 +19,9 @@ import {
   GearSix,
   Cloud,
   ArrowClockwise,
+  Buildings,
+  Images,
+  FileText,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
 import { haptic } from '@/lib/haptic';
@@ -37,7 +40,6 @@ import {
   setBackupIntervalo,
 } from '@/lib/settings';
 import { backupDados, restaurarDados, checarEspacoStorage } from '@/lib/db';
-import { fazerBackupManual } from '@/lib/backup';
 import { useToast } from '@/components/Toast';
 import { spring } from '@/lib/motion';
 
@@ -222,11 +224,51 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
   async function handleExportBackup() {
     haptic('medium');
     try {
-      await fazerBackupManual();
-      toast('Backup exportado com sucesso', 'success');
+      const blob = await backupDados();
+      downloadBlob(blob, `backup-completo-${dateStr()}.json`);
+      toast('Backup completo exportado', 'success');
     } catch {
       toast('Erro ao exportar backup', 'error');
     }
+  }
+
+  async function handleExportConfig() {
+    haptic('medium');
+    try {
+      const { backupBlocos } = await import('@/lib/db');
+      const blob = await backupBlocos();
+      downloadBlob(blob, `configuracao-${dateStr()}.json`);
+      toast('Configuracao exportada', 'success');
+    } catch {
+      toast('Erro ao exportar configuracao', 'error');
+    }
+  }
+
+  async function handleExportFotos() {
+    haptic('medium');
+    try {
+      const { backupFotos } = await import('@/lib/db');
+      const blob = await backupFotos();
+      downloadBlob(blob, `fotos-${dateStr()}.json`);
+      toast('Fotos exportadas', 'success');
+    } catch {
+      toast('Erro ao exportar fotos', 'error');
+    }
+  }
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  function dateStr() {
+    return new Date().toISOString().slice(0, 10);
   }
 
   async function handleImportBackup() {
@@ -239,8 +281,11 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
       if (!file) return;
       try {
         const text = await file.text();
+        const dados = JSON.parse(text);
+        const tipo = dados.tipo || 'completo';
         const result = await restaurarDados(text);
-        toast(`${result.blocos} blocos, ${result.fotos} fotos e ${result.syncLog} logs restaurados`, 'success');
+        const label = tipo === 'configuracao' ? 'Configuracao' : tipo === 'fotos' ? 'Fotos' : 'Backup completo';
+        toast(`${label}: ${result.blocos} blocos, ${result.fotos} fotos, ${result.syncLog} logs`, 'success');
         window.location.reload();
       } catch {
         toast('Erro ao restaurar backup', 'error');
@@ -447,13 +492,28 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
                 />
               </SettingRow>
             )}
-            <div className="px-4 py-3.5">
+            <div className="px-4 py-3.5 space-y-2">
+              <p className="text-xs text-content-tertiary mb-1">Opcoes de exportacao:</p>
               <button
                 onClick={handleExportBackup}
                 className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
               >
                 <ArrowDown size={16} weight="bold" />
-                Exportar backup
+                Backup completo (tudo)
+              </button>
+              <button
+                onClick={handleExportConfig}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+              >
+                <Buildings size={16} weight="bold" />
+                Apenas configuracao (blocos/aptos)
+              </button>
+              <button
+                onClick={handleExportFotos}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+              >
+                <Images size={16} weight="bold" />
+                Apenas fotos
               </button>
             </div>
             <div className="px-4 py-3.5">
