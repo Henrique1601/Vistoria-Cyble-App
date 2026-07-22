@@ -13,6 +13,7 @@ import {
   Cloud,
   ArrowClockwise,
   Database,
+  X,
 } from '@phosphor-icons/react';
 import { salvarListaApartamentos } from '@/lib/db';
 
@@ -35,7 +36,13 @@ const item = {
   show: { opacity: 1, y: 0, transition: spring },
 };
 
-export default function SetupScreen({ onDone }: { onDone: (lista: Record<string, string[]>) => void }) {
+export default function SetupScreen({
+  onDone,
+  onCancel,
+}: {
+  onDone: (lista: Record<string, string[]>) => void;
+  onCancel?: () => void;
+}) {
   const [mode, setMode] = useState<Mode>('manual');
   const [numBlocos, setNumBlocos] = useState(8);
   const [textos, setTextos] = useState<string[]>(Array(8).fill(''));
@@ -185,6 +192,15 @@ export default function SetupScreen({ onDone }: { onDone: (lista: Record<string,
           <div className="flex items-center gap-3 mb-1">
               <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_0_4px_rgba(232,130,58,0.2)]" aria-hidden="true" />
             <h1 className="text-2xl font-bold tracking-tight">Configuracao</h1>
+            {onCancel && (
+              <button
+                onClick={onCancel}
+                className="ml-auto tactile-press flex items-center justify-center w-9 h-9 rounded-xl bg-base-overlay border border-base-border text-content-tertiary hover:text-content hover:border-accent/30 transition-all"
+                aria-label="Cancelar edicao"
+              >
+                <X size={18} weight="bold" />
+              </button>
+            )}
           </div>
           <p className="text-sm text-content-tertiary ml-5">
             Cadastre os apartamentos de cada torre/bloco.

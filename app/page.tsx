@@ -723,7 +723,12 @@ export default function Home() {
   }
 
   if (!lista) {
-    return <SetupScreen onDone={(l) => setLista(l)} />;
+    return (
+      <SetupScreen
+        onDone={(l) => setLista(l)}
+        onCancel={() => setView('blocos')}
+      />
+    );
   }
 
   if (view === 'configuracoes') {
