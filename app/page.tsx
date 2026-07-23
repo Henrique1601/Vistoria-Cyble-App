@@ -56,6 +56,7 @@ import {
   criarAgendamento,
   type ApartamentoStatus,
   type FotoRecord,
+  type Agendamento,
 } from '@/lib/db';
 import { exportarCSV, exportarPDF, exportarXLSX, compartilharPDF, compartilharXLSX, exportarZIP, relatorioPDFComFotos, gerarRelatorioHTML, downloadHTML } from '@/lib/export';
 import { useTheme } from '@/lib/theme';
@@ -79,6 +80,7 @@ import AuditLogScreen from '@/components/AuditLogScreen';
 import AgendaScreen from '@/components/AgendaScreen';
 import NovoAgendamentoModal from '@/components/NovoAgendamentoModal';
 import QuickScheduleModal from '@/components/QuickScheduleModal';
+import EditarAgendamentoModal from '@/components/EditarAgendamentoModal';
 
 type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap' | 'agenda';
 
@@ -138,6 +140,8 @@ export default function Home() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   const [agendamentoRapido, setAgendamentoRapido] = useState<{ bloco: string; apto: string } | null>(null);
+  const [agendaKey, setAgendaKey] = useState(0);
+  const [agendamentoEditando, setAgendamentoEditando] = useState<Agendamento | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [espacoStorage, setEspacoStorage] = useState<{ usado: number; total: number; pct: number } | null>(null);
@@ -958,6 +962,7 @@ export default function Home() {
     return (
       <>
         <AgendaScreen
+          key={agendaKey}
           onNavegarPara={(bloco, apto) => {
             setBlocoAtual(bloco);
             setAptoAtual(apto);
@@ -965,6 +970,7 @@ export default function Home() {
           }}
           onVoltar={() => setView('blocos')}
           onNovoAgendamento={() => setShowAgendamentoModal(true)}
+          onEditar={(ag) => setAgendamentoEditando(ag)}
         />
         <BottomNav
           active="agenda"
@@ -982,7 +988,14 @@ export default function Home() {
           <NovoAgendamentoModal
             blocos={lista}
             onFechar={() => setShowAgendamentoModal(false)}
-            onSalvo={() => { setShowAgendamentoModal(false); setView('agenda'); }}
+            onSalvo={() => { setShowAgendamentoModal(false); setAgendaKey((k) => k + 1); toast('Agendamento criado', 'success'); }}
+          />
+        )}
+        {agendamentoEditando && (
+          <EditarAgendamentoModal
+            agendamento={agendamentoEditando}
+            onFechar={() => setAgendamentoEditando(null)}
+            onSalvo={() => { setAgendamentoEditando(null); setAgendaKey((k) => k + 1); toast('Agendamento atualizado', 'success'); }}
           />
         )}
       </>

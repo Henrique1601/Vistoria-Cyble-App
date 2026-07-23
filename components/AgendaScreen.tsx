@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Plus,
   Warning,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import {
   listarAgendamentos,
@@ -38,12 +39,14 @@ interface AgendaScreenProps {
   onNavegarPara: (bloco: string, apto: string) => void;
   onVoltar: () => void;
   onNovoAgendamento: () => void;
+  onEditar: (agendamento: Agendamento) => void;
 }
 
 export default function AgendaScreen({
   onNavegarPara,
   onVoltar,
   onNovoAgendamento,
+  onEditar,
 }: AgendaScreenProps) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,6 +131,13 @@ export default function AgendaScreen({
                   aria-label={`Ir para ${ag.bloco} ${ag.apartamento}`}
                 >
                   <ArrowRight size={16} weight="bold" />
+                </button>
+                <button
+                  onClick={() => onEditar(ag)}
+                  className="tactile-press flex items-center justify-center w-9 h-9 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent/10 transition-colors"
+                  aria-label="Editar agendamento"
+                >
+                  <PencilSimple size={14} weight="bold" />
                 </button>
                 <button
                   onClick={() => ag.id !== undefined && handleExcluir(ag.id)}
