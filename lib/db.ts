@@ -38,6 +38,16 @@ export interface SyncLogEntry {
   erro?: string;
 }
 
+export interface Agendamento {
+  id?: number;
+  bloco: string;
+  apartamento: string;
+  data: string;
+  concluido: boolean;
+  observacao?: string;
+  criadoEm: number;
+}
+
 interface VistoriaDB extends DBSchema {
   fotos: {
     key: number;
@@ -51,13 +61,17 @@ interface VistoriaDB extends DBSchema {
     key: string;
     value: any;
   };
+  agendamentos: {
+    key: number;
+    value: Agendamento;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<VistoriaDB>> | null = null;
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<VistoriaDB>('vistoria-cyble', 2, {
+    dbPromise = openDB<VistoriaDB>('vistoria-cyble', 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           db.createObjectStore('fotos', { keyPath: 'id', autoIncrement: true });
@@ -65,6 +79,9 @@ function getDb() {
         }
         if (oldVersion < 2) {
           db.createObjectStore('syncLog', { keyPath: 'id', autoIncrement: true });
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore('agendamentos', { keyPath: 'id', autoIncrement: true });
         }
       },
     });
@@ -185,6 +202,47 @@ export async function ultimasFotos(limite = 10): Promise<FotoRecord[]> {
 export async function registrarSync(entry: Omit<SyncLogEntry, 'id'>) {
   const db = await getDb();
   await db.add('syncLog', entry as SyncLogEntry);
+}
+
+// --- Agendamentos ---
+export async function criarAgendamento(ag: Omit<Agendamento, 'id' | 'criadoEm'>): Promise<number> {
+  const db = await getDb();
+  return db.add('agendamentos', { ...ag, criadoEm: Date.now() } as Agendamento);
+}
+
+export async function listarAgendamentos(): Promise<Agendamento[]> {
+  const db = await getDb();
+  return db.getAll('agendamentos');
+}
+
+export async function agendamentosDoDia(data: string): Promise<Agendamento[]> {
+  const db = await getDb();
+  const all = await db.getAll('agendamentos');
+  return all.filter((a) => a.data === data);
+}
+
+export async function toggleConcluidoAgendamento(id: number) {
+  const db = await getDb();
+  const ag = await db.get('agendamentos', id);
+  if (ag) {
+    ag.concluido = !ag.concluido;
+    await db.put('agendamentos', ag);
+  }
+}
+
+export async function excluirAgendamento(id: number) {
+  const db = await getDb();
+  await db.delete('agendamentos', id);
+}
+
+export async function excluirAgendamentosConcluidos(): Promise<number> {
+  const db = await getDb();
+  const all = await db.getAll('agendamentos');
+  const concluidos = all.filter((a) => a.concluido);
+  for (const ag of concluidos) {
+    if (ag.id !== undefined) await db.delete('agendamentos', ag.id);
+  }
+  return concluidos.length;
 }
 
 // --- Backup / Restore ---

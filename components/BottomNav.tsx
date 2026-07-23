@@ -7,11 +7,12 @@ import {
   Images,
   Download,
   GearSix,
+  CalendarDots,
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 
 interface BottomNavProps {
-  active: 'inicio' | 'camera' | 'galeria' | 'exportar' | 'config';
+  active: 'inicio' | 'camera' | 'galeria' | 'agenda' | 'exportar' | 'config';
   onNavigate: (view: string) => void;
 }
 
@@ -19,7 +20,7 @@ const items = [
   { key: 'inicio', label: 'Inicio', icon: HouseLine },
   { key: 'camera', label: 'Camera', icon: Camera },
   { key: 'galeria', label: 'Galeria', icon: Images, href: '/galeria' },
-  { key: 'exportar', label: 'Exportar', icon: Download },
+  { key: 'agenda', label: 'Agenda', icon: CalendarDots },
   { key: 'config', label: 'Config', icon: GearSix },
 ] as const;
 

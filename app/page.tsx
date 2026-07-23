@@ -18,6 +18,7 @@ import {
   CloudSlash,
   FunnelSimple,
   Calendar,
+  CalendarDots,
   X,
   Sun,
   Moon,
@@ -52,6 +53,7 @@ import {
   backupDados,
   restaurarDados,
   checarEspacoStorage,
+  criarAgendamento,
   type ApartamentoStatus,
   type FotoRecord,
 } from '@/lib/db';
@@ -74,8 +76,11 @@ import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
 import TowerReportPanel from '@/components/TowerReportPanel';
 import SyncQueueScreen from '@/components/SyncQueueScreen';
 import AuditLogScreen from '@/components/AuditLogScreen';
+import AgendaScreen from '@/components/AgendaScreen';
+import NovoAgendamentoModal from '@/components/NovoAgendamentoModal';
+import QuickScheduleModal from '@/components/QuickScheduleModal';
 
-type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap';
+type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap' | 'agenda';
 
 interface FotoOnline {
   id: number;
@@ -117,7 +122,7 @@ export default function Home() {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const { theme, toggle: toggleTheme } = useTheme();
   const { toast } = useToast();
-  const [activeNav, setActiveNav] = useState<'inicio' | 'camera' | 'galeria' | 'exportar' | 'config'>('inicio');
+  const [activeNav, setActiveNav] = useState<'inicio' | 'camera' | 'galeria' | 'agenda' | 'exportar' | 'config'>('inicio');
   const [loadingSkeleton, setLoadingSkeleton] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showCheck, setShowCheck] = useState(false);
@@ -131,6 +136,8 @@ export default function Home() {
   const [versaoNova, setVersaoNova] = useState(APP_VERSION);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
+  const [agendamentoRapido, setAgendamentoRapido] = useState<{ bloco: string; apto: string } | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [espacoStorage, setEspacoStorage] = useState<{ usado: number; total: number; pct: number } | null>(null);
@@ -760,6 +767,7 @@ export default function Home() {
             else if (v === 'config') setView('configuracoes');
             else if (v === 'exportar') setView('exportar');
             else if (v === 'inicio') setView('blocos');
+            else if (v === 'agenda') setView('agenda');
           }}
         />
       </>
@@ -779,6 +787,7 @@ export default function Home() {
             else if (v === 'config') setView('configuracoes');
             else if (v === 'exportar') setView('exportar');
             else if (v === 'inicio') setView('blocos');
+            else if (v === 'agenda') setView('agenda');
           }}
         />
       </>
@@ -798,6 +807,7 @@ export default function Home() {
             else if (v === 'config') setView('configuracoes');
             else if (v === 'exportar') setView('exportar');
             else if (v === 'inicio') setView('blocos');
+            else if (v === 'agenda') setView('agenda');
           }}
         />
       </>
@@ -893,6 +903,7 @@ export default function Home() {
             else if (v === 'config') setView('configuracoes');
             else if (v === 'exportar') setView('exportar');
             else if (v === 'inicio') setView('blocos');
+            else if (v === 'agenda') setView('agenda');
           }}
         />
       </>
@@ -936,8 +947,44 @@ export default function Home() {
             else if (v === 'config') setView('configuracoes');
             else if (v === 'exportar') setView('exportar');
             else if (v === 'inicio') setView('blocos');
+            else if (v === 'agenda') setView('agenda');
           }}
         />
+      </>
+    );
+  }
+
+  if (view === 'agenda') {
+    return (
+      <>
+        <AgendaScreen
+          onNavegarPara={(bloco, apto) => {
+            setBlocoAtual(bloco);
+            setAptoAtual(apto);
+            setView('captura');
+          }}
+          onVoltar={() => setView('blocos')}
+          onNovoAgendamento={() => setShowAgendamentoModal(true)}
+        />
+        <BottomNav
+          active="agenda"
+          onNavigate={(v) => {
+            setActiveNav(v as typeof activeNav);
+            haptic('selection');
+            if (v === 'camera') setModoEscaneamento(true);
+            else if (v === 'config') setView('configuracoes');
+            else if (v === 'exportar') setView('exportar');
+            else if (v === 'inicio') setView('blocos');
+            else if (v === 'agenda') setView('agenda');
+          }}
+        />
+        {showAgendamentoModal && lista && (
+          <NovoAgendamentoModal
+            blocos={lista}
+            onFechar={() => setShowAgendamentoModal(false)}
+            onSalvo={() => { setShowAgendamentoModal(false); setView('agenda'); }}
+          />
+        )}
       </>
     );
   }
@@ -1089,6 +1136,13 @@ export default function Home() {
                       {s.notas.length}
                     </span>
                   )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); haptic('light'); setAgendamentoRapido({ bloco: blocoAtual!, apto: s.apartamento }); }}
+                    className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors ml-1"
+                    aria-label={`Agendar ${s.apartamento}`}
+                  >
+                    <CalendarDots size={14} weight="bold" />
+                  </button>
                 </div>
               </motion.div>
             ))}
@@ -1457,6 +1511,8 @@ export default function Home() {
           } else if (v === 'inicio') {
             setView('blocos');
             setBlocoAtual(null);
+          } else if (v === 'agenda') {
+            setView('agenda');
           }
         }}
       />
@@ -1474,6 +1530,16 @@ export default function Home() {
               setView('captura');
             }}
             onClose={() => setSelectedTower(null)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {agendamentoRapido && (
+          <QuickScheduleModal
+            bloco={agendamentoRapido.bloco}
+            apto={agendamentoRapido.apto}
+            onFechar={() => setAgendamentoRapido(null)}
+            onSalvo={() => { setAgendamentoRapido(null); toast('Agendamento criado', 'success'); }}
           />
         )}
       </AnimatePresence>
