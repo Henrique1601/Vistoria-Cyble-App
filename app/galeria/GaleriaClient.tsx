@@ -20,7 +20,9 @@ import {
   CheckCircle,
   Circle,
   ListChecks,
+  DownloadSimple,
 } from '@phosphor-icons/react';
+import JSZip from 'jszip';
 import Link from 'next/link';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
@@ -67,6 +69,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [downloadingGrupo, setDownloadingGrupo] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/fotos')
@@ -249,6 +252,35 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
       setBulkDeleting(false);
     }
   }, [selectedIds]);
+
+  const handleDownloadGrupo = useCallback(async (grupo: { bloco: string; apartamento: string; fotos: Foto[] }) => {
+    const key = `${grupo.bloco}__${grupo.apartamento}`;
+    setDownloadingGrupo(key);
+    try {
+      const zip = new JSZip();
+      const folderName = `${grupo.bloco.replace(/\s+/g, '_')}_${grupo.apartamento}`;
+      const folder = zip.folder(folderName)!;
+
+      for (const f of grupo.fotos) {
+        const resp = await fetch(f.foto_url);
+        const blob = await resp.blob();
+        const ext = f.foto_url.includes('.png') ? 'png' : 'jpg';
+        folder.file(`${f.foto_index}_${f.id}.${ext}`, blob);
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folderName}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro ao baixar fotos:', err);
+    } finally {
+      setDownloadingGrupo(null);
+    }
+  }, []);
 
   // Swipe gesture support
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -447,6 +479,14 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
                   <span className="text-[11px] font-mono text-content-tertiary">
                     {grupo.fotos.length} foto{grupo.fotos.length > 1 ? 's' : ''}
                   </span>
+                  <button
+                    onClick={() => handleDownloadGrupo(grupo)}
+                    disabled={downloadingGrupo === `${grupo.bloco}__${grupo.apartamento}`}
+                    className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40"
+                    aria-label={`Baixar fotos de ${grupo.bloco} ${grupo.apartamento}`}
+                  >
+                    <DownloadSimple size={14} weight="bold" />
+                  </button>
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                   {grupo.fotos.map((f) => {
