@@ -71,6 +71,7 @@ import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto } 
 import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
 import { logAudit } from '@/lib/auditLog';
+import { APP_VERSION } from '@/lib/version';
 import NotificationCenter from '@/components/NotificationCenter';
 import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
 import TowerReportPanel from '@/components/TowerReportPanel';
@@ -141,7 +142,6 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [exportandoZIP, setExportandoZIP] = useState(false);
   const [exportandoFotos, setExportandoFotos] = useState(false);
-  const APP_VERSION = '3.1.0';
   const [updateDisponivel, setUpdateDisponivel] = useState(false);
   const [versaoAtual, setVersaoAtual] = useState(APP_VERSION);
   const [versaoNova, setVersaoNova] = useState(APP_VERSION);
@@ -169,6 +169,7 @@ export default function Home() {
   }, []);
 
   const lastActivityRef = useRef(Date.now());
+  const syncLockRef = useRef(false);
 
   useEffect(() => {
     if (!pin) return;
@@ -435,12 +436,10 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
 
-  let syncLock = false;
-
   async function tentarSincronizar() {
     if (!navigator.onLine || !pin) return;
-    if (syncLock) return;
-    syncLock = true;
+    if (syncLockRef.current) return;
+    syncLockRef.current = true;
     try {
     const pendentesLista = await fotosPendentes();
     if (pendentesLista.length === 0) return;
@@ -503,7 +502,7 @@ export default function Home() {
     }
     await refreshStatus();
     } finally {
-      syncLock = false;
+      syncLockRef.current = false;
     }
   }
 

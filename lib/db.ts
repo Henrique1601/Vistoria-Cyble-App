@@ -1,6 +1,7 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { AcaoDesenho } from './drawing';
 import { normApto } from './utils';
+import { getQualidadeFoto } from './settings';
 
 export type Categoria = 'cyble_antes' | 'cyble_depois' | 'documento';
 
@@ -217,7 +218,7 @@ export async function statusDeTodosApartamentos(
 
 // --- Compressao de imagem ---
 const MAX_IMAGE_WIDTH = 1920;
-const IMAGE_QUALITY = 0.75;
+const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.90 };
 
 export async function comprimirImagem(
   file: File,
@@ -261,7 +262,8 @@ export async function comprimirImagem(
     });
   }
 
-  return canvas.convertToBlob({ type: 'image/jpeg', quality: IMAGE_QUALITY });
+  const qualidade = QUALIDADE_MAP[getQualidadeFoto()] ?? 0.75;
+  return canvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
 }
 
 // --- Ultimas fotos (para acesso rapido) ---

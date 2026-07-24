@@ -56,9 +56,8 @@ import {
 } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { spring } from '@/lib/motion';
+import { APP_VERSION } from '@/lib/version';
 import ImportarFotosModal from '@/components/ImportarFotosModal';
-
-const APP_VERSION = '3.2.0';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
