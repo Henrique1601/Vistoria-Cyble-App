@@ -1291,6 +1291,16 @@ export default function Home() {
           )}
         </div>
         <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
+        <AnimatePresence>
+          {agendamentoRapido && (
+            <QuickScheduleModal
+              bloco={agendamentoRapido.bloco}
+              apto={agendamentoRapido.apto}
+              onFechar={() => setAgendamentoRapido(null)}
+              onSalvo={() => { setAgendamentoRapido(null); toast('Agendamento criado', 'success'); setAgendaKey((k) => k + 1); }}
+            />
+          )}
+        </AnimatePresence>
       </main>
     );
   }
