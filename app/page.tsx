@@ -414,8 +414,13 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
 
+  let syncLock = false;
+
   async function tentarSincronizar() {
     if (!navigator.onLine || !pin) return;
+    if (syncLock) return;
+    syncLock = true;
+    try {
     const pendentesLista = await fotosPendentes();
     if (pendentesLista.length === 0) return;
 
@@ -476,6 +481,9 @@ export default function Home() {
       autoDismiss(nId, 5000);
     }
     await refreshStatus();
+    } finally {
+      syncLock = false;
+    }
   }
 
   // Pre-computed maps for O(1) lookups
