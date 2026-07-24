@@ -193,9 +193,11 @@ export default function Home() {
           }
         }
       });
-      navigator.serviceWorker.ready?.then((reg) => {
+      // Register SW and check for updates
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        reg.update();
         reg.active?.postMessage('checkVersion');
-      });
+      }).catch(() => {});
     }
   }, [pin]);
 
