@@ -52,6 +52,7 @@ import {
 } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { spring } from '@/lib/motion';
+import ImportarFotosModal from '@/components/ImportarFotosModal';
 
 const APP_VERSION = '3.1.0';
 
@@ -132,6 +133,7 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
   const [clearing, setClearing] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(false);
+  const [showImportFotos, setShowImportFotos] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   // Load storage info on mount
@@ -573,6 +575,15 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
             </div>
             <div className="px-4 py-3.5">
               <button
+                onClick={() => { haptic('light'); setShowImportFotos(true); }}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-accent/10 border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 transition-all"
+              >
+                <Images size={16} weight="bold" />
+                Importar fotos de pasta
+              </button>
+            </div>
+            <div className="px-4 py-3.5">
+              <button
                 onClick={handleClearLocalPhotos}
                 disabled={clearing}
                 className="tactile-press w-full flex items-center justify-center gap-2 bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/20 disabled:opacity-40 transition-all"
@@ -625,6 +636,12 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
           </Section>
         </motion.div>
       </div>
+      {showImportFotos && (
+        <ImportarFotosModal
+          onFechar={() => setShowImportFotos(false)}
+          onImportado={() => { toast('Fotos importadas com sucesso', 'success'); setShowImportFotos(false); }}
+        />
+      )}
     </main>
   );
 }
