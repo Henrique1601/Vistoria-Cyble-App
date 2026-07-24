@@ -60,22 +60,43 @@ export default function SetupScreen({
   function parseImport(text: string): Record<string, string[]> | null {
     const trimmed = text.trim();
 
+    function normalizeAndDedup(aptos: string[]): string[] {
+      const seen = new Set<string>();
+      const result: string[] = [];
+      for (const a of aptos) {
+        const n = normApto(a.trim());
+        if (n && !seen.has(n)) {
+          seen.add(n);
+          result.push(n);
+        }
+      }
+      return result;
+    }
+
     if (trimmed.startsWith('{')) {
       try {
         const obj = JSON.parse(trimmed);
         if (typeof obj === 'object' && obj !== null) {
           if (obj.blocos && typeof obj.blocos === 'object' && !Array.isArray(obj.blocos)) {
-            return obj.blocos as Record<string, string[]>;
+            const lista: Record<string, string[]> = {};
+            for (const [k, v] of Object.entries(obj.blocos)) {
+              if (Array.isArray(v)) lista[k] = normalizeAndDedup(v.map(String));
+            }
+            return Object.keys(lista).length > 0 ? lista : null;
           }
           if (obj.lista && typeof obj.lista === 'object' && !Array.isArray(obj.lista)) {
-            return obj.lista as Record<string, string[]>;
+            const lista: Record<string, string[]> = {};
+            for (const [k, v] of Object.entries(obj.lista)) {
+              if (Array.isArray(v)) lista[k] = normalizeAndDedup(v.map(String));
+            }
+            return Object.keys(lista).length > 0 ? lista : null;
           }
           const lista: Record<string, string[]> = {};
           for (const [key, val] of Object.entries(obj)) {
             if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'string') {
-              lista[key] = val.map(String).map(s => normApto(s.trim())).filter(Boolean);
+              lista[key] = normalizeAndDedup(val.map(String));
             } else if (typeof val === 'string') {
-              lista[key] = val.split('\n').map(s => normApto(s.trim())).filter(Boolean);
+              lista[key] = normalizeAndDedup(val.split('\n'));
             }
           }
           if (Object.keys(lista).length > 0) return lista;
@@ -95,7 +116,10 @@ export default function SetupScreen({
         currentBloco = l;
         if (!blocos[currentBloco]) blocos[currentBloco] = [];
       } else if (currentBloco) {
-        blocos[currentBloco].push(normApto(l));
+        const n = normApto(l);
+        if (!blocos[currentBloco].includes(n)) {
+          blocos[currentBloco].push(n);
+        }
       }
     }
     if (Object.keys(blocos).length > 0) return blocos;
@@ -155,7 +179,15 @@ export default function SetupScreen({
     setSelectedBuilding(b);
     const normalized: Record<string, string[]> = {};
     for (const [bloco, aptos] of Object.entries(b.config)) {
-      normalized[bloco] = aptos.map(normApto);
+      const seen = new Set<string>();
+      normalized[bloco] = [];
+      for (const a of aptos) {
+        const n = normApto(a);
+        if (n && !seen.has(n)) {
+          seen.add(n);
+          normalized[bloco].push(n);
+        }
+      }
     }
     setListaImportada(normalized);
   }
@@ -168,10 +200,12 @@ export default function SetupScreen({
       lista = {};
       for (let i = 0; i < numBlocos; i++) {
         const blocoNome = `Bloco ${i + 1}`;
-        const aptos = (textos[i] || '')
+        const aptosRaw = (textos[i] || '')
           .split('\n')
           .map((s) => normApto(s.trim()))
           .filter(Boolean);
+        const seen = new Set<string>();
+        const aptos = aptosRaw.filter((a) => { if (seen.has(a)) return false; seen.add(a); return true; });
         lista[blocoNome] = aptos;
       }
     }

@@ -451,9 +451,11 @@ export async function importarConfigCSV(text: string): Promise<{ blocos: number;
       .split(',')
       .map((a) => normApto(a.trim()))
       .filter(Boolean);
-    if (torre && aptosList.length > 0) {
-      blocos[torre] = aptosList;
-      aptos += aptosList.length;
+    const seen = new Set<string>();
+    const deduped = aptosList.filter((a) => { if (seen.has(a)) return false; seen.add(a); return true; });
+    if (torre && deduped.length > 0) {
+      blocos[torre] = deduped;
+      aptos += deduped.length;
     }
   }
   if (Object.keys(blocos).length === 0) throw new Error('Nenhum bloco encontrado no CSV');
@@ -494,9 +496,11 @@ export async function importarConfigXLSX(file: File): Promise<{ blocos: number; 
       .split(/[,;]+/)
       .map((a) => normApto(a.trim()))
       .filter(Boolean);
-    if (torre && aptosList.length > 0) {
-      blocos[torre] = aptosList;
-      aptos += aptosList.length;
+    const seenXlsx = new Set<string>();
+    const dedupedXlsx = aptosList.filter((a) => { if (seenXlsx.has(a)) return false; seenXlsx.add(a); return true; });
+    if (torre && dedupedXlsx.length > 0) {
+      blocos[torre] = dedupedXlsx;
+      aptos += dedupedXlsx.length;
     }
   }
   if (Object.keys(blocos).length === 0) throw new Error('Nenhum bloco encontrado na planilha');
