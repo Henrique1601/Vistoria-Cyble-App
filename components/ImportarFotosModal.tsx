@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -13,7 +13,7 @@ import {
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { spring } from '@/lib/motion';
-import { salvarFoto, comprimirImagem, Categoria } from '@/lib/db';
+import { salvarFoto, comprimirImagem, Categoria, carregarListaApartamentos } from '@/lib/db';
 import { normApto } from '@/lib/utils';
 
 interface PhotoGroup {
@@ -54,6 +54,22 @@ export default function ImportarFotosModal({ onFechar, onImportado }: ImportarFo
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [result, setResult] = useState<{ ok: number; fail: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const listaRef = useRef<Record<string, string[]> | null>(null);
+
+  useEffect(() => {
+    carregarListaApartamentos().then((l) => { listaRef.current = l; });
+  }, []);
+
+  function mapBloco(tower: string): string {
+    const lista = listaRef.current;
+    if (!lista) return tower;
+    const tUpper = tower.toUpperCase();
+    for (const blocoNome of Object.keys(lista)) {
+      const match = blocoNome.match(/([A-H])$/i);
+      if (match && match[1].toUpperCase() === tUpper) return blocoNome;
+    }
+    return tower;
+  }
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -73,10 +89,11 @@ export default function ImportarFotosModal({ onFechar, onImportado }: ImportarFo
     const newGroups: PhotoGroup[] = [];
     for (const [folderName, folderFiles] of folderMap) {
       const { tower, apto } = parseFolderName(folderName);
+      const mappedTower = mapBloco(tower);
       const previews = folderFiles.map((f) => URL.createObjectURL(f));
       newGroups.push({
         folderName,
-        tower,
+        tower: mappedTower,
         apto,
         category: 'cyble_antes',
         files: folderFiles,

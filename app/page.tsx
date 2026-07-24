@@ -516,32 +516,57 @@ export default function Home() {
     return map;
   }, [status]);
 
+  const normalizeBloco = useCallback((b: string) => {
+    const letter = b.replace(/^Torre\s+/i, '').trim();
+    if (letter.length === 1 && /^[A-H]$/i.test(letter)) {
+      const key = letter.toUpperCase();
+      const fromLista = lista ? Object.keys(lista).find((n) => n.toUpperCase() === `TORRE ${key}`) : null;
+      return fromLista || `Torre ${key}`;
+    }
+    return b;
+  }, [lista]);
+
   const fotosOnlineMap = useMemo(() => {
     const map = new Map<string, { count: number; aptos: Set<string> }>();
     fotosOnline.forEach((f) => {
-      const key = f.bloco;
+      const key = normalizeBloco(f.bloco);
       if (!map.has(key)) map.set(key, { count: 0, aptos: new Set() });
       const entry = map.get(key)!;
       entry.count++;
       entry.aptos.add(normApto(f.apartamento));
     });
     return map;
-  }, [fotosOnline]);
+  }, [fotosOnline, normalizeBloco]);
 
   const fotosCountMap = useMemo(() => {
     const map = new Map<string, number>();
     fotosOnline.forEach((f) => {
-      const key = `${f.bloco}__${normApto(f.apartamento)}`;
+      const key = `${normalizeBloco(f.bloco)}__${normApto(f.apartamento)}`;
       map.set(key, (map.get(key) || 0) + 1);
     });
     return map;
-  }, [fotosOnline]);
+  }, [fotosOnline, normalizeBloco]);
 
   const blocos = useMemo(() => {
     const fromLista = lista ? Object.keys(lista) : [];
     const fromOnline = [...fotosOnlineMap.keys()];
-    const merged = new Set([...fromLista, ...fromOnline]);
-    return [...merged].sort();
+    const allRaw = new Set([...fromLista, ...fromOnline]);
+    const letterMap = new Map<string, string>();
+    const result: string[] = [];
+    for (const b of allRaw) {
+      const letter = b.replace(/^Torre\s+/i, '').trim();
+      if (letter.length === 1 && /^[A-H]$/i.test(letter)) {
+        const key = letter.toUpperCase();
+        if (!letterMap.has(key)) {
+          const torreName = fromLista.find((n) => n.toUpperCase() === `TORRE ${key}`) || b;
+          letterMap.set(key, torreName);
+          result.push(torreName);
+        }
+      } else {
+        result.push(b);
+      }
+    }
+    return result.sort();
   }, [lista, fotosOnlineMap]);
 
   const aptosOnlineDoBloco = useMemo(() => {
@@ -1052,7 +1077,7 @@ export default function Home() {
             setAptoAtual(proximoApto.apartamento);
             refreshStatus();
           } : undefined}
-          fotosOnline={fotosOnline.filter((f) => f.bloco === blocoAtual && normApto(f.apartamento) === normApto(aptoAtual))}
+          fotosOnline={fotosOnline.filter((f) => normalizeBloco(f.bloco) === blocoAtual && normApto(f.apartamento) === normApto(aptoAtual))}
         />
         <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
       </>

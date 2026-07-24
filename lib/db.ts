@@ -171,9 +171,20 @@ export async function statusDeTodosApartamentos(
   const db = await getDb();
   const all = await db.getAll('fotos');
 
+  const letterToFull = new Map<string, string>();
+  for (const blocoNome of Object.keys(lista)) {
+    const match = blocoNome.match(/([A-H])$/i);
+    if (match) letterToFull.set(match[1].toUpperCase(), blocoNome);
+  }
+
   const fotosMap = new Map<string, FotoRecord[]>();
   for (const f of all) {
-    const key = `${f.bloco}__${f.apartamento}`;
+    let blocoKey = f.bloco;
+    const letter = blocoKey.replace(/^Torre\s+/i, '').trim();
+    if (letter.length === 1 && /^[A-H]$/i.test(letter)) {
+      blocoKey = letterToFull.get(letter.toUpperCase()) || blocoKey;
+    }
+    const key = `${blocoKey}__${f.apartamento}`;
     const arr = fotosMap.get(key) || [];
     arr.push(f);
     fotosMap.set(key, arr);
