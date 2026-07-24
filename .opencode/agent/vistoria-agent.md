@@ -1,7 +1,7 @@
 ---
 description: Agent para desenvolvimento e manutenção do app Vistoria Cyble (PWA Next.js)
 mode: primary
-model: anthropic/claude-sonnet-4-6
+model: opencode/mimo-v2.5-free
 color: primary
 permission:
   edit: allow
@@ -43,9 +43,20 @@ lib/
 ├── backup.ts         # Backup/Restore
 ├── syncQueue.ts      # Fila de sincronização
 ├── theme.tsx         # Dark/Light/Auto
-└── settings.ts       # Configurações persistentes
+├── settings.ts       # Configurações persistentes
+└── notifications.ts  # Sistema de notificações
 
 components/           # UI reutilizável
+
+app/api/
+├── upload/           # Upload para Vercel Blob
+├── status/           # Validação PIN
+├── fotos/            # Download e bulk-delete de fotos
+├── agendamentos/     # CRUD de agendamentos (Neon)
+├── building-config/  # Config de prédios na nuvem
+├── share-report/     # Links públicos de relatório
+├── backup/           # Backup/restore na nuvem
+└── version/          # Versionamento
 ```
 
 ## Funcionalidades Principais
@@ -60,6 +71,10 @@ components/           # UI reutilizável
 8. **Modo escaneamento** — captura rápida contínua
 9. **Backup/Restore** — exportar/importar dados
 10. **GPS** — geolocalização por foto
+11. **Agenda** — agendamento de apartamentos com sync via Neon
+12. **Importação de fotos** — importar por pasta (Config)
+13. **Galeria** — download ZIP por apartamento, click para navegar
+14. **Cloud config** — picker de prédios na nuvem
 
 ## Fluxo Principal
 

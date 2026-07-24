@@ -604,14 +604,15 @@ export default function Home() {
     const q = normApto(buscaGlobal.toLowerCase());
     const results: { bloco: string; apto: string; status: ApartamentoStatus | null }[] = [];
     for (const b of blocos) {
-      const codigosLocais = lista?.[b] || [];
+      const codigosLocais = (lista?.[b] || []).map(normApto);
       const entry = fotosOnlineMap.get(b);
       const aptosOnline = entry?.aptos ?? new Set<string>();
       const allAptos = new Set<string>([...codigosLocais, ...aptosOnline]);
       for (const c of allAptos) {
         if (normApto(c.toLowerCase()).includes(q)) {
-          const st = statusMap.get(`${b}__${c}`) || null;
-          results.push({ bloco: b, apto: c, status: st });
+          const normalized = normApto(c);
+          const st = statusMap.get(`${b}__${normalized}`) || null;
+          results.push({ bloco: b, apto: normalized, status: st });
         }
       }
     }

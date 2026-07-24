@@ -16,6 +16,7 @@ import {
   X,
 } from '@phosphor-icons/react';
 import { salvarListaApartamentos } from '@/lib/db';
+import { normApto } from '@/lib/utils';
 
 type Mode = 'manual' | 'importar' | 'nuvem';
 
@@ -72,9 +73,9 @@ export default function SetupScreen({
           const lista: Record<string, string[]> = {};
           for (const [key, val] of Object.entries(obj)) {
             if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'string') {
-              lista[key] = val.map(String).map(s => s.trim()).filter(Boolean);
+              lista[key] = val.map(String).map(s => normApto(s.trim())).filter(Boolean);
             } else if (typeof val === 'string') {
-              lista[key] = val.split('\n').map(s => s.trim()).filter(Boolean);
+              lista[key] = val.split('\n').map(s => normApto(s.trim())).filter(Boolean);
             }
           }
           if (Object.keys(lista).length > 0) return lista;
@@ -94,7 +95,7 @@ export default function SetupScreen({
         currentBloco = l;
         if (!blocos[currentBloco]) blocos[currentBloco] = [];
       } else if (currentBloco) {
-        blocos[currentBloco].push(l);
+        blocos[currentBloco].push(normApto(l));
       }
     }
     if (Object.keys(blocos).length > 0) return blocos;
@@ -152,7 +153,11 @@ export default function SetupScreen({
 
   function handleSelectBuilding(b: BuildingConfig) {
     setSelectedBuilding(b);
-    setListaImportada(b.config);
+    const normalized: Record<string, string[]> = {};
+    for (const [bloco, aptos] of Object.entries(b.config)) {
+      normalized[bloco] = aptos.map(normApto);
+    }
+    setListaImportada(normalized);
   }
 
   async function salvar() {
@@ -165,7 +170,7 @@ export default function SetupScreen({
         const blocoNome = `Bloco ${i + 1}`;
         const aptos = (textos[i] || '')
           .split('\n')
-          .map((s) => s.trim())
+          .map((s) => normApto(s.trim()))
           .filter(Boolean);
         lista[blocoNome] = aptos;
       }

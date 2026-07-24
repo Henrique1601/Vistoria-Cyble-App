@@ -14,6 +14,7 @@ import {
 import { haptic } from '@/lib/haptic';
 import { spring } from '@/lib/motion';
 import { salvarFoto, comprimirImagem, Categoria } from '@/lib/db';
+import { normApto } from '@/lib/utils';
 
 interface PhotoGroup {
   folderName: string;
@@ -109,7 +110,7 @@ export default function ImportarFotosModal({ onFechar, onImportado }: ImportarFo
           const compressed = await comprimirImagem(file);
           await salvarFoto({
             bloco: group.tower,
-            apartamento: group.apto,
+            apartamento: normApto(group.apto),
             categoria: group.category,
             blob: compressed,
             timestamp: Date.now() + ok,

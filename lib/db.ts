@@ -1,5 +1,6 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { AcaoDesenho } from './drawing';
+import { normApto } from './utils';
 
 export type Categoria = 'cyble_antes' | 'cyble_depois' | 'documento';
 
@@ -130,6 +131,28 @@ export async function atualizarNota(id: number, nota: string) {
     rec.nota = nota;
     await db.put('fotos', rec);
   }
+}
+
+export async function moverFotoCategoria(id: number, novaCategoria: Categoria) {
+  const db = await getDb();
+  const rec = await db.get('fotos', id);
+  if (rec) {
+    rec.categoria = novaCategoria;
+    await db.put('fotos', rec);
+  }
+}
+
+export async function reordenarFotos(ids: number[]) {
+  const db = await getDb();
+  const tx = db.transaction('fotos', 'readwrite');
+  for (let i = 0; i < ids.length; i++) {
+    const rec = await tx.store.get(ids[i]);
+    if (rec) {
+      rec.timestamp = Date.now() + i;
+      await tx.store.put(rec);
+    }
+  }
+  await tx.done;
 }
 
 export async function marcarSincronizada(id: number, url: string) {
@@ -426,7 +449,7 @@ export async function importarConfigCSV(text: string): Promise<{ blocos: number;
     const aptosList = line
       .substring(sep + 1)
       .split(',')
-      .map((a) => a.trim())
+      .map((a) => normApto(a.trim()))
       .filter(Boolean);
     if (torre && aptosList.length > 0) {
       blocos[torre] = aptosList;
@@ -469,7 +492,7 @@ export async function importarConfigXLSX(file: File): Promise<{ blocos: number; 
     const aptosRaw = row[1] ? String(row[1]) : '';
     const aptosList = aptosRaw
       .split(/[,;]+/)
-      .map((a) => a.trim())
+      .map((a) => normApto(a.trim()))
       .filter(Boolean);
     if (torre && aptosList.length > 0) {
       blocos[torre] = aptosList;
