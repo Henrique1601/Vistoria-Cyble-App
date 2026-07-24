@@ -12,6 +12,7 @@ export interface ApartamentoStatus {
   qtdDocumentos: number;
   qtdFotos: number;
   notas?: string[];
+  isConcluido?: boolean;
 }
 
 export interface FotoRecord {
@@ -170,6 +171,7 @@ export async function statusDeTodosApartamentos(
 ): Promise<ApartamentoStatus[]> {
   const db = await getDb();
   const all = await db.getAll('fotos');
+  const concluidos = (await db.get('config', 'concluidos')) ?? {};
 
   const letterToFull = new Map<string, string>();
   for (const blocoNome of Object.keys(lista)) {
@@ -192,18 +194,21 @@ export async function statusDeTodosApartamentos(
 
   const result: ApartamentoStatus[] = [];
   for (const bloco of Object.keys(lista)) {
+    const concluidosBloco = new Set(concluidos[bloco] || []);
     for (const apto of lista[bloco]) {
       const key = `${bloco}__${apto}`;
       const fotos = fotosMap.get(key) || [];
+      const isConcluido = concluidosBloco.has(apto);
       const notas = fotos.map((f) => f.nota).filter((n): n is string => !!n && n.trim().length > 0);
       result.push({
         bloco,
         apartamento: apto,
-        cybleAntesFeito: fotos.some((f) => f.categoria === 'cyble_antes'),
-        cybleDepoisFeito: fotos.some((f) => f.categoria === 'cyble_depois'),
+        cybleAntesFeito: isConcluido || fotos.some((f) => f.categoria === 'cyble_antes'),
+        cybleDepoisFeito: isConcluido || fotos.some((f) => f.categoria === 'cyble_depois'),
         qtdDocumentos: fotos.filter((f) => f.categoria === 'documento').length,
-        qtdFotos: fotos.length,
+        qtdFotos: isConcluido ? 0 : fotos.length,
         notas: notas.length > 0 ? notas : undefined,
+        isConcluido,
       });
     }
   }
@@ -296,6 +301,7 @@ export async function backupDados(): Promise<Blob> {
   const fotos = await db.getAll('fotos');
   const syncLog = await db.getAll('syncLog');
   const blocos = await db.get('config', 'blocos');
+  const concluidos = await db.get('config', 'concluidos');
 
   const fotosSerializadas = await Promise.all(
     fotos.map(async (f) => {
@@ -312,12 +318,13 @@ export async function backupDados(): Promise<Blob> {
   );
 
   const dados = {
-    versao: 2,
+    versao: 3,
     tipo: 'completo',
     data: new Date().toISOString(),
     fotos: fotosSerializadas,
     syncLog,
     blocos,
+    concluidos,
   };
 
   return new Blob([JSON.stringify(dados)], { type: 'application/json' });
@@ -396,6 +403,10 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
     blocosCount = Object.keys(dados.config).length;
   }
 
+  if (dados.concluidos && typeof dados.concluidos === 'object' && !Array.isArray(dados.concluidos)) {
+    await db.put('config', dados.concluidos, 'concluidos');
+  }
+
   if (dados.fotos) {
     const tx = db.transaction('fotos', 'readwrite');
     const store = tx.objectStore('fotos');
@@ -435,6 +446,51 @@ export async function checarEspacoStorage(): Promise<{ usado: number; total: num
   } catch {
     return null;
   }
+}
+
+// --- Concluidos (lista de aptos ja trocados sem fotos) ---
+export async function salvarConcluidos(lista: Record<string, string[]>) {
+  const db = await getDb();
+  await db.put('config', lista, 'concluidos');
+}
+
+export async function carregarConcluidos(): Promise<Record<string, string[]>> {
+  const db = await getDb();
+  return (await db.get('config', 'concluidos')) ?? {};
+}
+
+export async function limparConcluidos() {
+  const db = await getDb();
+  await db.delete('config', 'concluidos');
+}
+
+export async function importarConcluidosTxt(text: string): Promise<{ blocos: number; aptos: number }> {
+  const mapa: Record<string, Set<string>> = {};
+  const lines = text.split('\n').filter((l) => l.trim());
+  for (const line of lines) {
+    const match = line.trim().match(/^Torre\s+([A-H])\s*-\s*APTO\s*(\d+)$/i);
+    if (!match) continue;
+    const bloco = `Torre ${match[1].toUpperCase()}`;
+    const apto = normApto(match[2]);
+    if (!apto) continue;
+    if (!mapa[bloco]) mapa[bloco] = new Set();
+    mapa[bloco].add(apto);
+  }
+  if (Object.keys(mapa).length === 0) throw new Error('Nenhum apartamento encontrado no formato "Torre X-APTO0077"');
+  const existing = await carregarConcluidos();
+  const merged: Record<string, string[]> = {};
+  let aptos = 0;
+  for (const [bloco, aptosSet] of Object.entries(mapa)) {
+    const prev = new Set(existing[bloco] || []);
+    for (const a of aptosSet) prev.add(a);
+    merged[bloco] = [...prev].sort((a, b) => Number(a) - Number(b));
+    aptos += merged[bloco].length;
+  }
+  for (const [bloco, aptosList] of Object.entries(existing)) {
+    if (!merged[bloco]) merged[bloco] = aptosList;
+  }
+  await salvarConcluidos(merged);
+  return { blocos: Object.keys(merged).length, aptos };
 }
 
 // --- Export configuracao CSV ---

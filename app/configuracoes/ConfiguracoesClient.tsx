@@ -49,12 +49,15 @@ import {
   exportarConfigXLSX,
   importarConfigCSV,
   importarConfigXLSX,
+  importarConcluidosTxt,
+  limparConcluidos,
+  carregarConcluidos,
 } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { spring } from '@/lib/motion';
 import ImportarFotosModal from '@/components/ImportarFotosModal';
 
-const APP_VERSION = '3.1.0';
+const APP_VERSION = '3.2.0';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -333,6 +336,34 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
     input.click();
   }
 
+  async function handleImportConcluidos() {
+    haptic('medium');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const result = await importarConcluidosTxt(text);
+        toast(`${result.aptos} apartamentos marcados como concluidos (${result.blocos} blocos)`, 'success');
+        window.location.reload();
+      } catch (err: any) {
+        toast(err.message || 'Erro ao importar lista', 'error');
+      }
+    };
+    input.click();
+  }
+
+  async function handleLimparConcluidos() {
+    if (!window.confirm('Remover todos os apartamentos marcados como concluidos?')) return;
+    haptic('medium');
+    await limparConcluidos();
+    toast('Lista de concluidos limpa', 'success');
+    window.location.reload();
+  }
+
   async function handleClearLocalPhotos() {
     if (!window.confirm('Excluir todas as fotos locais nao sincronizadas? Esta acao nao pode ser desfeita.')) return;
     setClearing(true);
@@ -580,6 +611,23 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
               >
                 <Images size={16} weight="bold" />
                 Importar fotos de pasta
+              </button>
+            </div>
+            <div className="px-4 py-3.5">
+              <button
+                onClick={handleImportConcluidos}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-success/10 border border-success/30 rounded-xl px-4 py-3 text-sm font-medium text-success hover:bg-success/20 transition-all"
+              >
+                <FileText size={16} weight="bold" />
+                Importar lista de concluidos (.txt)
+              </button>
+            </div>
+            <div className="px-4 py-3.5">
+              <button
+                onClick={handleLimparConcluidos}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-warn/10 border border-warn/30 rounded-xl px-4 py-3 text-xs font-medium text-warn hover:bg-warn/20 transition-all"
+              >
+                Limpar lista de concluidos
               </button>
             </div>
             <div className="px-4 py-3.5">
