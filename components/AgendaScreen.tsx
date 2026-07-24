@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDots,
@@ -12,15 +12,19 @@ import {
   Warning,
   PencilSimple,
 } from '@phosphor-icons/react';
-import {
-  listarAgendamentos,
-  toggleConcluidoAgendamento,
-  excluirAgendamento,
-  type Agendamento,
-} from '@/lib/db';
 import { haptic } from '@/lib/haptic';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
+
+interface Agendamento {
+  id: number;
+  bloco: string;
+  apartamento: string;
+  data: string;
+  concluido: boolean;
+  observacao: string | null;
+  criado_em: string;
+}
 
 function formatarDataBR(data: string): string {
   const [y, m, d] = data.split('-');
@@ -52,40 +56,68 @@ export default function AgendaScreen({
   const [loading, setLoading] = useState(true);
   const today = hoje();
 
-  async function carregar() {
-    const lista = await listarAgendamentos();
-    setAgendamentos(lista.sort((a, b) => compararDatas(a.data, b.data) || b.criadoEm - a.criadoEm));
-    setLoading(false);
-  }
+  const carregar = useCallback(async () => {
+    try {
+      const resp = await fetch('/api/agendamentos');
+      const data = await resp.json();
+      setAgendamentos(data.agendamentos || []);
+    } catch {
+      // offline fallback — mantem o que ja tem
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     carregar();
+  }, [carregar]);
+
+  const handleToggle = useCallback(async (ag: Agendamento) => {
+    haptic('light');
+    const novoConcluido = !ag.concluido;
+    // Optimistic update
+    setAgendamentos((prev) =>
+      prev.map((a) => (a.id === ag.id ? { ...a, concluido: novoConcluido } : a))
+    );
+    try {
+      await fetch('/api/agendamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ag.id, concluido: novoConcluido }),
+      });
+    } catch {
+      // rollback
+      setAgendamentos((prev) =>
+        prev.map((a) => (a.id === ag.id ? { ...a, concluido: !novoConcluido } : a))
+      );
+    }
   }, []);
 
-  async function handleToggle(id: number) {
-    haptic('light');
-    await toggleConcluidoAgendamento(id);
-    await carregar();
-  }
-
-  async function handleExcluir(id: number) {
+  const handleExcluir = useCallback(async (id: number) => {
     haptic('medium');
-    await excluirAgendamento(id);
-    await carregar();
-  }
+    const anteriores = agendamentos;
+    setAgendamentos((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await fetch('/api/agendamentos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+    } catch {
+      setAgendamentos(anteriores);
+    }
+  }, [agendamentos]);
 
-  const pendentes = agendamentos.filter((a) => !a.concluido);
+  const atrasados = agendamentos.filter((a) => !a.concluido && a.data < today);
+  const hojeLista = agendamentos.filter((a) => !a.concluido && a.data === today);
+  const futuros = agendamentos.filter((a) => !a.concluido && a.data > today);
   const concluidos = agendamentos.filter((a) => a.concluido);
-
-  const atrasados = pendentes.filter((a) => a.data < today);
-  const Hoje = pendentes.filter((a) => a.data === today);
-  const futuros = pendentes.filter((a) => a.data > today);
 
   function renderGrupo(titulo: string, items: Agendamento[], cor: string) {
     if (items.length === 0) return null;
     return (
       <div className="mb-5">
-        <h3 className={`text-xs font-semibold uppercase tracking-widest ${cor} mb-2 px-1`}>
+        <h3 className={`text-xs font-bold uppercase tracking-widest ${cor} mb-2 px-1`}>
           {titulo} ({items.length})
         </h3>
         <div className="space-y-2">
@@ -95,27 +127,30 @@ export default function AgendaScreen({
               layout
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="bg-base-raised border border-base-border rounded-xl p-3 flex items-center gap-3"
+              exit={{ opacity: 0, y: -8 }}
+              transition={spring}
+              className={`flex items-center gap-3 bg-base-raised border border-base-border rounded-xl px-4 py-3 ${
+                ag.concluido ? 'opacity-60' : ''
+              }`}
             >
               <button
-                onClick={() => ag.id !== undefined && handleToggle(ag.id)}
+                onClick={() => handleToggle(ag)}
                 className="shrink-0"
                 aria-label={ag.concluido ? 'Marcar como pendente' : 'Marcar como concluido'}
               >
                 {ag.concluido ? (
                   <CheckCircle size={22} weight="fill" className="text-success" />
                 ) : (
-                  <Circle size={22} weight="regular" className="text-content-tertiary hover:text-accent transition-colors" />
+                  <Circle size={22} weight="regular" className="text-content-tertiary" />
                 )}
               </button>
+
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-content truncate">{ag.bloco}</span>
-                  <span className="text-sm text-content-secondary">{ag.apartamento}</span>
+                  <span className="text-sm text-content-secondary font-mono">{ag.apartamento}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <CalendarDots size={12} weight="bold" className="text-content-tertiary" />
                   <span className="text-[11px] font-mono text-content-tertiary">
                     {formatarDataBR(ag.data)}
                   </span>
@@ -124,6 +159,7 @@ export default function AgendaScreen({
                   )}
                 </div>
               </div>
+
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => onNavegarPara(ag.bloco, ag.apartamento)}
@@ -140,7 +176,7 @@ export default function AgendaScreen({
                   <PencilSimple size={14} weight="bold" />
                 </button>
                 <button
-                  onClick={() => ag.id !== undefined && handleExcluir(ag.id)}
+                  onClick={() => handleExcluir(ag.id)}
                   className="tactile-press flex items-center justify-center w-9 h-9 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
                   aria-label="Excluir agendamento"
                 >
@@ -155,65 +191,66 @@ export default function AgendaScreen({
   }
 
   return (
-    <main className="min-h-dvh bg-base px-4 pt-6 pb-24 max-w-2xl mx-auto">
+    <div className="min-h-screen bg-base p-4 pb-24">
+      {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: -8 }}
+        initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={spring}
         className="flex items-center justify-between mb-6"
       >
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_0_4px_rgba(232,130,58,0.2)]" aria-hidden="true" />
-            <h1 className="text-2xl font-bold tracking-tight">Agenda</h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onVoltar}
+            className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-base-raised border border-base-border text-content-secondary hover:text-content transition-colors"
+            aria-label="Voltar"
+          >
+            <ArrowRight size={18} weight="bold" className="rotate-180" />
+          </button>
+          <div>
+            <h1 className="text-lg font-bold text-content flex items-center gap-2">
+              <CalendarDots size={20} weight="duotone" className="text-accent" />
+              Agenda
+            </h1>
+            <p className="text-xs text-content-tertiary">
+              {agendamentos.filter((a) => !a.concluido).length} pendente(s)
+            </p>
           </div>
-          <p className="text-sm text-content-tertiary ml-5">
-            {pendentes.length} pendente{pendentes.length !== 1 ? 's' : ''} / {concluidos.length} concluido{concluidos.length !== 1 ? 's' : ''}
-          </p>
         </div>
         <button
           onClick={onNovoAgendamento}
-          className="tactile-press flex items-center gap-2 bg-accent text-base font-semibold text-sm rounded-xl px-4 py-2.5 hover:bg-accent-hover transition-colors"
+          className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-accent text-base hover:bg-accent-hover transition-colors"
+          aria-label="Novo agendamento"
         >
-          <Plus size={16} weight="bold" />
-          Novo
+          <Plus size={18} weight="bold" />
         </button>
       </motion.div>
 
+      {/* Conteudo */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-base-raised border border-base-border rounded-xl p-3 animate-pulse">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-base-overlay rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-base-overlay rounded w-1/3" />
-                  <div className="h-2 bg-base-overlay rounded w-1/4" />
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
       ) : agendamentos.length === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-16"
+          className="flex flex-col items-center justify-center py-20 text-center"
         >
-          <CalendarDots size={40} weight="light" className="mx-auto text-content-tertiary mb-4" />
-          <p className="text-sm text-content-tertiary mb-1">Nenhum agendamento</p>
-          <p className="text-xs text-content-tertiary">
-            Toque em &quot;Novo&quot; para agendar um apartamento
+          <CalendarDots size={48} weight="light" className="text-content-tertiary/30 mb-4" />
+          <p className="text-sm text-content-tertiary">Nenhum agendamento</p>
+          <p className="text-xs text-content-tertiary/60 mt-1">
+            Toque no + para criar um novo
           </p>
         </motion.div>
       ) : (
-        <AnimatePresence>
+        <div>
           {renderGrupo('Atrasados', atrasados, 'text-danger')}
-          {renderGrupo('Hoje', Hoje, 'text-accent')}
-          {renderGrupo('Futuros', futuros, 'text-content-tertiary')}
-          {concluidos.length > 0 && renderGrupo('Concluidos', concluidos, 'text-success')}
-        </AnimatePresence>
+          {renderGrupo('Hoje', hojeLista, 'text-accent')}
+          {renderGrupo('Futuros', futuros, 'text-content-secondary')}
+          {renderGrupo('Concluidos', concluidos, 'text-success')}
+        </div>
       )}
-    </main>
+    </div>
   );
 }

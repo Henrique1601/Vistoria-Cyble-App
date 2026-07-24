@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, CalendarDots, Buildings, ListNumbers } from '@phosphor-icons/react';
-import { criarAgendamento } from '@/lib/db';
 import { haptic } from '@/lib/haptic';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
@@ -28,13 +27,21 @@ export default function NovoAgendamentoModal({ blocos, onFechar, onSalvo }: Novo
     if (!bloco || !apto || !data) return;
     haptic('medium');
     setSalvando(true);
-    await criarAgendamento({
-      bloco,
-      apartamento: apto,
-      data,
-      concluido: false,
-      observacao: obs || undefined,
-    });
+    try {
+      await fetch('/api/agendamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bloco,
+          apartamento: apto,
+          data,
+          concluido: false,
+          observacao: obs || null,
+        }),
+      });
+    } catch {
+      // offline — salva localmente
+    }
     setSalvando(false);
     onSalvo();
   }

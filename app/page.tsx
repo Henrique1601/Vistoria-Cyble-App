@@ -56,7 +56,6 @@ import {
   criarAgendamento,
   type ApartamentoStatus,
   type FotoRecord,
-  type Agendamento,
 } from '@/lib/db';
 import { exportarCSV, exportarPDF, exportarXLSX, compartilharPDF, compartilharXLSX, exportarZIP, relatorioPDFComFotos, gerarRelatorioHTML, downloadHTML } from '@/lib/export';
 import { useTheme } from '@/lib/theme';
@@ -91,6 +90,16 @@ interface FotoOnline {
   data_leitura: string;
   foto_url: string;
   foto_index: number;
+}
+
+interface Agendamento {
+  id: number;
+  bloco: string;
+  apartamento: string;
+  data: string;
+  concluido: boolean;
+  observacao: string | null;
+  criado_em: string;
 }
 
 export default function Home() {

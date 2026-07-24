@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, CalendarDots, PencilSimple } from '@phosphor-icons/react';
-import { criarAgendamento } from '@/lib/db';
 import { haptic } from '@/lib/haptic';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
@@ -25,13 +24,21 @@ export default function QuickScheduleModal({ bloco, apto, onFechar, onSalvo }: Q
     if (!data || !aptoEdit.trim()) return;
     haptic('medium');
     setSalvando(true);
-    await criarAgendamento({
-      bloco,
-      apartamento: aptoEdit.trim(),
-      data,
-      concluido: false,
-      observacao: obs || undefined,
-    });
+    try {
+      await fetch('/api/agendamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bloco,
+          apartamento: aptoEdit.trim(),
+          data,
+          concluido: false,
+          observacao: obs || null,
+        }),
+      });
+    } catch {
+      // offline
+    }
     setSalvando(false);
     onSalvo();
   }

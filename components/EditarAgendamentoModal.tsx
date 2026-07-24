@@ -2,11 +2,20 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, PencilSimple, CalendarDots } from '@phosphor-icons/react';
-import { editarAgendamento, type Agendamento } from '@/lib/db';
+import { X, PencilSimple } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
+
+interface Agendamento {
+  id: number;
+  bloco: string;
+  apartamento: string;
+  data: string;
+  concluido: boolean;
+  observacao: string | null;
+  criado_em: string;
+}
 
 interface EditarAgendamentoModalProps {
   agendamento: Agendamento;
@@ -24,11 +33,20 @@ export default function EditarAgendamentoModal({ agendamento, onFechar, onSalvo 
     if (!data || !apto.trim()) return;
     haptic('medium');
     setSalvando(true);
-    await editarAgendamento(agendamento.id!, {
-      data,
-      apartamento: apto.trim(),
-      observacao: obs || undefined,
-    });
+    try {
+      await fetch('/api/agendamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: agendamento.id,
+          data,
+          apartamento: apto.trim(),
+          observacao: obs || null,
+        }),
+      });
+    } catch {
+      // offline
+    }
     setSalvando(false);
     onSalvo();
   }
