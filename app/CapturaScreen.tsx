@@ -16,6 +16,8 @@ import {
   Clock,
   ArrowRight,
   Repeat,
+  X,
+  ArrowsOut,
 } from '@phosphor-icons/react';
 import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, atualizarNota, FotoRecord, Categoria } from '@/lib/db';
 import { useToast } from '@/components/Toast';
@@ -57,6 +59,7 @@ export default function CapturaScreen({
   const [compartilhando, setCompartilhando] = useState<number | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<{ blob: Blob; categoria: Categoria } | null>(null);
   const [keepInCamera, setKeepInCamera] = useState(false);
+  const [fotoZoom, setFotoZoom] = useState<string | null>(null);
   const { toast } = useToast();
   const deletedRef = useRef<Map<number, FotoRecord>>(new Map());
 
@@ -307,11 +310,16 @@ export default function CapturaScreen({
                             className="relative group"
                           >
                             {src ? (
-                              <img
-                                src={src}
-                                alt=""
-                                className="w-16 h-16 rounded-xl object-cover border border-base-border group-hover:border-accent/30 transition-colors"
-                              />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setFotoZoom(src); }}
+                                className="w-16 h-16 rounded-xl overflow-hidden border border-base-border hover:border-accent/30 transition-colors"
+                              >
+                                <img
+                                  src={src}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                              </button>
                             ) : (
                               <div className="w-16 h-16 rounded-xl bg-base-overlay border border-base-border flex items-center justify-center">
                                 <ImageIcon size={20} weight="light" className="text-content-tertiary" aria-hidden="true" />
@@ -506,6 +514,35 @@ export default function CapturaScreen({
             onSalvar={handleEditorSalvar}
             onCancelar={() => setEditingPhoto(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox de visualizacao da foto */}
+      <AnimatePresence>
+        {fotoZoom && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-base/95 backdrop-blur-md z-[80] flex items-center justify-center p-4"
+            onClick={() => setFotoZoom(null)}
+          >
+            <button
+              onClick={() => setFotoZoom(null)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-base-raised/80 border border-base-border flex items-center justify-center text-content-secondary hover:text-content z-10"
+            >
+              <X size={20} weight="bold" />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={fotoZoom}
+              alt="Foto ampliada"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-base-border"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
     </main>

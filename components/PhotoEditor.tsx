@@ -208,7 +208,7 @@ export default function PhotoEditor({
       posicao: estadoAtual.textoPendente.posicao,
       texto: textoInput.trim(),
       cor: estadoAtual.cor,
-      tamanho: 18,
+      tamanho: 32,
     };
 
     setEstado((prev) => ({
@@ -378,7 +378,7 @@ export default function PhotoEditor({
               onChange={(e) => setTextoInput(e.target.value)}
               placeholder="Digite o texto..."
               autoFocus
-              className="w-full bg-base-overlay border border-base-border rounded-lg px-3 py-2 text-sm text-content focus:border-accent/50 outline-none"
+              className="w-full bg-base-overlay border border-base-border rounded-lg px-4 py-3 text-base text-content focus:border-accent/50 outline-none"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSalvarTexto();
                 if (e.key === 'Escape') {

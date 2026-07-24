@@ -38,14 +38,20 @@ export function BottomLinks({
         transition={{ delay: 0.5 }}
         className="flex flex-wrap gap-4 mb-4"
       >
-        <a
-          href="/galeria"
+        <button
+          onClick={() => {
+            if (!online) {
+              alert('Voce esta offline. A galeria precisa de internet para carregar as fotos.');
+              return;
+            }
+            window.location.href = '/galeria';
+          }}
           aria-label="Abrir galeria de fotos"
           className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
         >
           <Images size={13} weight="bold" aria-hidden="true" />
           Galeria
-        </a>
+        </button>
         <button
           onClick={onEditLista}
           aria-label="Editar lista de apartamentos"

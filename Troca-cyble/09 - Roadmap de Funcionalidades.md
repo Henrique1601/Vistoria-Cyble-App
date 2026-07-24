@@ -474,3 +474,194 @@
 - Não dependem de novas APIs externas
 - Mantêm o character offline-first do app
 - Cada feature pode ser commitada e deployada separadamente
+🤖 IA e Automação
+1. Descrição automática por IA
+- Tirou foto → IA descreve o que vê (ex: "Cyble instalado, conexão OK, sem vazamentos")
+- Reduz tempo de anotação, padroniza relatórios
+2. Detecção automática de problemas
+- IA analisa foto e alerta: "Possível vazamento", "Conexão frouxa", "Cyble danificado"
+- Checklist automático baseado na imagem
+3. Relatório por voz
+- Falar em vez de digitar: "Apto 123, cyble antes OK, depois com vazamento"
+- Speech-to-text gera notas automaticamente
+
+📋 Checklists e Padronização
+4. Checklist por categoria
+- Template: "Verificar conexão, verificar vazamento, verificarFixação"
+- Marcar items como OK/NOK/NA durante a captura
+5. Condição do Cyble (rating)
+- Escala: Ótimo / Bom / Regular / Ruim / Crítico
+- Estatísticas de condição por bloco
+6. Comparar com vistoria anterior
+- Mostrar foto da última vistoria do mesmo apto
+- Highlight das diferenças (antes vs depois vs agora)
+
+👥 Equipe e Multi-usuário|
+7. Multi-usuário com papéis
+- Administrador, Vistoriador, Supervisor
+- Cada um vê só seus aptos ou todos
+8. Atribuição de aptos
+- "João vistoria blocos A-C, Maria vistoria D-F"
+- Dashboard de produtividade por pessoa
+9. Aprovação de vistoria
+- Supervisor aprova/rejeita vistoria antes de fechar
+- Status: Pendente → Aprovada → Concluída
+📊 Analytics Avançados
+10. Tempo médio por apto (por dia)
+- Gráfico mostrando se a equipe está mais rápida ou devagar
+- Meta de X aptos por hora
+11. Taxa de conclusão em tempo real
+- "% do dia concluído" barra animada
+- Previsão de conclusão baseada na velocidade
+12. Mapa de calor de problemas
+- Quais aptos têm mais "Cyble ruim"?
+- Identificar blocos com mais defeitos
+🔧 Funcionalidades Práticas
+13. Timer de sessão
+- "Você já trabalhou 4h30, tire um café ☕"
+- Alerta de pausa obrigatória (NR-17)
+14. Modo noturno com flash
+- Flash automático em ambientes escuros
+- Ajuste de brilho/contraste na hora
+15. Medição por foto
+- Medir distância/tamanho usando a câmera
+- Útil para documentar danos
+16. QR Code por apto
+- Gerar QR code que abre direto na captura
+- Colocar na porta do apto para facilitar
+📱 Integrações
+17. WhatsApp automático
+- Enviar foto + resumo pro síndico ao concluir apto
+- Template: "Apto 123 concluído, 3 fotos, status OK"
+18. Calendário do Google
+- Sincronizar vistorias agendadas
+- Lembrete automático no dia
+19. Exportar para sistema do condomínio
+- API para enviar dados para sistemas existentes
+- JSON/XML formatado
+🎮 Gamificação
+20. Ranking de vistoriadores
+- "X aptos hoje, Y esta semana, Z este mês"
+- Conquistas: "100 aptos", "Sem erros", "Veloz"
+21. Streak de dias
+- "5 dias seguidos completando meta"
+- Notificação de parabéns
+💡 Quick Wins (fáceis de implementar)
+#	Feature	Esforço
+22	Exportar só aptos pendentes	Baixo
+23	Foto de capa do apto (1ª foto = thumbnail)	Baixo
+24	Ordenar fotos por categoria (Antes/Depois/Doc)	Baixo
+25	Backup automático para Google Drive	Médio
+26	Modo avião (forçar offline)	Baixo
+🏆 Prioridades (Quick Wins)
+#	Feature	Impacto	Esforço
+1	Toast premium com progress bar	Alto	Baixo
+2	Long press para ações	Alto	Médio
+3	Glassmorphism nos cards	Alto	Baixo
+4	Header colapsável	Médio	Médio
+5	Badge animado no BottomNav	Alto	Baixo
+6	Empty states ilustrados	Médio	Médio
+7	Modo campo (compacto)	Alto	Médio
+8	Confetti maior por conquista	Médio	Baixo
+🎨 Visual e Design
+1. Microinterações com Framer Motion
+- Botões com spring bounce ao tocar (não só scale)
+- Cards que flutuam ao arrastar (shadow dinâmico)
+- Transições de página com shared layout animation (hero image voa de uma tela pra outra)
+2. Glassmorphism nos cards
+- backdrop-blur + bg-base-raised/60 nos cards principais
+- Efeito de vidro fosco no BottomNav e headers
+- Funciona bem no dark e light theme
+3. Gradientes temáticos por status
+- Aptos concluídos: gradiente subtle verde → transparente
+- Aptos pendentes: gradiente vermelho → transparente
+- Em andamento: gradiente amarelo → transparente
+4. Skeleton loading premium
+- Shimmer com gradiente animado (já tem, pode melhorar)
+- Skeletons com formato real (não só retângulos)
+- Skeleton do card = mini versão do card final
+5. Ícones animados
+- Ícone de sync girando enquanto sincroniza
+- Check que "desenha" ao completar
+- Sino que toca (balança) ao receber notificação
+6. Modo compacto
+- Toggle "Modo campo" → cards menores, mais informação visível
+- Ícones menores, fonte reduzida, mais aptos por tela
+- Útil quando a pessoa já conhece o app 
+🖐️ Touch e Gestos
+7. Long press para ações rápidas
+- Segurar no apto → menu contextual (Abrir / Excluir / Compartilhar)
+- Segurar na foto → opções (Editar / Excluir / Compartilhar)
+- Vibração de confirmação ao abrir menu
+8. Swipe actions nos cards
+- Arrastar card do apto pra direita → abrir câmera direto
+- Arrastar pra esquerda → marcar como concluído
+- Feedback visual com cor durante o swipe
+9. Pull-to-refresh com animação
+- Já tem, pode melhorar: animação de "engrenagem girando"
+- Barra de progresso animada no refresh
+10. Double tap para favoritar
+- Duplo clique no apto → marcar como "favorito"
+- Aptos favoritos aparecem primeiro na lista
+- Ícone de estrela discreto
+📱 Navegação e Layout
+11. BottomNav com badge animado
+- Badge de pendências com pulse animation
+- Número que "pula" ao atualizar
+- Cor do badge muda conforme urgência
+12. Header colapsável
+- Ao scrollar pra baixo, header encolhe (só ícone + título)
+- Ao scrollar pra cima, header expande (mostra filtros)
+- Transição suave com Framer Motion
+13. Sticky filters
+- Filtros de bloco/data ficam fixos no topo ao scrollar
+- Barra de busca sempre visível
+- Fecha automaticamente ao selecionar resultado
+14. Tab groups animados
+- Abas com indicator que desliza (já tem no BottomNav)
+- Pode aplicar em outras abas (Fotos/Notas/Histórico)
+- Transição de conteúdo com crossfade
+15. Empty states ilustrados
+- Ilustrações SVG animadas quando não tem dados
+- "Nenhuma foto ainda" → câmera animada
+- "Busca sem resultados" → lupa com "?"
+📊 Feedback Visual
+16. Toast notifications premium
+- Toasts com slide-in + auto-dismiss com progress bar
+- Cores diferentes por tipo (sucesso/erro/info)
+- Posição: topo no mobile, canto no desktop
+17. Progress indicator global
+- Barra fina no topo mostrando % de conclusão do dia
+- Muda de cor conforme avança (vermelho → amarelo → verde)
+- Anima suavemente ao atualizar
+18. Confetti contextuais
+- Já tem confetti ao salvar, pode ter:
+- Confetti maior ao completar bloco inteiro
+- Confetti dourado ao completar 100%
+- Confetti de parabéns ao atingir meta diária
+19. Skeleton shimmer mais realista
+- Adicionar "pulsing" além do shimmer
+- Skeletons que "resolvem" de cima pra baixo
+- Transição suave do skeleton pro conteúdo real
+20. Status dots com glow
+- Bolinhas de status com box-shadow animado
+- Pulse suave nas bolinhas pendentes
+- Glow mais forte nas concluídas
+…
+🌙 Temas e Personalização
+25. Temas personalizáveis
+- 3-4 paletas de cores além do dark/light
+- Ex: "Azul profissional", "Verde natureza", "Laranja vibrante"
+- Usuário escolhe no settings
+26. Modo alto contraste
+- Para sol forte no campo
+- Bordas mais grossas, cores mais saturadas
+- Fonte um pouco maior automaticamente
+27. Modo uma mão
+- Botões importantes no canto inferior direito
+- Navegação por gestos (swipe pra voltar)
+- BottomNav mais compacto
+28. Widgets do celular
+- Widget 2x2: "Aptos pendentes hoje"
+- Widget 4x2: "Progresso por bloco"
+- Atalho rápido pra câmera

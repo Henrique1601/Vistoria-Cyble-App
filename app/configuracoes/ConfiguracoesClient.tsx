@@ -143,6 +143,11 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
     setSavingConfig(true);
     haptic('medium');
     try {
+      if (!navigator.onLine) {
+        toast('Voce esta offline. Conecte-se a internet para salvar as configuracoes na nuvem.', 'error');
+        setSavingConfig(false);
+        return;
+      }
       const { carregarListaApartamentos } = await import('@/lib/db');
       const lista = await carregarListaApartamentos();
       if (!lista) {
@@ -163,7 +168,7 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
         toast('Erro ao salvar: ' + (data.error || 'desconhecido'), 'error');
       }
     } catch {
-      toast('Erro ao salvar configuracao', 'error');
+      toast('Erro ao salvar configuracao. Verifique sua conexao com a internet.', 'error');
     }
     setSavingConfig(false);
   }
