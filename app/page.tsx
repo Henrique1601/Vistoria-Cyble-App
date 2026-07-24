@@ -1104,7 +1104,7 @@ export default function Home() {
             <div>
               <h1 className="text-xl font-semibold tracking-tight">{blocoAtual}</h1>
               <p className="text-xs text-content-tertiary mt-0.5">
-                {aptosDoBloco.length} apartamento{aptosDoBloco.length !== 1 ? 's' : ''}
+                {aptosDoBloco.filter((a) => a.cybleAntesFeito && a.cybleDepoisFeito).length}/{aptosDoBloco.length} concluidos
               </p>
             </div>
           </motion.div>
@@ -1653,17 +1653,24 @@ function SyncBanner({ online, pendentes, onClick }: { online: boolean; pendentes
       role="status"
       aria-live="polite"
       onClick={onClick}
-      className={`fixed bottom-0 left-0 right-0 border-t px-4 py-3 text-xs font-medium flex justify-between items-center z-50 backdrop-blur-md cursor-pointer hover:opacity-90 transition-opacity ${
+      className={`fixed bottom-16 left-2 right-2 border px-4 py-3 text-xs font-semibold flex justify-between items-center z-[60] backdrop-blur-md cursor-pointer hover:opacity-90 transition-opacity rounded-2xl shadow-lg ${
         online
-          ? 'bg-base-raised/90 border-accent/20 text-accent'
-          : 'bg-base-raised/90 border-danger/20 text-danger'
+          ? 'bg-accent/95 border-accent text-base'
+          : 'bg-danger/95 border-danger text-base'
       }`}
     >
       <span className="flex items-center gap-2">
-        {online ? <Cloud size={14} weight="bold" aria-hidden="true" /> : <CloudSlash size={14} weight="bold" aria-hidden="true" />}
-        {online ? 'Sincronizando\u2026' : 'Sem internet \u2014 fotos salvas no aparelho'}
+        {online ? (
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-base/40 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-base" />
+          </span>
+        ) : (
+          <CloudSlash size={14} weight="bold" aria-hidden="true" />
+        )}
+        {online ? 'Sincronizando...' : 'Sem internet — fotos salvas no aparelho'}
       </span>
-      <span className="font-mono tabular-nums">{pendentes} pendente(s)</span>
+      <span className="font-mono tabular-nums bg-base/20 px-2 py-0.5 rounded-lg">{pendentes} foto{pendentes > 1 ? 's' : ''}</span>
     </motion.button>
   );
 }

@@ -52,6 +52,7 @@ import {
   importarConcluidosTxt,
   limparConcluidos,
   carregarConcluidos,
+  exportarConcluidosTxt,
 } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { spring } from '@/lib/motion';
@@ -364,6 +365,19 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
     window.location.reload();
   }
 
+  async function handleExportarConcluidos() {
+    haptic('medium');
+    try {
+      const blob = await exportarConcluidosTxt();
+      downloadBlob(blob, `concluidos-${dateStr()}.txt`);
+      const c = await carregarConcluidos();
+      const total = Object.values(c).reduce((acc, a) => acc + a.length, 0);
+      toast(`${total} apartamentos concluidos exportados`, 'success');
+    } catch {
+      toast('Erro ao exportar concluidos', 'error');
+    }
+  }
+
   async function handleClearLocalPhotos() {
     if (!window.confirm('Excluir todas as fotos locais nao sincronizadas? Esta acao nao pode ser desfeita.')) return;
     setClearing(true);
@@ -620,6 +634,15 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
               >
                 <FileText size={16} weight="bold" />
                 Importar lista de concluidos (.txt)
+              </button>
+            </div>
+            <div className="px-4 py-3.5">
+              <button
+                onClick={handleExportarConcluidos}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all"
+              >
+                <FileText size={16} weight="bold" />
+                Exportar concluidos (.txt)
               </button>
             </div>
             <div className="px-4 py-3.5">

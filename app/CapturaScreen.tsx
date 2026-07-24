@@ -246,13 +246,15 @@ export default function CapturaScreen({
   async function handleFile(categoria: Categoria, file: File | null) {
     if (!file) return;
     haptic('medium');
-    const comprimido = await comprimirImagem(file);
+    const dataStr = new Date().toLocaleDateString('pt-BR');
+    const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
     setEditingPhoto({ blob: comprimido, categoria });
   }
 
   async function handleEditorSalvar(blob: Blob) {
     if (!editingPhoto) return;
-    const [comprimido, gps] = await Promise.all([comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' })), getGPS()]);
+    const dataStr = new Date().toLocaleDateString('pt-BR');
+    const [comprimido, gps] = await Promise.all([comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' }), { texto: dataStr, bloco, apartamento }), getGPS()]);
     const cat = editingPhoto.categoria;
     const isMulti = CATEGORIAS.find((c) => c.key === cat)?.multi ?? false;
     await salvarFoto({

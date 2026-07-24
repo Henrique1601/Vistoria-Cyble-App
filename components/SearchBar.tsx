@@ -86,9 +86,15 @@ export function SearchResults({ resultados, onSelect }: SearchResultsProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {completo ? (
+                      <span className="text-[10px] font-semibold text-success bg-success/10 px-1.5 py-0.5 rounded">Concluido</span>
+                    ) : temFoto ? (
+                      <span className="text-[10px] font-semibold text-warn bg-warn/10 px-1.5 py-0.5 rounded">Em andamento</span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-content-tertiary bg-base-overlay px-1.5 py-0.5 rounded">Pendente</span>
+                    )}
                     <div className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${r.status?.cybleAntesFeito ? 'bg-success shadow-[0_0_6px_rgba(52,211,153,0.4)]' : 'bg-base-border'}`} title="Antes" aria-hidden="true" />
                     <div className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${r.status?.cybleDepoisFeito ? 'bg-success shadow-[0_0_6px_rgba(52,211,153,0.4)]' : 'bg-base-border'}`} title="Depois" aria-hidden="true" />
-                    <div className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${r.status?.qtdDocumentos && r.status.qtdDocumentos > 0 ? 'bg-success shadow-[0_0_6px_rgba(52,211,153,0.4)]' : 'bg-base-border'}`} title="Doc" aria-hidden="true" />
                   </div>
                 </button>
               );

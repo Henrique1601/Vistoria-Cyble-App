@@ -219,7 +219,10 @@ export async function statusDeTodosApartamentos(
 const MAX_IMAGE_WIDTH = 1920;
 const IMAGE_QUALITY = 0.75;
 
-export async function comprimirImagem(file: File): Promise<Blob> {
+export async function comprimirImagem(
+  file: File,
+  watermark?: { texto: string; bloco?: string; apartamento?: string }
+): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   const escala = Math.min(1, MAX_IMAGE_WIDTH / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * escala);
@@ -227,6 +230,37 @@ export async function comprimirImagem(file: File): Promise<Blob> {
   const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(bitmap, 0, 0, w, h);
+
+  if (watermark) {
+    const fontSize = Math.max(16, Math.round(h * 0.025));
+    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.textBaseline = 'bottom';
+
+    const lines: string[] = [];
+    if (watermark.bloco && watermark.apartamento) {
+      lines.push(`${watermark.bloco} - Apto ${watermark.apartamento}`);
+    }
+    lines.push(watermark.texto);
+
+    const padding = Math.round(w * 0.015);
+    const lineHeight = fontSize + 6;
+    const blockH = lines.length * lineHeight + padding * 2;
+    const blockW = Math.max(...lines.map((l) => ctx.measureText(l).width)) + padding * 2;
+
+    const x = w - blockW - padding;
+    const y = h - blockH - padding;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, blockW, blockH, 6);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    lines.forEach((line, i) => {
+      ctx.fillText(line, x + padding, y + padding + lineHeight * (i + 1) - 4);
+    });
+  }
+
   return canvas.convertToBlob({ type: 'image/jpeg', quality: IMAGE_QUALITY });
 }
 
@@ -491,6 +525,20 @@ export async function importarConcluidosTxt(text: string): Promise<{ blocos: num
   }
   await salvarConcluidos(merged);
   return { blocos: Object.keys(merged).length, aptos };
+}
+
+// --- Export concluidos TXT ---
+export async function exportarConcluidosTxt(): Promise<Blob> {
+  const concluidos = await carregarConcluidos();
+  const lines: string[] = [];
+  for (const [bloco, aptos] of Object.entries(concluidos)) {
+    for (const a of aptos) {
+      const letter = bloco.replace(/^Torre\s+/i, '').trim();
+      lines.push(`Torre ${letter}-APTO${a.padStart(4, '0')}`);
+    }
+  }
+  lines.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  return new Blob([lines.join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
 }
 
 // --- Export configuracao CSV ---
