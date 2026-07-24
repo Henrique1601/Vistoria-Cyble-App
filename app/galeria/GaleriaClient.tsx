@@ -112,14 +112,14 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
   }, []);
 
   // Navegação no lightbox
-  const fotoIndex = useMemo(() => {
-    if (!fotoSelecionada) return -1;
-    return grupos.findIndex((g) => g.fotos.some((f) => f.id === fotoSelecionada.id));
-  }, [fotoSelecionada, grupos]);
-
   const todasFotos = useMemo(() => {
     return grupos.flatMap((g) => g.fotos);
   }, [grupos]);
+
+  const fotoIndex = useMemo(() => {
+    if (!fotoSelecionada) return -1;
+    return todasFotos.findIndex((f) => f.id === fotoSelecionada.id);
+  }, [fotoSelecionada, todasFotos]);
 
   const navegarLightbox = useCallback((direcao: 'anterior' | 'proximo') => {
     if (!fotoSelecionada) return;
@@ -598,7 +598,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={spring}
-              className="relative max-w-4xl w-full"
+              className="relative max-w-2xl w-full max-h-[85vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
               tabIndex={-1}
             >
@@ -661,7 +661,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
                   <img
                     src={fotoSelecionada.foto_url}
                     alt={`Foto de ${fotoSelecionada.bloco} apartamento ${fotoSelecionada.apartamento}`}
-                    className="w-full rounded-2xl border border-base-border"
+                    className="w-full max-h-[70vh] object-contain rounded-2xl border border-base-border"
                     width={800}
                     height={600}
                   />

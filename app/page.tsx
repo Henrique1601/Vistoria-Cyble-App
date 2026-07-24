@@ -400,13 +400,23 @@ export default function Home() {
   }, [lista]);
 
   useEffect(() => {
-    setOnline(navigator.onLine);
+    // Check online with a small delay to avoid false negatives on PWA reload
+    const timer = setTimeout(() => {
+      setOnline(navigator.onLine);
+      // Also do a real fetch check in case navigator.onLine is wrong
+      if (navigator.onLine) {
+        fetch('/api/version', { method: 'HEAD', cache: 'no-store' })
+          .then(() => setOnline(true))
+          .catch(() => setOnline(false));
+      }
+    }, 500);
     const on = () => { setOnline(true); tentarSincronizar(); };
     const off = () => setOnline(false);
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
     const interval = setInterval(tentarSincronizar, 15000);
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('online', on);
       window.removeEventListener('offline', off);
       clearInterval(interval);
