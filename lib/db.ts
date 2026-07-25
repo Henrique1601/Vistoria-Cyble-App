@@ -488,16 +488,40 @@ export async function checarEspacoStorage(): Promise<{ usado: number; total: num
 export async function salvarConcluidos(lista: Record<string, string[]>) {
   const db = await getDb();
   await db.put('config', lista, 'concluidos');
+  syncConcluidosToAPI(lista).catch(() => {});
 }
 
 export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   const db = await getDb();
-  return (await db.get('config', 'concluidos')) ?? {};
+  const local = (await db.get('config', 'concluidos')) ?? {};
+  if (Object.keys(local).length > 0) return local;
+  try {
+    const resp = await fetch('/api/concluidos');
+    if (resp.ok) {
+      const remote = await resp.json();
+      if (Object.keys(remote).length > 0) {
+        await db.put('config', remote, 'concluidos');
+        return remote;
+      }
+    }
+  } catch {}
+  return {};
+}
+
+async function syncConcluidosToAPI(lista: Record<string, string[]>) {
+  try {
+    await fetch('/api/concluidos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lista),
+    });
+  } catch {}
 }
 
 export async function limparConcluidos() {
   const db = await getDb();
   await db.delete('config', 'concluidos');
+  syncConcluidosToAPI({}).catch(() => {});
 }
 
 export async function importarConcluidosTxt(text: string): Promise<{ blocos: number; aptos: number }> {
