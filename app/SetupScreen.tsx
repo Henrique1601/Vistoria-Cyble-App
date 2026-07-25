@@ -165,7 +165,7 @@ export default function SetupScreen({
   async function handleLoadBuildings() {
     setLoadingBuildings(true);
     try {
-      const res = await fetch('/api/building-config');
+      const res = await fetch('/api/building-config', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
       const data = await res.json();
       setBuildingConfigs(data.buildings || []);
       setSelectedBuilding(null);

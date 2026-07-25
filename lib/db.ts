@@ -496,7 +496,7 @@ export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   const local = (await db.get('config', 'concluidos')) ?? {};
   if (Object.keys(local).length > 0) return local;
   try {
-    const resp = await fetch('/api/concluidos');
+    const resp = await fetch('/api/concluidos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
     if (resp.ok) {
       const remote = await resp.json();
       if (Object.keys(remote).length > 0) {
@@ -508,14 +508,22 @@ export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   return {};
 }
 
+let _syncConcluidosLock = false;
+
 async function syncConcluidosToAPI(lista: Record<string, string[]>) {
+  if (_syncConcluidosLock) return;
+  _syncConcluidosLock = true;
   try {
     await fetch('/api/concluidos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
       body: JSON.stringify(lista),
     });
-  } catch {}
+  } catch (err) {
+    console.warn('syncConcluidosToAPI failed:', err);
+  } finally {
+    _syncConcluidosLock = false;
+  }
 }
 
 export async function limparConcluidos() {

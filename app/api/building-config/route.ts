@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/sql';
+import { requireAnyPin, requireAdmin } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = requireAnyPin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }
@@ -32,6 +36,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }

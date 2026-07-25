@@ -41,7 +41,7 @@ export default function BottomNav({ active, onNavigate }: BottomNavProps) {
                   onNavigate(item.key);
                 }
               }}
-              className={`relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${
+              className={`relative flex flex-col items-center gap-0.5 px-3 py-2.5 min-h-[44px] rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${
                 isActive ? 'text-accent' : 'text-content-tertiary hover:text-content'
               }`}
               aria-current={isActive ? 'page' : undefined}

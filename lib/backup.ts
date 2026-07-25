@@ -54,6 +54,7 @@ export async function fazerBackupManual(): Promise<{
 
       const res = await fetch('/api/backup', {
         method: 'POST',
+        headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: formData,
       });
 
@@ -89,6 +90,7 @@ export async function fazerBackupAutomatico(): Promise<{
 
     const res = await fetch('/api/backup', {
       method: 'POST',
+      headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
       body: formData,
     });
 

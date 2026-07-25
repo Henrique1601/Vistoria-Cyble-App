@@ -58,7 +58,7 @@ export default function AgendaScreen({
 
   const carregar = useCallback(async () => {
     try {
-      const resp = await fetch('/api/agendamentos');
+      const resp = await fetch('/api/agendamentos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
       const data = await resp.json();
       setAgendamentos(data.agendamentos || []);
     } catch {
@@ -82,7 +82,7 @@ export default function AgendaScreen({
     try {
       await fetch('/api/agendamentos', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: JSON.stringify({ id: ag.id, concluido: novoConcluido }),
       });
     } catch {
@@ -100,7 +100,7 @@ export default function AgendaScreen({
     try {
       await fetch('/api/agendamentos', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: JSON.stringify({ id }),
       });
     } catch {

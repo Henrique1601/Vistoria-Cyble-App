@@ -1,5 +1,6 @@
 import { put, del, list } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -8,6 +9,9 @@ const MAX_REPORTS = 20;
 const EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export async function POST(req: NextRequest) {
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
   try {
     const { html, filename } = await req.json();
 

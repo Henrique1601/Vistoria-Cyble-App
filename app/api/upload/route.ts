@@ -1,22 +1,14 @@
 import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES } from '@/lib/sql';
+import { requireAdmin } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  const pin = req.headers.get('x-app-pin');
-
-  function isValidPin(): boolean {
-    if (!pin) return false;
-    if (process.env.ADMIN_PIN && pin === process.env.ADMIN_PIN) return true;
-    if (process.env.VIEWER_PIN && pin === process.env.VIEWER_PIN) return true;
-    if (process.env.APP_PIN && pin === process.env.APP_PIN) return true;
-    return false;
-  }
-
-  if (!isValidPin()) {
-    return NextResponse.json({ erro: 'PIN invalido' }, { status: 401 });
+  const auth = requireAdmin(req);
+  if (!auth.ok) {
+    return NextResponse.json({ erro: 'Acesso restrito a administradores' }, { status: 401 });
   }
 
   const form = await req.formData();
@@ -59,8 +51,8 @@ export async function POST(req: NextRequest) {
       const dataLeitura = new Date(Number(timestamp)).toISOString().split('T')[0];
       await sql`INSERT INTO fotos (bloco, apartamento, data_leitura, foto_url, foto_index)
                  VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${blob.url}, 0)`;
-    } catch {
-      // Non-critical: photo still saved to Blob
+    } catch (err) {
+      console.warn('Failed to save photo metadata to DB (photo still saved to Blob):', err);
     }
   }
 

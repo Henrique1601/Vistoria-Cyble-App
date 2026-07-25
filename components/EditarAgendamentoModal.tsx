@@ -36,7 +36,7 @@ export default function EditarAgendamentoModal({ agendamento, onFechar, onSalvo 
     try {
       await fetch('/api/agendamentos', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: JSON.stringify({
           id: agendamento.id,
           data,

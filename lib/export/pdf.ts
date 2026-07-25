@@ -174,7 +174,7 @@ export async function relatorioPDFComFotos(
 
   let fotosOnline: { bloco: string; apartamento: string; foto_url: string; foto_index: number; data_leitura: string }[] = [];
   try {
-    const resp = await fetch('/api/fotos');
+    const resp = await fetch('/api/fotos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
     const data = await resp.json();
     fotosOnline = data.fotos || [];
   } catch { /* offline */ }

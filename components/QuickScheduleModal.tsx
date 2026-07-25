@@ -27,7 +27,7 @@ export default function QuickScheduleModal({ bloco, apto, onFechar, onSalvo }: Q
     try {
       await fetch('/api/agendamentos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: JSON.stringify({
           bloco,
           apartamento: aptoEdit.trim(),

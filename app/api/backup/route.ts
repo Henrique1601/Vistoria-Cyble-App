@@ -1,5 +1,6 @@
 import { put, list, del } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -7,6 +8,9 @@ const BACKUP_PREFIX = 'v2/backup/';
 const MAX_BACKUPS = 7;
 
 export async function POST(req: NextRequest) {
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
   try {
     const form = await req.formData();
     const file = form.get('file') as File | null;

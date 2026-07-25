@@ -233,7 +233,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/fotos')
+    fetch('/api/fotos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } })
       .then((r) => r.json())
       .then((data) => setFotosOnline(data.fotos || []))
       .catch(() => {});
@@ -930,7 +930,7 @@ export default function Home() {
                   const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
                   const res = await fetch('/api/share-report', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
                     body: JSON.stringify({ html, filename: `vistoria-${new Date().toISOString().slice(0, 10)}.html` }),
                   });
                   const data = await res.json();

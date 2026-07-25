@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/sql';
+import { requireAnyPin, requireAdmin } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = requireAnyPin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }
@@ -22,13 +26,16 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }
 
   try {
-    const { bloco, apartamento, data, concluido, observacao } = await request.json();
+    const { bloco, apartamento, data, concluido, observacao } = await req.json();
     if (!bloco || !apartamento || !data) {
       return NextResponse.json({ error: 'bloco, apartamento e data sao obrigatorios' }, { status: 400 });
     }
@@ -46,13 +53,16 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(req: NextRequest) {
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }
 
   try {
-    const { id, bloco, apartamento, data, concluido, observacao } = await request.json();
+    const { id, bloco, apartamento, data, concluido, observacao } = await req.json();
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
@@ -75,13 +85,16 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(req: NextRequest) {
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }
 
   try {
-    const { id } = await request.json();
+    const { id } = await req.json();
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }

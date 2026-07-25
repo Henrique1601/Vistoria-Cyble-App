@@ -72,7 +72,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
   const [downloadingGrupo, setDownloadingGrupo] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/fotos')
+    fetch('/api/fotos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } })
       .then((r) => r.json())
       .then((data) => {
         setFotos(data.fotos || []);
@@ -143,7 +143,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
     try {
       const resp = await fetch('/api/fotos', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: JSON.stringify({ id: fotoToDelete.id }),
       });
       if (resp.ok) {
@@ -174,7 +174,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
     try {
       const resp = await fetch('/api/fotos', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: JSON.stringify({ 
           id: fotoToEdit.id, 
           bloco: editBloco, 
@@ -237,7 +237,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
     try {
       const resp = await fetch('/api/fotos/bulk-delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
       if (resp.ok) {

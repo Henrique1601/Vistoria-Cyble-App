@@ -385,7 +385,7 @@ export default function CapturaScreen({
           <button
             onClick={onVoltar}
             aria-label="Voltar para lista de apartamentos"
-            className="tactile-press w-10 h-10 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+            className="tactile-press w-11 h-11 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
           >
             <ArrowLeft size={18} weight="bold" aria-hidden="true" />
           </button>
@@ -402,7 +402,7 @@ export default function CapturaScreen({
               <button
                 onClick={() => setShowCompare(true)}
                 aria-label="Comparar antes e depois"
-                className="tactile-press w-9 h-9 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                className="tactile-press w-11 h-11 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
               >
                 <ArrowsLeftRight size={16} weight="bold" aria-hidden="true" />
               </button>
@@ -410,7 +410,7 @@ export default function CapturaScreen({
             <button
               onClick={() => setKeepInCamera(!keepInCamera)}
               aria-label={keepInCamera ? 'Desativar modo multi-foto' : 'Ativar modo multi-foto'}
-              className={`tactile-press w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
+              className={`tactile-press w-11 h-11 rounded-xl border flex items-center justify-center transition-colors ${
                 keepInCamera
                   ? 'bg-accent-dim border-accent text-accent'
                   : 'bg-base-raised border-base-border text-content-secondary hover:text-content hover:border-accent/30'

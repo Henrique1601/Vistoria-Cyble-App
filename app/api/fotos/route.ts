@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/sql';
+import { requireAnyPin, requireAdmin } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = requireAnyPin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }
@@ -19,13 +23,16 @@ export async function GET() {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(req: NextRequest) {
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }
 
   try {
-    const { id } = await request.json();
+    const { id } = await req.json();
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
@@ -39,13 +46,16 @@ export async function DELETE(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(req: NextRequest) {
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
   }
 
   try {
-    const { id, ...updates } = await request.json();
+    const { id, ...updates } = await req.json();
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }

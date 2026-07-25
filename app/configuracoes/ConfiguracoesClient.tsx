@@ -162,7 +162,7 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
       }
       const res = await fetch('/api/building-config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: JSON.stringify({ nome: 'Predio AcquaPlay', config: lista }),
       });
       const data = await res.json();
@@ -182,7 +182,7 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
     setLoadingConfig(true);
     haptic('medium');
     try {
-      const res = await fetch('/api/building-config');
+      const res = await fetch('/api/building-config', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
       const data = await res.json();
       if (data.buildings && data.buildings.length > 0) {
         toast(`${data.buildings.length} prédio(s) encontrado(s) na nuvem`, 'success');
