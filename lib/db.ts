@@ -172,7 +172,7 @@ export async function statusDeTodosApartamentos(
 ): Promise<ApartamentoStatus[]> {
   const db = await getDb();
   const all = await db.getAll('fotos');
-  const concluidos = (await db.get('config', 'concluidos')) ?? {};
+  const concluidos = await carregarConcluidos();
 
   const letterToFull = new Map<string, string>();
   for (const blocoNome of Object.keys(lista)) {
