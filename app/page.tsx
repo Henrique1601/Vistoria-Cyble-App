@@ -570,14 +570,15 @@ export default function Home() {
 
   const aptosOnlineDoBloco = useMemo(() => {
     if (!blocoAtual) return new Set<string>();
-    const entry = fotosOnlineMap.get(blocoAtual);
+    const entry = fotosOnlineMap.get(normalizeBloco(blocoAtual));
     return entry?.aptos ?? new Set<string>();
-  }, [fotosOnlineMap, blocoAtual]);
+  }, [fotosOnlineMap, blocoAtual, normalizeBloco]);
 
   const aptosDoBloco = useMemo(() => {
     if (!blocoAtual) return [];
 
-    const codigosLocais = (lista?.[blocoAtual] || []).map(normApto);
+    const resolvedBloco = normalizeBloco(blocoAtual);
+    const codigosLocais = (lista?.[resolvedBloco] || []).map(normApto);
     const aptosOnlineList = [...aptosOnlineDoBloco];
 
     const allAptos = new Set<string>([
@@ -587,13 +588,13 @@ export default function Home() {
 
     const result = [...allAptos]
       .map((c) => {
-        const local = statusMap.get(`${blocoAtual}__${c}`);
+        const local = statusMap.get(`${resolvedBloco}__${c}`);
         if (local) return { ...local, apartamento: c };
         const temFotoOnline = aptosOnlineDoBloco.has(c);
         return {
-          bloco: blocoAtual, apartamento: c,
+          bloco: resolvedBloco, apartamento: c,
           cybleAntesFeito: temFotoOnline, cybleDepoisFeito: temFotoOnline,
-          qtdDocumentos: 0, qtdFotos: fotosCountMap.get(`${blocoAtual}__${c}`) || 0,
+          qtdDocumentos: 0, qtdFotos: fotosCountMap.get(`${resolvedBloco}__${c}`) || 0,
         };
       })
       .filter((s) => s.apartamento.toLowerCase().includes(busca.toLowerCase()));
@@ -610,7 +611,7 @@ export default function Home() {
     }
 
     return result;
-  }, [blocoAtual, lista, statusMap, busca, ordem, aptosOnlineDoBloco, fotosCountMap]);
+  }, [blocoAtual, lista, statusMap, busca, ordem, aptosOnlineDoBloco, fotosCountMap, normalizeBloco]);
 
   // Paginacao
   const totalPaginas = itensPagina === 999 ? 1 : Math.ceil(aptosDoBloco.length / itensPagina);
@@ -1076,7 +1077,7 @@ export default function Home() {
             setAptoAtual(proximoApto.apartamento);
             refreshStatus();
           } : undefined}
-          fotosOnline={fotosOnline.filter((f) => normalizeBloco(f.bloco) === blocoAtual && normApto(f.apartamento) === normApto(aptoAtual))}
+          fotosOnline={fotosOnline.filter((f) => normalizeBloco(f.bloco) === normalizeBloco(blocoAtual) && normApto(f.apartamento) === normApto(aptoAtual))}
         />
         <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
       </>
