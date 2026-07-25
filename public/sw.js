@@ -1,19 +1,18 @@
-const CACHE_SHELL = 'vistoria-shell-v3';
+const CACHE_SHELL = 'vistoria-shell-v4';
 const CACHE_API = 'vistoria-api-v1';
 const CACHE_FOTOS = 'vistoria-fotos-v1';
-const APP_VERSION = '3.1.0';
+const APP_VERSION = '3.2.0';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  const KEEP = new Set([CACHE_SHELL, CACHE_API, CACHE_FOTOS]);
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys
-          .filter((k) => k.startsWith('vistoria-shell-v') && k !== CACHE_SHELL)
-          .map((k) => caches.delete(k))
+        keys.filter((k) => !KEEP.has(k)).map((k) => caches.delete(k))
       )
     ).then(() => self.clients.claim())
   );
@@ -56,17 +55,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Static assets: stale-while-revalidate (sempre busca versao nova em background)
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((resp) => {
-        if (resp.ok) {
-          const clone = resp.clone();
-          caches.open(CACHE_SHELL).then((cache) => cache.put(event.request, clone));
-        }
-        return resp;
-      });
+    caches.open(CACHE_SHELL).then(async (cache) => {
+      const cached = await cache.match(event.request);
+      const fetchPromise = fetch(event.request)
+        .then((resp) => {
+          if (resp.ok) cache.put(event.request, resp.clone());
+          return resp;
+        })
+        .catch(() => cached);
+      return cached || fetchPromise;
     })
   );
 });

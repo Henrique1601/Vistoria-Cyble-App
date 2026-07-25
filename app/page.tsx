@@ -197,9 +197,9 @@ export default function Home() {
         if (event.data?.type === 'versionCheck') {
           setVersaoAtual(event.data.currentVersion);
           setVersaoNova(event.data.latestVersion);
-          setUpdateDisponivel(event.data.hasUpdate);
           if (event.data.hasUpdate) {
-            addNotification({ tipo: 'update', titulo: 'Atualizacao disponivel', mensagem: `Nova versao ${event.data.latestVersion} disponivel.` });
+            navigator.serviceWorker?.controller?.postMessage('skipWaiting');
+            window.location.reload();
           }
         }
       });
