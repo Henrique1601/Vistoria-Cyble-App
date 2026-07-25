@@ -4,6 +4,7 @@ import './globals.css';
 import SwRegister from './sw-register';
 import { ThemeProvider } from '@/lib/theme';
 import { ToastProvider } from '@/components/Toast';
+import { ProgressToastProvider } from '@/components/ProgressToast';
 
 const geist = localFont({
   src: [
@@ -95,12 +96,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <ToastProvider>
-            <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:bg-accent focus:text-base focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold focus:outline-none">
-              Pular para conteudo
-            </a>
-            <SwRegister />
-            <div id="main-content" tabIndex={-1} />
-            {children}
+            <ProgressToastProvider>
+              <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:bg-accent focus:text-base focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold focus:outline-none">
+                Pular para conteudo
+              </a>
+              <SwRegister />
+              <div id="main-content" tabIndex={-1} />
+              {children}
+            </ProgressToastProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

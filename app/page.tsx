@@ -29,6 +29,7 @@ import {
   ChatText,
 } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
+import { useSyncProgress } from '@/components/ProgressToast';
 import BottomNav from '@/components/BottomNav';
 import { EmptyStateSearch, EmptyStatePhotos } from '@/components/EmptyState';
 import { SearchBar, SearchResults } from '@/components/SearchBar';
@@ -134,6 +135,7 @@ export default function Home() {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const { theme, toggle: toggleTheme } = useTheme();
   const { toast } = useToast();
+  const { showSyncProgress, updateSyncProgress, dismissSyncProgress } = useSyncProgress();
   const [activeNav, setActiveNav] = useState<'inicio' | 'camera' | 'galeria' | 'agenda' | 'exportar' | 'config'>('inicio');
   const [loadingSkeleton, setLoadingSkeleton] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -446,8 +448,15 @@ export default function Home() {
 
     logAudit('sync_started', `Sincronizando ${pendentesLista.length} foto(s)`);
 
+    // Show progress toast
+    const syncId = showSyncProgress(
+      pendentesLista.length === 1 ? 'Sincronizando foto...' : 'Sincronizando fotos...',
+      pendentesLista.length
+    );
+
     const CONCURRENCY = 3;
     let failed = false;
+    let uploadedCount = 0;
 
     async function uploadOne(foto: FotoRecord) {
       if (failed) return;
@@ -470,6 +479,8 @@ export default function Home() {
             timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
             categoria: foto.categoria, url: data.url, ok: true,
           });
+          uploadedCount++;
+          updateSyncProgress(syncId, uploadedCount);
         } else {
           failed = true;
           await registrarSync({
@@ -493,10 +504,12 @@ export default function Home() {
     }
     if (failed) {
       logAudit('sync_failed', `Falha ao sincronizar ${pendentesLista.length} foto(s)`);
+      updateSyncProgress(syncId, uploadedCount, { status: 'error', errorMessage: 'Falha ao enviar. Verifique sua conexao.' });
       const nId = addNotification({ tipo: 'error', titulo: 'Erro na sincronizacao', mensagem: 'Uma ou mais fotos falharam ao enviar. Verifique sua conexao.' });
       autoDismiss(nId, 8000);
     } else if (pendentesLista.length > 0) {
       logAudit('sync_completed', `${pendentesLista.length} foto(s) sincronizada(s)`);
+      updateSyncProgress(syncId, pendentesLista.length, { status: 'success' });
       const nId = addNotification({ tipo: 'sync', titulo: 'Sincronizado', mensagem: `${pendentesLista.length} foto(s) enviada(s) com sucesso.` });
       autoDismiss(nId, 5000);
     }
