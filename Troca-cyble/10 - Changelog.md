@@ -1,5 +1,100 @@
 # Changelog — Vistoria Cyble
 
+## v3.2.0 (25/07/2026)
+
+### Security Hardening
+- **`lib/auth.ts`** — NOVO: Server-side PIN auth middleware
+  - `requireAdmin(req)` — valida x-app-pin contra ADMIN_PIN ou APP_PIN
+  - `requireAnyPin(req)` — valida contra ADMIN_PIN, VIEWER_PIN ou APP_PIN
+  - `AuthRole` type: `'admin' | 'viewer' | 'none'`
+- **`lib/api.ts`** — NOVO: Client-side auth fetch helpers
+  - `getAuthHeaders()` — lê PIN do localStorage
+  - `authFetch(url, opts)` — fetch com headers de autenticação
+- **PIN dual:** `ADMIN_PIN` (acesso total) + `VIEWER_PIN` (read-only)
+- **Todas as API routes** agora requerem PIN auth:
+  - `/api/concluidos` — requireAnyPin
+  - `/api/building-config` — requireAnyPin (GET), requireAdmin (POST)
+  - `/api/agendamentos` — requireAnyPin (GET), requireAdmin (POST/PUT/DELETE)
+  - `/api/fotos` — requireAnyPin (GET), requireAdmin (DELETE/PATCH)
+  - `/api/fotos/bulk-delete` — requireAdmin
+  - `/api/backup` — requireAdmin
+  - `/api/share-report` — requireAnyPin
+  - `/api/upload` — requireAdmin (era: aceitava qualquer PIN)
+- **Client-side:** 20+ fetch calls atualizados para enviar `x-app-pin` header
+
+### ProgressToast
+- **`components/ProgressToast.tsx`** — NOVO: Toast premium com progress bar
+  - `ProgressToastProvider` — contexto para feedback de sync
+  - `useSyncProgress()` — hook: `showSyncProgress`, `updateSyncProgress`, `dismissSyncProgress`
+  - Estados: syncing (spinner + shimmer), success (green check), error (red warning)
+  - Animações: spring, shimmer overlay, auto-dismiss (3s success, 6s error)
+  - z-index [85] para layerar acima de toasts regulares [80]
+- **`app/layout.tsx`** — ProgressToastProvider adicionado ao lado de ToastProvider
+- **`app/page.tsx`** — `tentarSincronizar()` agora mostra ProgressToast durante sync
+
+### Bug Fixes
+- **Gallery → capture navigation fix:** `normalizeBloco()` aplicado em `aptosDoBloco`, `aptosOnlineDoBloco`, e `fotosOnline` filter
+  - Root cause: `grupo.bloco` (raw API "A") não encontrava `lista["Torre A"]`
+- **`lib/db.ts`** — `_syncConcluidosLock` flag para prevenir overwrites concorrentes
+- **`lib/db.ts`** — `syncConcluidosToAPI()` com lock + auth header
+- **`console.warn`** adicionado em catch blocks silenciosos (`api/upload`, `lib/db.ts`)
+
+### Acessibilidade
+- **BottomNav:** Touch targets de `py-1.5` → `py-2.5` + `min-h-[44px]` (WCAG 2.2 AA)
+- **CapturaScreen header:** Botões de `w-9 h-9`/`w-10 h-10` → `w-11 h-11` (44px)
+
+### Code Quality
+- Deletado `lib/timer.ts` (dead code, não importado em lugar nenhum)
+- `package.json` version sincronizado com `lib/version.ts` (3.2.0)
+
+---
+
+## v3.1.0 (24/07/2026)
+
+### Agenda/Scheduling System
+- **`app/api/agendamentos/route.ts`** — NOVO: CRUD completo de agendamentos
+  - GET (lista), POST (cria), PUT (atualiza), DELETE (exclui)
+  - Conecta ao Neon PostgreSQL tabela `agendamentos`
+- **`components/AgendaScreen.tsx`** — NOVO: Tela dedicada de agendamentos
+  - Lista com filtros (Todos/Pendentes/Concluídos/Atrasados)
+  - Toggle de conclusão com optimistic update
+  - Exclusão com confirmação
+- **`components/NovoAgendamentoModal.tsx`** — NOVO: Modal de novo agendamento
+  - Seleção de torre, apartamento, data, observação
+- **`components/QuickScheduleModal.tsx`** — NOVO: Agendamento rápido
+  - Acesso direto do dashboard para agendar sem sair da tela
+- **`components/EditarAgendamentoModal.tsx`** — NOVO: Edição de agendamento
+  - Alterar data, observação, status de conclusão
+- **`lib/db.ts`** — Store `agendamentos` adicionado ao IndexedDB (v3)
+
+### Importar Fotos
+- **`components/ImportarFotosModal.tsx`** — NOVO: Importação em lote de pastas
+  - Selecionar pasta → detecta automaticamente torre e apto
+  - Preview antes de importar
+  - Importação em batch com progresso
+
+### Busca com Status
+- **`components/SearchBar.tsx`** — Status dots nos resultados de busca
+  - Verde = concluído, amarelo = em andamento, vermelho = pendente
+
+### Drag-and-Drop
+- **`@dnd-kit/core` + `@dnd-kit/sortable`** instalados
+- Reordenação de fotos no CapturaScreen
+- Feedback visual durante drag
+
+### Haptic Feedback
+- **`lib/haptic.ts`** — Vibração em ações importantes
+  - Patterns: foto, sync, error, success
+
+### Empty States
+- **`components/EmptyState.tsx`** — Ilustrações quando não há dados
+  - Tipos: search, photos, agenda, backup
+
+### Watermark
+- Marca d'água nas fotos exportadas (PDF, ZIP)
+
+---
+
 ## v3.0.0 (18/07/2026)
 
 ### Modo Multi-Foto
@@ -46,21 +141,16 @@
 - **`statusDeTodosApartamentos()`** coleta notas de todas as fotos do apto
 - **Badge de nota** (ícone 📝 + contador) na lista de aptos e no TowerReportPanel
 - **Exportações** — coluna "Notas" adicionada ao CSV, PDF e XLSX
-- Input de nota já existia no CapturaScreen (via `atualizarNota()`)
 
 ### Exportação por Período
 - **`page.tsx`** — `statusExportacao` agora usa `statusFiltradoPorData` quando datas estão definidas
-- **`components/ExportSection.tsx`** — indicador visual de período ativo (ícone Calendar + range + contagem de aptos)
-- Filtro de período do dashboard agora afeta todas as exportações (CSV, PDF, XLSX, ZIP, HTML)
+- **`components/ExportSection.tsx`** — indicador visual de período ativo
 
 ### Mapa de Progresso (Heatmap)
 - **`components/ProgressHeatmap.tsx`** — NOVO componente
   - Grid colorido por torre: cada célula = 1 apto
   - Verde (concluído), amarelo (em andamento), vermelho (pendente)
-  - Dot indicador de nota (ponto accent no canto)
   - Clicável — navega direto para o apto
-  - Toggle na tela principal para mostrar/esconder
-  - Tooltip com status e notas
 
 ---
 
@@ -68,27 +158,13 @@
 
 ### Audit Log
 - **`lib/auditLog.ts`** — Estado reativo de auditoria via IndexedDB
-  - Actions rastreadas: `photo_captured`, `photo_deleted`, `photo_annotated`, `photo_shared`, `sync_started`, `sync_completed`, `sync_failed`, `export_csv`, `export_pdf`, `export_xlsx`, `export_zip`, `export_html`, `backup_created`, `backup_restored`, `settings_changed`, `login`, `logout`
-  - Auto-trim para máx. 500 registros
-  - Search e filtro por tipo de ação
 - **`components/AuditLogScreen.tsx`** — Tela dedicada
-  - Header com contadores e busca
-  - Filtros: Todas / Fotos / Sync / Exports / Backup / Config
-  - Lista com ícone colorido por ação, descrição, timestamp relativo
 
 ### Scan Mode Pro
 - **`lib/scanPro.ts`** — Feedback sonoro + vibração via Web Audio API
-  - Tons diferenciados por evento: foto capturada, foto sincronizada, categoria alterada, erro, completo, próximo apto
-  - Vibração patterns:拍 (photo), sync, error, success
-  - Toggles configuráveis: `audioEnabled`, `vibrationEnabled`
-  - Chamado em `CapturaScreen` ao salvar foto
 
 ### HTML Report Export
 - **`lib/export/html.ts`** — Gerador de relatório HTML standalone
-  - `gerarRelatorioHTML()` gera HTML com thumbs de fotos embutidos, stats por torre, progress bars, tema escuro
-  - `downloadHTML()` para download no browser
-  - Interface `HtmlFoto` para mapeamento simplificado de fotos
-- **`components/ExportSection.tsx`** — Novo botão HTML na seção de exportação
 
 ---
 
@@ -96,56 +172,25 @@
 
 ### Fila de Sync Avançada
 - **`lib/syncQueue.ts`** — Estado reativo da fila de sincronização
-  - Status por foto: `pending` → `uploading` → `success` | `failed`
-  - Auto-retry com backoff exponencial (1s → 2s → 4s → 8s → 30s, máx 5 tentativas)
-  - Upload 3 fotos em paralelo
-  - Cancelamento de sync em andamento
-  - Retry individual, retry todas as falhas, limpar enviadas
-  - Pub/sub para reatividade (`subscribe`, `getQueue`, `getQueueStats`)
 - **`components/SyncQueueScreen.tsx`** — Tela dedicada
-  - Header com contadores e status online/offline
-  - Barra de progresso geral animada
-  - Botão Sincronizar Tudo / Cancelar
-  - Filtros: Todos / Pendente / Enviando / Enviado / Falhou
-  - Lista de fotos com: categoria, apto/bloco, timestamp, status badge, tentativas
-  - Retry individual por foto, dispensar enviadas
-- **Acessibilidade:** SyncBanner (barra inferior) agora é clicável e abre a tela da fila
 
 ---
 
 ## v2.6.0 (18/07/2026)
 
 ### Painel de Relatório por Torre
-- **`components/TowerReportPanel.tsx`** — Painel lateral slide-in da direita
-  - Cards de resumo: concluídos/em andamento/pendentes
-  - Barra de progresso animada
-  - Filtros de status (Todos/Pendente/Em andamento/Concluído)
-  - Lista de aptos com badge de status, data última vistoria, contagem de fotos
-  - Clique no apto navega para CapturaScreen
-  - Backdrop blur, spring animation
-- **`BlocosGrid.onSelect`** agora abre o painel (não navega para lista)
+- **`components/TowerReportPanel.tsx`** — Painel lateral slide-in
 
 ### Tela de Configurações
 - **`app/configuracoes/ConfiguracoesClient.tsx`** — Tela dedicada
-  - **Aparência:** Toggle dark/light/auto
-  - **Captura:** Qualidade foto (50/75/90%), modo escaneamento padrão
-  - **Dados:** Dias alerta (+/-), itens por página (10/20/50/tudo), exportar/importar backup, limpar fotos locais, limpar tudo
-  - **Sobre:** Versão, barra de armazenamento, link GitHub
 - **`lib/settings.ts`** — Persistência de preferências em localStorage
-  - `get/setTema`, `get/setQualidadeFoto`, `get/setScanMode`, `get/setDiasAlerta`, `get/setItensPagina`
 
 ### Central de Notificações
-- **`components/NotificationCenter.tsx`** — Ícone sino com badge no header
-  - Dropdown com lista de notificações
-  - Tipos: sync, backup, update, storage, error, success
-  - Auto-dismiss timers, mark read, clear all
+- **`components/NotificationCenter.tsx`** — Ícone sino com badge
 - **`lib/notifications.ts`** — State management pub/sub
-  - `Notificacao` interface, `addNotification`, `subscribe`, `autoDismiss`
-- **Triggers:** sync sucesso/erro, update disponível, storage >85%
 
 ### BottomNav
 - Tab "Config" adicionada ao BottomNav
-- Navegação `view` expandida: `'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue'`
 
 ---
 
@@ -154,20 +199,18 @@
 ### Filtro por Data
 - Date pickers no dashboard (data início/fim)
 - Atalhos: Hoje, Ontem, Últimos 7 dias, Últimos 30 dias, Todos
-- `lib/utils.ts` — funções de data: `formatarDataParaInput`, `obterDataInicio`, `obterDataFim`, `estaNoIntervalo`
 
 ---
 
 ## v2.5.0 (17/07/2026)
 
 ### Anotações nas Fotos (PhotoEditor)
-- **`lib/drawing.ts`** — Canvas API: pen, arrow, text, `renderizarCanvas`, `obterPontoCanvas`, `paraBlob`
-- **`components/PhotoEditor.tsx`** — Editor fullscreen com canvas throttled via `requestAnimationFrame`
-- FotoRecord inclui `anotacoes?: AcaoDesenho[]`
+- **`lib/drawing.ts`** — Canvas API: pen, arrow, text
+- **`components/PhotoEditor.tsx`** — Editor fullscreen
 
 ### Backup Automático
-- **`lib/backup.ts`** — `fazerBackupManual`, `fazerBackupAutomatico`, `obterUltimoBackup`, `deveFazerBackup`
-- **`app/api/backup/route.ts`** — POST endpoint com rotação de 7 backups no Vercel Blob
+- **`lib/backup.ts`** — `fazerBackupManual`, `fazerBackupAutomatico`
+- **`app/api/backup/route.ts`** — POST endpoint
 
 ---
 
@@ -176,18 +219,11 @@
 ### Performance + Refactor
 - Upload 3 fotos em paralelo (era sequencial)
 - `statusDeTodosApartamentos` usa Map O(1) (era O(n²))
-- `backupDados` pula base64 de fotos sincronizadas
-- `restaurarDados` usa transação única IndexedDB
-- `normApto` consolidado em `lib/utils.ts`
-- Motion constants extraídas para `lib/motion.ts`
-- CSS custom properties para dark/light themes
-- `export.ts` (976 linhas) → `lib/export/{csv,pdf,xlsx,zip,utils,index}.ts`
+- `export.ts` → `lib/export/{csv,pdf,xlsx,zip,utils,index}.ts`
 
 ### Refactor do page.tsx
 - 6 componentes extraídos: SearchBar, FotosRecentes, AtrasadosSection, BlocosGrid, ExportSection, BottomLinks
-- ESLint + Prettier configurados
-- Singleton Neon connection (`lib/sql.ts`)
-- Upload validation (`ALLOWED_IMAGE_TYPES`, `MAX_FILE_SIZE_BYTES`)
+- CSS custom properties para dark/light themes
 
 ---
 
@@ -196,4 +232,4 @@
 - **Vercel:** `https://vistoria-cyble-app.vercel.app`
 - **Neon PostgreSQL:** projeto `withered-math-93982661`, DB `neondb`
 - **Vercel Blob store:** `vistoria-cyble-app-public`
-- **Env vars:** `APP_PIN`, `BLOB_READ_WRITE_TOKEN`, `DATABASE_URL`, `BLOB_STORE_ID`, `BLOB_WEBHOOK_PUBLIC_KEY`
+- **Env vars:** `ADMIN_PIN`, `VIEWER_PIN`, `APP_PIN`, `BLOB_READ_WRITE_TOKEN`, `DATABASE_URL`, `BLOB_STORE_ID`, `BLOB_WEBHOOK_PUBLIC_KEY`

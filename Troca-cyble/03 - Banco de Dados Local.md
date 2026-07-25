@@ -1,22 +1,26 @@
 # Banco de Dados Local (IndexedDB)
 
-## Nome do Banco: `vistoria-cyble` (versão 1)
+## Nome do Banco: `vistoria-cyble` (versão 3)
 
 ## Stores
 
 ### Store: `fotos`
 Armazena as fotos capturadas como blobs binários.
 
-| Campo       | Tipo     | Descrição                           |
-|-------------|----------|-------------------------------------|
-| `id`        | number   | Auto-increment key                  |
-| `bloco`     | string   | Nome do bloco (ex: "Bloco 1")       |
-| `apartamento` | string | Código do apartamento (ex: "101")   |
-| `categoria` | Categoria | `cyble_antes` / `cyble_depois` / `documento` |
-| `blob`      | Blob     | Dados binários da foto              |
-| `timestamp` | number   | `Date.now()` no momento da captura  |
-| `synced`    | boolean  | `true` quando enviada para o Blob   |
-| `uploadUrl` | string?  | URL retornada pelo Vercel Blob      |
+| Campo         | Tipo       | Descrição                                    |
+|---------------|------------|----------------------------------------------|
+| `id`          | number     | Auto-increment key                           |
+| `bloco`       | string     | Nome do bloco (ex: "Torre A")                |
+| `apartamento` | string     | Código do apartamento (ex: "107")            |
+| `categoria`   | Categoria  | `cyble_antes` / `cyble_depois` / `documento` |
+| `blob`        | Blob       | Dados binários da foto                       |
+| `timestamp`   | number     | `Date.now()` no momento da captura           |
+| `synced`      | boolean    | `true` quando enviada para o Blob            |
+| `uploadUrl`   | string?    | URL retornada pelo Vercel Blob               |
+| `anotacoes`   | AcaoDesenho[]? | Desenhos/textos sobre a foto             |
+| `gps`         | {lat, lng}? | Geolocalização da captura                   |
+| `nota`        | string?    | Nota textual sobre a foto                    |
+| `capturedAt`  | string?    | ISO timestamp da captura                     |
 
 ### Store: `config`
 Armazena configurações gerais como key-value.
@@ -25,6 +29,43 @@ Armazena configurações gerais como key-value.
 |-------------|------------------------------------|
 | `blocos`    | `Record<string, string[]>` — mapa de blocos → array de aptos |
 | `pin`       | `string` — PIN de acesso           |
+
+### Store: `syncLog`
+Registro de sincronizações realizadas.
+
+| Campo        | Tipo    | Descrição                    |
+|--------------|---------|------------------------------|
+| `id`         | number  | Auto-increment key           |
+| `timestamp`  | number  | Quando ocorreu               |
+| `bloco`      | string  | Bloco da foto                |
+| `apartamento`| string  | Apartamento da foto          |
+| `categoria`  | string  | Tipo da foto                 |
+| `url`        | string  | URL no Blob                  |
+| `ok`         | boolean | Se成功 ou falhou             |
+| `erro`       | string? | Mensagem de erro (se houve)  |
+
+### Store: `auditLog`
+Registro de ações do usuário.
+
+| Campo       | Tipo    | Descrição                          |
+|-------------|---------|------------------------------------|
+| `id`        | number  | Auto-increment key                 |
+| `action`    | string  | Tipo da ação (photo_captured, etc) |
+| `detail`    | string  | Descrição da ação                  |
+| `timestamp` | number  | Quando ocorreu                     |
+
+### Store: `agendamentos`
+Agendamentos de vistoria.
+
+| Campo         | Tipo    | Descrição                    |
+|---------------|---------|------------------------------|
+| `id`          | number  | Auto-increment key           |
+| `bloco`       | string  | Bloco                        |
+| `apartamento` | string  | Apartamento                  |
+| `data`        | string  | Data agendada (ISO)          |
+| `concluido`   | boolean | Se já foi feito              |
+| `observacao`  | string? | Observação                   |
+| `criado_em`   | string  | Data de criação              |
 
 ## Funções da API (`lib/db.ts`)
 
@@ -40,7 +81,31 @@ salvarFoto(rec)                   // Adiciona foto no IndexedDB
 fotosDoApartamento(bloco, apto)   // Fotos de um apartamento específico
 fotosPendentes()                  // Fotos não sincronizadas (synced=false)
 marcarSincronizada(id, url)       // Marca foto como sincronizada
+excluirFoto(id)                   // Remove foto do IndexedDB
+atualizarNota(id, nota)           // Atualiza nota da foto
+atualizarAnotacoes(id, anotacoes) // Atualiza anotações/desenhos
+
+// Status
 statusDeTodosApartamentos(lista)  // Status de progresso de todos os aptos
+                                  // Retorna Map O(1) para lookups rápidos
+
+// Concluidos (sincronizado com Neon)
+salvarConcluidos(lista)           // Salva locally
+carregarConcluidos()              // Carrega locally
+limparConcluidos()                // Limpa local
+syncConcluidosToAPI(pin)          // Sincroniza com Neon (com lock mutex)
+
+// Sync
+registrarSync(log)                // Registra sync no syncLog store
+ultimasFotos(n)                   // Últimas N fotos sincronizadas
+
+// Backup
+backupDados()                     // Exporta todo o IndexedDB
+restaurarDados(dados)             // Importa dados para o IndexedDB
+checarEspacoStorage()             // Verifica espaço disponível
+
+// Agendamentos
+criarAgendamento(dados)           // Cria novo agendamento
 ```
 
 ## Fluxo de Dados
@@ -52,9 +117,15 @@ Câmera → File → salvarFoto() → IndexedDB (blob local)
                         POST /api/upload → Vercel Blob (URL remota)
                                     ↓
                         marcarSincronizada(id, url)
+                        registrarSync(...)
+                                    ↓
+                        refreshStatus() → statusDeTodosApartamentos()
+                                    ↓
+                        syncConcluidosToAPI() → Neon PostgreSQL
 ```
 
 ## Limitações
 - Fotos ficam no IndexedDB até sincronizar (se celular for resetado, perde)
-- Sem backup local — confiamos que o sync vai acontecer
+- Backup/Restore disponível para mitigar perda
 - Cada dispositivo tem sua própria IndexedDB (sem progresso compartilhado)
+- Sync com Neon via `syncConcluidosToAPI()` (não bidirecional)

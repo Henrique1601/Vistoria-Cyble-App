@@ -7,7 +7,164 @@
 
 ---
 
-## Relatórios e Dados
+## v3.2.0 — Security + ProgressToast (25/07/2026)
+
+### ✅ Security Hardening
+- `lib/auth.ts` — Server-side PIN auth middleware (requireAdmin/requireAnyPin)
+- `lib/api.ts` — Client-side auth fetch helpers
+- PIN dual: ADMIN_PIN (full access) + VIEWER_PIN (read-only)
+- All API routes require PIN auth
+
+### ✅ ProgressToast
+- Animated progress bar with shimmer during sync
+- Spinner icon, percentage counter, "X de Y fotos"
+- Success (green check) / Error (red warning) states
+- Auto-dismiss: 3s success, 6s error
+
+### ✅ Gallery → Capture Navigation Fix
+- normalizeBloco() applied in 3 places to fix "A" vs "Torre A" lookup
+
+### ✅ Accessibility
+- BottomNav touch targets: 44px minimum (WCAG 2.2 AA)
+- CapturaScreen header buttons: 44px minimum
+
+---
+
+## v3.1.0 — Agenda + Import + Drag-and-Drop (24/07/2026)
+
+### ✅ Agenda/Scheduling System
+- CRUD completo de agendamentos (GET/POST/PUT/DELETE)
+- AgendaScreen, NovoAgendamentoModal, QuickScheduleModal, EditarAgendamentoModal
+- Neon PostgreSQL tabela `agendamentos`
+
+### ✅ Importar Fotos (Bulk Import)
+- ImportarFotosModal — importação em lote de pastas
+- Auto-detect torre e apto, preview antes de importar
+
+### ✅ Busca com Status Dots
+- SearchBar mostra status dots nos resultados
+
+### ✅ Drag-and-Drop
+- @dnd-kit/core + @dnd-kit/sortable para reordenação de fotos
+
+### ✅ Haptic Feedback
+- Vibração em ações importantes
+
+### ✅ Empty States
+- Ilustrações SVG quando não há dados
+
+### ✅ Watermark
+- Marca d'água nas fotos exportadas
+
+---
+
+## v3.0.0 — Multi-Foto + Share + Backup (18/07/2026)
+
+### ✅ Modo Multi-Foto
+- Botão "Manter na câmera" para captura contínua
+
+### ✅ Compartilhar Relatório
+- Link público via Vercel Blob (7 dias)
+
+### ✅ Backup Agendado
+- Backup periódico automático (30min/1h/6h/24h)
+
+### ✅ Timer de Escaneamento
+- Tempo por apto via timestamps das fotos
+
+---
+
+## v2.9.0 — Notas + Heatmap + Período (18/07/2026)
+
+### ✅ Notas por Foto
+### ✅ Exportação por Período
+### ✅ Mapa de Progresso (Heatmap)
+
+---
+
+## v2.8.0 — Audit + Scan Pro + HTML (18/07/2026)
+
+### ✅ Audit Log
+### ✅ Scan Mode Pro (sonoro + vibração)
+### ✅ HTML Report Export
+
+---
+
+## v2.7.0 — Sync Queue (18/07/2026)
+
+### ✅ Fila de Sync Avançada (retry/backoff)
+
+---
+
+## v2.6.0 — Tower Report + Settings + Notifications (18/07/2026)
+
+### ✅ Painel de Relatório por Torre
+### ✅ Tela de Configurações
+### ✅ Central de Notificações
+### ✅ BottomNav com 5 abas
+
+---
+
+## v2.5.x — Filtros + Anotações + Backup (17/07/2026)
+
+### ✅ Filtro por Data
+### ✅ Anotações nas Fotos (PhotoEditor)
+### ✅ Backup Automático
+
+---
+
+## v2.4.0 — Performance + Refactor (16/07/2026)
+
+### ✅ Upload paralelo (3 fotos)
+### ✅ Map O(1) para status
+### ✅ CSS custom properties dark/light
+### ✅ Refactor page.tsx (6 componentes extraídos)
+
+---
+
+## Backlog / Brainstorm
+
+> Itens abaixo ainda NÃO foram implementados. Estão organizados por categoria para referência futura.
+
+### 📱 Touch e Gestos
+- Long press para ações rápidas (menu contextual)
+- Swipe actions nos cards (abrir/marcar concluído)
+- Double tap para favoritar
+
+### 📊 Feedback Visual
+- BottomNav com badge animado (pulse)
+- Header colapsável ao scrollar
+- Confetti maior ao completar bloco inteiro
+- Status dots com glow animado
+
+### 🌙 Temas e Personalização
+- Temas personalizáveis (3-4 paletas)
+- Modo alto contraste (sol forte)
+- Modo uma mão
+- Widgets do celular
+
+### 🤖 Inteligência
+- Sugestão automática de aptos atrasados
+- Identificação de foto duplicada
+- Análise de qualidade da foto
+- Relatório automático diário
+
+### 👥 Multi-usuário
+- Login com email/senha
+- Progresso compartilhado (banco central)
+- Permissões por usuário
+- Histórico de ações por usuário
+
+### 🎮 Gamificação
+- Conquistas (primeiro apto, 100% torre, etc)
+- Ranking de progresso
+- Streak de dias trabalhados
+
+### 📊 Analytics
+- Dashboard de produtividade
+- Tempo médio por apto
+- Comparativo entre torres
+- Exportação de métricas
 
 ### 1. Exportar progresso em PDF
 - **Status:** ✅
