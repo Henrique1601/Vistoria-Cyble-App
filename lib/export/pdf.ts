@@ -1,5 +1,6 @@
 import type { ApartamentoStatus } from '../db';
 import { statusApto, shareFile, normApto, loadImage } from './utils';
+import { normalizeBloco } from '../utils';
 
 export interface PDFTemplate {
   titulo?: string;
@@ -290,7 +291,7 @@ export async function relatorioPDFComFotos(
   }
 
   // Paginas por apto com fotos
-  const aptosComFoto = status.filter((s) => s.qtdFotos > 0 || fotosOnline.some((f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento));
+  const aptosComFoto = status.filter((s) => s.qtdFotos > 0 || fotosOnline.some((f) => normalizeBloco(f.bloco) === normalizeBloco(s.bloco) && normApto(f.apartamento) === s.apartamento));
   let pageIdx = 1;
 
   const porTorre: Record<string, ApartamentoStatus[]> = {};
@@ -337,7 +338,7 @@ export async function relatorioPDFComFotos(
       y += 6;
 
       const onlineFotos = fotosOnline.filter(
-        (f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento
+        (f) => normalizeBloco(f.bloco) === normalizeBloco(s.bloco) && normApto(f.apartamento) === s.apartamento
       );
 
       for (const foto of onlineFotos) {

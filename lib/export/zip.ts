@@ -1,6 +1,7 @@
 import type { ApartamentoStatus } from '../db';
 import { fotosDoApartamento } from '../db';
 import { normApto, shareFile } from './utils';
+import { normalizeBloco } from '../utils';
 
 export async function exportarZIP(
   status: ApartamentoStatus[],
@@ -17,7 +18,7 @@ export async function exportarZIP(
     fotosOnline = data.fotos || [];
   } catch { /* offline */ }
 
-  const aptosComFoto = status.filter((s) => s.qtdFotos > 0 || fotosOnline.some((f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento));
+  const aptosComFoto = status.filter((s) => s.qtdFotos > 0 || fotosOnline.some((f) => normalizeBloco(f.bloco) === normalizeBloco(s.bloco) && normApto(f.apartamento) === s.apartamento));
   const total = aptosComFoto.length;
   let done = 0;
 
@@ -28,7 +29,7 @@ export async function exportarZIP(
     const folderName = `${s.bloco}/${s.apartamento}`;
 
     const onlineFotos = fotosOnline.filter(
-      (f) => f.bloco === s.bloco && normApto(f.apartamento) === s.apartamento
+      (f) => normalizeBloco(f.bloco) === normalizeBloco(s.bloco) && normApto(f.apartamento) === s.apartamento
     );
     for (const f of onlineFotos) {
       try {

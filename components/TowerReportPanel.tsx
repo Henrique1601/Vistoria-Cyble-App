@@ -14,7 +14,7 @@ import {
 } from '@phosphor-icons/react';
 import type { ApartamentoStatus } from '@/lib/db';
 import { statusApto } from '@/lib/export/utils';
-import { normApto } from '@/lib/utils';
+import { normApto, normalizeBloco } from '@/lib/utils';
 import { haptic } from '@/lib/haptic';
 import { spring } from '@/lib/motion';
 
@@ -82,7 +82,7 @@ export default function TowerReportPanel({
   const lastDates = useMemo(() => {
     const map = new Map<string, string>();
     fotosOnline
-      .filter((f) => f.bloco === tower)
+      .filter((f) => normalizeBloco(f.bloco) === tower)
       .forEach((f) => {
         const key = normApto(f.apartamento);
         if (!map.has(key) || f.data_leitura > map.get(key)!) {
@@ -93,7 +93,7 @@ export default function TowerReportPanel({
   }, [fotosOnline, tower]);
 
   const totalFotosOnline = useMemo(
-    () => fotosOnline.filter((f) => f.bloco === tower).length,
+    () => fotosOnline.filter((f) => normalizeBloco(f.bloco) === tower).length,
     [fotosOnline, tower]
   );
 

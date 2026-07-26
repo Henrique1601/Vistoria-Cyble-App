@@ -69,7 +69,7 @@ import {
   deveFazerBackup,
   formatarTimestampBackup,
 } from '@/lib/backup';
-import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto } from '@/lib/utils';
+import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto, normalizeBloco } from '@/lib/utils';
 import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo, getModoCompacto, setModoCompacto, getAltoContraste, setAltoContraste } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
 import { logAudit } from '@/lib/auditLog';
@@ -576,16 +576,6 @@ export default function Home() {
     }
     return map;
   }, [status]);
-
-  const normalizeBloco = useCallback((b: string) => {
-    const letter = b.replace(/^Torre\s+/i, '').trim();
-    if (letter.length === 1 && /^[A-H]$/i.test(letter)) {
-      const key = letter.toUpperCase();
-      const fromLista = lista ? Object.keys(lista).find((n) => n.toUpperCase() === `TORRE ${key}`) : null;
-      return fromLista || `Torre ${key}`;
-    }
-    return b;
-  }, [lista]);
 
   const fotosOnlineMap = useMemo(() => {
     const map = new Map<string, { count: number; aptos: Set<string> }>();
@@ -2083,22 +2073,23 @@ function EstatisticasPorTorre({ status, fotosOnline, lista }: { status: Apartame
   const dados = useMemo(() => {
     const porTorre: Record<string, { total: number; feitos: number; fotos: number }> = {};
 
-    // Index online photos by bloco
+    // Index online photos by bloco (normalized)
     const onlinePorBloco: Record<string, Set<string>> = {};
     fotosOnline.forEach((f) => {
-      if (!onlinePorBloco[f.bloco]) onlinePorBloco[f.bloco] = new Set();
-      onlinePorBloco[f.bloco].add(normApto(f.apartamento));
+      const key = normalizeBloco(f.bloco);
+      if (!onlinePorBloco[key]) onlinePorBloco[key] = new Set();
+      onlinePorBloco[key].add(normApto(f.apartamento));
     });
 
-    // Count online photos per apto
+    // Count online photos per apto (normalized)
     const fotosOnlineCount: Record<string, number> = {};
     fotosOnline.forEach((f) => {
-      const key = `${f.bloco}__${normApto(f.apartamento)}`;
+      const key = `${normalizeBloco(f.bloco)}__${normApto(f.apartamento)}`;
       fotosOnlineCount[key] = (fotosOnlineCount[key] || 0) + 1;
     });
 
     // Build merged status per torre using lista + online
-    const torres = new Set<string>([...Object.keys(lista || {}), ...fotosOnline.map((f) => f.bloco)]);
+    const torres = new Set<string>([...Object.keys(lista || {}), ...fotosOnline.map((f) => normalizeBloco(f.bloco))]);
     for (const torre of torres) {
       const codigosLocais = lista?.[torre] || [];
       const onlineAptos = onlinePorBloco[torre] || new Set();
@@ -2107,7 +2098,7 @@ function EstatisticasPorTorre({ status, fotosOnline, lista }: { status: Apartame
       porTorre[torre] = { total: 0, feitos: 0, fotos: 0 };
       for (const apto of allAptos) {
         porTorre[torre].total++;
-        const local = status.find((s) => s.bloco === torre && s.apartamento === apto);
+        const local = status.find((s) => normalizeBloco(s.bloco) === torre && s.apartamento === apto);
         const hasLocal = local && local.cybleAntesFeito && local.cybleDepoisFeito;
         const hasOnline = onlineAptos.has(normApto(apto));
         if (hasLocal || hasOnline) porTorre[torre].feitos++;

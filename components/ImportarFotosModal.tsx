@@ -13,6 +13,7 @@ import {
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { spring } from '@/lib/motion';
+import { normalizeBloco } from '@/lib/utils';
 import { salvarFoto, comprimirImagem, Categoria, carregarListaApartamentos } from '@/lib/db';
 import { normApto } from '@/lib/utils';
 
@@ -62,13 +63,13 @@ export default function ImportarFotosModal({ onFechar, onImportado }: ImportarFo
 
   function mapBloco(tower: string): string {
     const lista = listaRef.current;
-    if (!lista) return tower;
+    if (!lista) return normalizeBloco(tower);
     const tUpper = tower.toUpperCase();
     for (const blocoNome of Object.keys(lista)) {
       const match = blocoNome.match(/([A-H])$/i);
       if (match && match[1].toUpperCase() === tUpper) return blocoNome;
     }
-    return tower;
+    return normalizeBloco(tower);
   }
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -258,7 +259,7 @@ export default function ImportarFotosModal({ onFechar, onImportado }: ImportarFo
                       >
                         <option value="">-</option>
                         {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((t) => (
-                          <option key={t} value={t}>
+                          <option key={t} value={`Torre ${t}`}>
                             Torre {t}
                           </option>
                         ))}

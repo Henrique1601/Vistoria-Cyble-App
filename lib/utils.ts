@@ -56,3 +56,11 @@ export function obterPeriodoAtalho(atalho: 'hoje' | 'semana' | 'mes' | 'trimestr
 
   return { inicio, fim };
 }
+
+export function normalizeBloco(b: string): string {
+  const letter = b.replace(/^Torre\s+/i, '').trim();
+  if (letter.length === 1 && /^[A-H]$/i.test(letter)) {
+    return `Torre ${letter.toUpperCase()}`;
+  }
+  return b;
+}
