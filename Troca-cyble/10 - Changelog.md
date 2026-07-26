@@ -2,6 +2,39 @@
 
 ## v3.2.0 (25/07/2026)
 
+### UI Premium (10 novas features)
+- **Glassmorphism** — classes `.glass` e `.glass-subtle` com `backdrop-blur-xl` semitransparente
+  - BottomNav: `glass-subtle` (bg-raised/50 + blur)
+  - NotificationCenter: `glass` (bg-raised/60 + blur)
+  - SyncBanner: `backdrop-blur-md`
+- **Swipe actions** — gestos touch nos cards de apartamento
+  - Swipe right → "Concluir" (verde, CheckCircle)
+  - Swipe left → "Abrir" (accent, CaretRight)
+  - Threshold: 80px, visual feedback com transform translateX
+- **Skeleton premium** — shimmer animation + resolução cascata
+  - `.skeleton` — shimmer animation 1.8s com CSS vars `--skeleton-bg` e `--skeleton-shimmer`
+  - `.skeleton-resolve` — clip-path animation top-to-bottom 2s (ease-out)
+  - BlocosGrid e lista de aptos usam skeleton no loading
+- **Double-tap favoritar** — toque duplo (<300ms) alterna estrela amarela
+  - Persistido em `localStorage` como `vistoria_favoritos` JSON array
+  - Star icon (yellow) aparece ao lado do apto favoritado
+- **Alto contraste** — tema saturado para melhor visibilidade
+  - `html.high-contrast`: cores saturadas (#ff9944 accent, #44ffaa success, texto branco)
+  - Toggle no filter bar com ícone `CircleHalf`
+  - Setting persistido em `lib/settings.ts`
+- **Filtros sticky** — barra de busca e filtros fixam no topo ao rolar
+  - `sticky top-14 z-20` com backdrop-blur quando scrollY > 80
+- **Gradientes temáticos** — cards com gradiente sutil baseado no status
+  - Concluído: `from-success/5` | Em andamento: `from-warn/5`
+- **Ícones animados** — notificações e sync com animações
+  - sino: `animate-ring-bell` (oscilante 0.8s quando unread > 0)
+  - SyncBanner: `animate-[spin-slow_2s_linear_infinite]` no ArrowClockwise
+- **Exportar pendentes** — toggle "Pendentes" no export
+  - Filtra aptos concluídos antes de exportar
+  - Botão perigoso vermelho quando ativo
+- **Skeleton resolução** — animação cascata de loading premium
+  - `@keyframes resolve-down` com clip-path de 0% para 100% em 2s
+
 ### Security Hardening
 - **`lib/auth.ts`** — NOVO: Server-side PIN auth middleware
   - `requireAdmin(req)` — valida x-app-pin contra ADMIN_PIN ou APP_PIN

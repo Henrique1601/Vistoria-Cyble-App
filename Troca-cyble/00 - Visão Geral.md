@@ -21,7 +21,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **`VIEWER_PIN`** — Apenas visualizar fotos, sem editar nem excluir (read-only)
 - **`APP_PIN`** — Legado, funciona como admin para compatibilidade
 
-## Funcionalidades (67+ implementadas)
+## Funcionalidades (77+ implementadas)
 
 ### Core
 1. **PIN de acesso** — autenticação dual (Admin/Viewer) via variáveis de ambiente
@@ -49,11 +49,23 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 17. **Modo escaneamento** — captura rápida contínua com feedback visual e sonoro
 18. **Tema** — Dark/Light/Auto (alternância automática 18h–6h)
 19. **Onboarding** — tour guiado de 5 passos
-20. **Notificações** — sino com badge, auto-dismiss, pub/sub
+20. **Notificações** — sino com badge animado (ring bell), auto-dismiss, pub/sub
 21. **Configurações** — tema, qualidade foto, itens por página, dias alerta, backup agendado
 22. **Relatório por torre** — painel lateral com stats detalhadas
 23. **Mapa de Progresso (Heatmap)** — grid colorido por torre
 24. **Empty States** — ilustrações quando vazio
+
+### UI Premium (v3.2.0)
+40. **Glassmorphism** — BottomNav e painéis com `backdrop-blur` semitransparente
+41. **Swipe actions** — deslizar cards para Abrir (direita) ou Concluir (esquerda) com gestos touch
+42. **Skeleton premium** — shimmer animation + resolução cascata (top-to-bottom) via `clip-path`
+43. **Double-tap favoritar** — toque duplo (<300ms) alterna estrela amarela (persistido em localStorage)
+44. **Alto contraste** — tema saturado (laranja/verde/texto branco), toggle no filter bar
+45. **Filtros sticky** — barra de busca e filtros fixam no topo ao rolar
+46. **Gradientes temáticos** — cards com gradiente sutil baseado no status (concluído/em andamento)
+47. **Ícones animados** — sino oscilante com notificações, sync spinner no SyncBanner
+48. **Exportar pendentes** — toggle "Pendentes" no export exclui aptos concluídos
+49. **Skeleton resolução** — animação cascata de resolução para estados de loading premium
 
 ### Fotos
 25. **Modo Multi-Foto** — manter câmera aberta para captura contínua
