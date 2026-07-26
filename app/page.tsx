@@ -74,6 +74,9 @@ import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo,
 import { addNotification, autoDismiss } from '@/lib/notifications';
 import { logAudit } from '@/lib/auditLog';
 import { APP_VERSION } from '@/lib/version';
+import { startAutoBackup, stopAutoBackup } from '@/lib/autoBackup';
+import { exportarJSON } from '@/lib/export/json';
+import { OnboardingTour, shouldShowTutorial, markTutorialDone } from '@/components/OnboardingTour';
 import NotificationCenter from '@/components/NotificationCenter';
 import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
 import TowerReportPanel from '@/components/TowerReportPanel';
@@ -119,6 +122,7 @@ export default function Home() {
   const [aptoAtual, setAptoAtual] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [ordem, setOrdem] = useState<'original' | 'pendentes'>('original');
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'concluido' | 'em_andamento' | 'pendente'>('todos');
   const [pendentes, setPendentes] = useState(0);
   const [online, setOnline] = useState(true);
   const [fotosOnline, setFotosOnline] = useState<FotoOnline[]>([]);
@@ -165,6 +169,9 @@ export default function Home() {
   const [altoContraste, setAltoContrasteState] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [apenasPendentes, setApenasPendentes] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showPDFOptions, setShowPDFOptions] = useState(false);
+  const [pdfAccentColor, setPDFAccentColor] = useState<[number, number, number]>([232, 130, 58]);
   const pullStartY = useRef(0);
   const mainRef = useRef<HTMLDivElement>(null);
   const { menu: ctxMenu, openMenu: ctxOpen, closeMenu: ctxClose } = useContextMenu();
@@ -361,6 +368,21 @@ export default function Home() {
   useEffect(() => {
     document.documentElement.classList.toggle('high-contrast', altoContraste);
   }, [altoContraste]);
+
+  // Auto-backup
+  useEffect(() => {
+    if (getBackupAutomatico() && pin) {
+      startAutoBackup();
+    }
+    return () => stopAutoBackup();
+  }, [pin]);
+
+  // Tutorial
+  useEffect(() => {
+    if (pin && shouldShowTutorial()) {
+      setShowTutorial(true);
+    }
+  }, [pin]);
 
   // Carregar fotos recentes
   useEffect(() => {
@@ -639,19 +661,28 @@ export default function Home() {
       })
       .filter((s) => s.apartamento.toLowerCase().includes(busca.toLowerCase()));
 
+    // Status filter
+    const statusFiltered = result.filter((s) => {
+      if (statusFilter === 'todos') return true;
+      const st = s.cybleAntesFeito && s.cybleDepoisFeito ? 'concluido'
+        : (s.cybleAntesFeito || s.cybleDepoisFeito || s.qtdDocumentos > 0) ? 'em_andamento'
+        : 'pendente';
+      return st === statusFilter;
+    });
+
     if (ordem === 'pendentes') {
-      result.sort((a, b) => {
+      statusFiltered.sort((a, b) => {
         const aC = a.cybleAntesFeito && a.cybleDepoisFeito;
         const bC = b.cybleAntesFeito && b.cybleDepoisFeito;
         if (aC === bC) return 0;
         return aC ? 1 : -1;
       });
     } else {
-      result.sort((a, b) => a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true }));
+      statusFiltered.sort((a, b) => a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true }));
     }
 
-    return result;
-  }, [blocoAtual, lista, statusMap, busca, ordem, aptosOnlineDoBloco, fotosCountMap, normalizeBloco]);
+    return statusFiltered;
+  }, [blocoAtual, lista, statusMap, busca, ordem, statusFilter, aptosOnlineDoBloco, fotosCountMap, normalizeBloco]);
 
   // Paginacao
   const totalPaginas = itensPagina === 999 ? 1 : Math.ceil(aptosDoBloco.length / itensPagina);
@@ -958,8 +989,13 @@ export default function Home() {
                 }
                 const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
                 downloadHTML(html, `vistoria-cyble-${new Date().toISOString().slice(0, 10)}.html`);
-                logAudit('export_html', `Relatório HTML gerado (${s.length} aptos)`);
+                logAudit('export_html', `Relatorio HTML gerado (${s.length} aptos)`);
               }}
+              onExportJSON={(s) => { exportarJSON(s, 'Vistoria Cyble'); logAudit('export_json', `Export JSON gerado (${s.length} aptos)`); }}
+              showPDFOptions={showPDFOptions}
+              onTogglePDFOptions={() => setShowPDFOptions(!showPDFOptions)}
+              pdfAccentColor={pdfAccentColor}
+              onPDFColorChange={setPDFAccentColor}
               onShareReport={async (s) => {
                 setCompartilhando('report');
                 try {
@@ -1241,6 +1277,29 @@ export default function Home() {
               <FunnelSimple size={14} weight="bold" className="inline mr-1.5 -mt-0.5" />
               Pendentes primeiro
             </button>
+            <div className="flex gap-1 ml-auto">
+              {[
+                { key: 'todos', label: 'Todos' },
+                { key: 'pendente', label: 'Pendente' },
+                { key: 'em_andamento', label: 'Andamento' },
+                { key: 'concluido', label: 'Concluido' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => { haptic('light'); setStatusFilter(key as typeof statusFilter); }}
+                  className={`tactile-press px-2 py-1.5 rounded-full text-[10px] font-medium border transition-all ${
+                    statusFilter === key
+                      ? key === 'concluido' ? 'bg-success-dim border-success text-success'
+                        : key === 'em_andamento' ? 'bg-warn-dim border-warn text-warn'
+                        : key === 'pendente' ? 'bg-danger-dim border-danger text-danger'
+                        : 'bg-accent-dim border-accent text-accent'
+                      : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => { haptic('selection'); const next = !modoCompacto; setModoCompactoState(next); setModoCompacto(next); }}
               className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ml-auto ${
@@ -1403,6 +1462,11 @@ export default function Home() {
     <main className="min-h-[100dvh] bg-base" ref={mainRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <Confetti show={showConfetti} variant={confettiVariant} onComplete={() => setShowConfetti(false)} />
       <SuccessCheck show={showCheck} onComplete={() => setShowCheck(false)} />
+
+      {/* Onboarding Tour */}
+      {showTutorial && (
+        <OnboardingTour onComplete={() => { setShowTutorial(false); markTutorialDone(); }} />
+      )}
 
       {/* PWA Install Banner */}
       <AnimatePresence>

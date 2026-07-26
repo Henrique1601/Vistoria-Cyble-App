@@ -1,5 +1,39 @@
 # Changelog — Vistoria Cyble
 
+## v3.3.0 (25/07/2026)
+
+### Exportação Avançada
+- **PDF personalizado** — `lib/export/pdf.ts` reescrito com `PDFTemplate` interface
+  - Logo customizada, cores de destaque, rodapé, cards de stats, timestamp opcional
+  - `buildPDF()` aceita template como parâmetro
+  - `exportarPDF()`/`compartilharPDF()`/`relatorioPDFComFotos()` aceitam template opcional
+  - Seletor de 5 cores de destaque no painel de exportação
+- **Export JSON** — `lib/export/json.ts` NOVO
+  - `ExportJSON` interface: version, exportedAt, summary, apartments[]
+  - `exportarJSON()` gera backup estruturado
+  - `parseImportJSON()` para validação na importação
+- **Backup automático** — `lib/autoBackup.ts` NOVO
+  - `startAutoBackup()`/`stopAutoBackup()` timer baseado em `getBackupIntervalo()`
+  - Upload automático para `/api/backup` com auth header
+  - Auto-inicia na página quando `getBackupAutomatico()` está ativo
+
+### Experiência
+- **Filtro por status** — pills coloridos no filter bar
+  - Todos/Pendente (vermelho)/Andamento (amarelo)/Concluido (verde)
+  - `statusFilter` state filtra `aptosDoBloco` memo
+- **Tutorial interativo** — `components/OnboardingTour.tsx` NOVO
+  - 7 passos guiados: Bem-vindo, Torres, Captura, Filtros, Exportar, Config, Notificações
+  - `shouldShowTutorial()`/`markTutorialDone()` via localStorage `vistoria_tutorial_v2`
+  - Progress dots, skip/próximo, animações spring
+- **Notificações push** — `lib/notificationsPush.ts` NOVO
+  - `requestNotificationPermission()` com fallback in-app
+  - `showBrowserNotification()`, `notifySyncComplete()`, `notifyBackupComplete()`, `notifyPrazoApto()`
+- **Auto-retry falhas** — `SyncQueueScreen` auto-retry
+  - Retry automático de itens pendentes após 30s offline
+  - `retryItem()` + `syncAll()` sequencial
+
+---
+
 ## v3.2.0 (25/07/2026)
 
 ### UI Premium (10 novas features)

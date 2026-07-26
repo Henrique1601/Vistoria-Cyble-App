@@ -101,6 +101,21 @@ export default function SyncQueueScreen({ onVoltar }: { onVoltar: () => void }) 
     return () => clearInterval(interval);
   }, [syncing, refresh]);
 
+  // Auto-retry failed items after 30 seconds
+  useEffect(() => {
+    if (!pin || syncing) return;
+    const failedItems = items.filter((item) => item.status === 'failed');
+    if (failedItems.length === 0) return;
+
+    const timer = setTimeout(() => {
+      haptic('light');
+      failedItems.forEach((item) => retryItem(item, pin));
+      setTimeout(() => syncAll(pin, refresh), 1000);
+    }, 30_000);
+
+    return () => clearTimeout(timer);
+  }, [items, pin, syncing, refresh]);
+
   function handleSyncAll() {
     haptic('medium');
     if (syncing) {

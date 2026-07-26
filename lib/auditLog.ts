@@ -11,6 +11,7 @@ export type AuditAction =
   | 'export_xlsx'
   | 'export_zip'
   | 'export_html'
+  | 'export_json'
   | 'backup_created'
   | 'backup_restored'
   | 'settings_changed'
@@ -157,6 +158,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   export_xlsx: 'XLSX exportado',
   export_zip: 'ZIP exportado',
   export_html: 'HTML exportado',
+  export_json: 'JSON exportado',
   backup_created: 'Backup criado',
   backup_restored: 'Backup restaurado',
   settings_changed: 'Configuração alterada',
@@ -181,6 +183,7 @@ const ACTION_COLORS: Record<AuditAction, string> = {
   export_xlsx: 'text-content-secondary',
   export_zip: 'text-content-secondary',
   export_html: 'text-content-secondary',
+  export_json: 'text-content-secondary',
   backup_created: 'text-success',
   backup_restored: 'text-info',
   settings_changed: 'text-warn',

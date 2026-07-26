@@ -21,7 +21,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **`VIEWER_PIN`** — Apenas visualizar fotos, sem editar nem excluir (read-only)
 - **`APP_PIN`** — Legado, funciona como admin para compatibilidade
 
-## Funcionalidades (77+ implementadas)
+## Funcionalidades (84+ implementadas)
 
 ### Core
 1. **PIN de acesso** — autenticação dual (Admin/Viewer) via variáveis de ambiente
@@ -80,6 +80,17 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 32. **Quick Schedule** — agendamento rápido modal
 33. **Timer de Escaneamento** — tempo por apto via timestamps das fotos
 34. **Audit Log** — registro de todas as ações do usuário
+
+### Exportação Avançada (v3.3.0)
+50. **PDF personalizado** — logo, cores de destaque, rodapé customizável via `PDFTemplate`
+51. **Export JSON** — backup estruturado com version/summary/apartments
+52. **Backup automático** — timer configurável (30min/1h/6h/24h) via `startAutoBackup()`
+53. **Filtro por status** — pills (Todos/Pendente/Andamento/Concluido) com cores
+
+### Experiência (v3.3.0)
+54. **Tutorial interativo** — tour guiado de 7 passos com persistencia em localStorage
+55. **Notificações push** — `requestNotificationPermission()` + fallback in-app
+56. **Auto-retry falhas** — retry automático de itens pendentes após 30s offline
 
 ### Segurança
 35. **Security Hardening** — `lib/auth.ts` (server-side) + `lib/api.ts` (client-side)

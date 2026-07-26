@@ -1,6 +1,6 @@
 'use client';
 
-import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar, FunnelSimple } from '@phosphor-icons/react';
+import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar, FunnelSimple, FileJs, PaintBrush } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { spring } from '@/lib/motion';
 import type { ApartamentoStatus } from '@/lib/db';
@@ -27,10 +27,15 @@ interface ExportSectionProps {
   onExportZIP: (status: ApartamentoStatus[]) => void;
   onRelatorioPDFComFotos: (status: ApartamentoStatus[]) => void;
   onExportHTML: (status: ApartamentoStatus[]) => void;
+  onExportJSON: (status: ApartamentoStatus[]) => void;
   onShareReport: (status: ApartamentoStatus[]) => Promise<void>;
   compartilhando: 'pdf' | 'xlsx' | 'report' | null;
   exportandoZIP: boolean;
   exportandoFotos: boolean;
+  showPDFOptions?: boolean;
+  onTogglePDFOptions?: () => void;
+  pdfAccentColor?: [number, number, number];
+  onPDFColorChange?: (color: [number, number, number]) => void;
 }
 
 export function ExportSection({
@@ -54,10 +59,15 @@ export function ExportSection({
   onExportZIP,
   onRelatorioPDFComFotos,
   onExportHTML,
+  onExportJSON,
   onShareReport,
   compartilhando,
   exportandoZIP,
   exportandoFotos,
+  showPDFOptions = false,
+  onTogglePDFOptions,
+  pdfAccentColor = [232, 130, 58],
+  onPDFColorChange,
 }: ExportSectionProps) {
   const effectiveStatus = apenasPendentes
     ? statusExportacao.filter((s) => statusApto(s) !== 'Concluido')
@@ -230,6 +240,15 @@ export function ExportSection({
             HTML
           </button>
           <button
+            onClick={() => onExportJSON(effectiveStatus)}
+            disabled={disabled}
+            aria-label="Exportar dados em JSON"
+            className="tactile-press flex-1 flex items-center justify-center gap-2 bg-base-raised border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <FileJs size={16} weight="bold" aria-hidden="true" />
+            JSON
+          </button>
+          <button
             onClick={() => onShareReport(effectiveStatus)}
             disabled={disabled || compartilhando !== null}
             aria-label="Compartilhar relatorio como link"
@@ -239,6 +258,50 @@ export function ExportSection({
             {compartilhando === 'report' ? 'Gerando link\u2026' : 'Compartilhar Link'}
           </button>
         </div>
+
+        {/* PDF Customization */}
+        {onTogglePDFOptions && (
+          <div className="mt-2">
+            <button
+              onClick={onTogglePDFOptions}
+              className="tactile-press flex items-center gap-1.5 text-xs text-content-tertiary hover:text-content focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+            >
+              <PaintBrush size={12} weight="bold" aria-hidden="true" />
+              {showPDFOptions ? 'Ocultar opcoes PDF' : 'Personalizar PDF'}
+            </button>
+            {showPDFOptions && onPDFColorChange && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                className="mt-2 p-3 bg-base-raised border border-base-border rounded-xl space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-content-tertiary">Cor de destaque:</span>
+                  <div className="flex gap-1.5">
+                    {[
+                      { color: [232, 130, 58] as [number, number, number], label: 'Laranja' },
+                      { color: [52, 211, 153] as [number, number, number], label: 'Verde' },
+                      { color: [96, 165, 250] as [number, number, number], label: 'Azul' },
+                      { color: [244, 114, 182] as [number, number, number], label: 'Rosa' },
+                      { color: [167, 139, 250] as [number, number, number], label: 'Roxo' },
+                    ].map(({ color, label }) => (
+                      <button
+                        key={label}
+                        onClick={() => onPDFColorChange(color)}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          JSON.stringify(pdfAccentColor) === JSON.stringify(color) ? 'border-white scale-110' : 'border-base-border'
+                        }`}
+                        style={{ backgroundColor: `rgb(${color.join(',')})` }}
+                        title={label}
+                        aria-label={`Cor ${label}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );
