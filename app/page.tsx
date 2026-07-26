@@ -69,7 +69,7 @@ import {
   formatarTimestampBackup,
 } from '@/lib/backup';
 import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto } from '@/lib/utils';
-import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo } from '@/lib/settings';
+import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo, getModoCompacto, setModoCompacto } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
 import { logAudit } from '@/lib/auditLog';
 import { APP_VERSION } from '@/lib/version';
@@ -82,6 +82,8 @@ import AgendaScreen from '@/components/AgendaScreen';
 import NovoAgendamentoModal from '@/components/NovoAgendamentoModal';
 import QuickScheduleModal from '@/components/QuickScheduleModal';
 import EditarAgendamentoModal from '@/components/EditarAgendamentoModal';
+import { useContextMenu } from '@/components/ContextMenu';
+import AptoCard from '@/components/AptoCard';
 
 type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap' | 'agenda';
 
@@ -139,6 +141,7 @@ export default function Home() {
   const [activeNav, setActiveNav] = useState<'inicio' | 'camera' | 'galeria' | 'agenda' | 'exportar' | 'config'>('inicio');
   const [loadingSkeleton, setLoadingSkeleton] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiVariant, setConfettiVariant] = useState<'normal' | 'block' | 'tower' | 'mega'>('normal');
   const [showCheck, setShowCheck] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -157,8 +160,11 @@ export default function Home() {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [espacoStorage, setEspacoStorage] = useState<{ usado: number; total: number; pct: number } | null>(null);
   const [ultimoBackup, setUltimoBackup] = useState<string>('Nunca');
+  const [modoCompacto, setModoCompactoState] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const pullStartY = useRef(0);
   const mainRef = useRef<HTMLDivElement>(null);
+  const { menu: ctxMenu, openMenu: ctxOpen, closeMenu: ctxClose } = useContextMenu();
 
   useEffect(() => {
     const saved = localStorage.getItem('vistoria_pin');
@@ -168,6 +174,7 @@ export default function Home() {
     setPinChecked(true);
     setDiasAlerta(getDiasAlerta());
     setItensPagina(getItensPagina() as 10 | 20 | 50 | 999);
+    setModoCompactoState(getModoCompacto());
   }, []);
 
   const lastActivityRef = useRef(Date.now());
@@ -334,6 +341,17 @@ export default function Home() {
     return () => document.removeEventListener('visibilitychange', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
+
+  // Collapsible header on scroll
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handler = () => {
+      setHeaderCollapsed(el.scrollTop > 120);
+    };
+    el.addEventListener('scroll', handler, { passive: true });
+    return () => el.removeEventListener('scroll', handler);
+  }, [view === 'blocos' && !blocoAtual]);
 
   // Carregar fotos recentes
   useEffect(() => {
@@ -1083,7 +1101,24 @@ export default function Home() {
           bloco={blocoAtual}
           apartamento={aptoAtual}
           onVoltar={() => { setView('apartamentos'); refreshStatus(); setModoEscaneamento(false); }}
-          onFotoSalva={() => { refreshStatus(); tentarSincronizar(); ultimasFotos(10).then(setFotosRecentes); setShowConfetti(true); setShowCheck(true); }}
+          onFotoSalva={() => {
+            refreshStatus();
+            tentarSincronizar();
+            ultimasFotos(10).then(setFotosRecentes);
+            // Detect tower completion for bigger confetti
+            const aptosDoBlocoAtual = status.filter((s) => s.bloco === blocoAtual);
+            const totalAptosBloco = aptosDoBlocoAtual.length || (lista?.[blocoAtual || '']?.length ?? 0);
+            const completosBloco = aptosDoBlocoAtual.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito).length + 1;
+            if (totalAptosBloco > 0 && completosBloco >= totalAptosBloco) {
+              setConfettiVariant('tower');
+            } else if (completosBloco > 0 && completosBloco % 10 === 0) {
+              setConfettiVariant('block');
+            } else {
+              setConfettiVariant('normal');
+            }
+            setShowConfetti(true);
+            setShowCheck(true);
+          }}
           modoEscaneamento={modoEscaneamento}
           proximoApto={modoEscaneamento && proximoApto ? proximoApto.apartamento : undefined}
           onProximoApto={modoEscaneamento && proximoApto ? () => {
@@ -1100,6 +1135,34 @@ export default function Home() {
   if (view === 'apartamentos' && blocoAtual) {
     return (
       <main className="min-h-[100dvh] bg-base">
+        {/* Context Menu */}
+        {ctxMenu.isOpen && (
+          <div className="fixed inset-0 z-[70]" onClick={ctxClose}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="absolute bg-base-raised border border-base-border rounded-2xl shadow-2xl overflow-hidden min-w-[180px] py-1"
+              style={{ left: ctxMenu.position.x, top: ctxMenu.position.y }}
+            >
+              {ctxMenu.items.map((item, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); item.onClick(); ctxClose(); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                    item.variant === 'danger'
+                      ? 'text-danger hover:bg-danger/10'
+                      : 'text-content hover:bg-base-overlay/50'
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              ))}
+            </motion.div>
+          </div>
+        )}
+
         <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
           <motion.div
             initial={{ opacity: 0, x: -12 }}
@@ -1115,8 +1178,8 @@ export default function Home() {
               <ArrowLeft size={18} weight="bold" aria-hidden="true" />
             </button>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight">{blocoAtual}</h1>
-              <p className="text-xs text-content-tertiary mt-0.5">
+              <h1 className={`font-semibold tracking-tight transition-all duration-300 ${headerCollapsed ? 'text-base' : 'text-xl'}`}>{blocoAtual}</h1>
+              <p className={`text-content-tertiary mt-0.5 transition-all duration-300 ${headerCollapsed ? 'text-[10px] mt-0 max-h-0 overflow-hidden opacity-0' : 'text-xs mt-0.5 max-h-8 opacity-100'}`}>
                 {aptosDoBloco.filter((a) => a.cybleAntesFeito && a.cybleDepoisFeito).length}/{aptosDoBloco.length} concluidos
               </p>
             </div>
@@ -1166,6 +1229,17 @@ export default function Home() {
               <FunnelSimple size={14} weight="bold" className="inline mr-1.5 -mt-0.5" />
               Pendentes primeiro
             </button>
+            <button
+              onClick={() => { haptic('selection'); const next = !modoCompacto; setModoCompactoState(next); setModoCompacto(next); }}
+              className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ml-auto ${
+                modoCompacto
+                  ? 'bg-accent-dim border-accent text-accent'
+                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+              }`}
+              title={modoCompacto ? 'Modo normal' : 'Modo compacto'}
+            >
+              <ArrowDown size={14} weight="bold" className={`inline transition-transform ${modoCompacto ? 'rotate-180' : ''}`} />
+            </button>
           </motion.div>
 
           <motion.div
@@ -1185,47 +1259,16 @@ export default function Home() {
               </div>
             )}
             {aptosPaginados.map((s) => (
-              <motion.div
+              <AptoCard
                 key={s.apartamento}
-                variants={item}
-                role="button"
-                tabIndex={0}
-                onClick={() => { haptic('light'); setAptoAtual(s.apartamento); setView('captura'); setModoEscaneamento(modoEscaneamento); }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); haptic('light'); setAptoAtual(s.apartamento); setView('captura'); setModoEscaneamento(modoEscaneamento); } }}
-                className="tactile-press flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-base-overlay/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm font-medium">{s.apartamento}</span>
-                  {s.qtdFotos > 0 && (
-                    <span className="text-[11px] font-mono text-content-tertiary bg-base-overlay px-2 py-0.5 rounded-md">
-                      {s.qtdFotos} foto{s.qtdFotos > 1 ? 's' : ''}
-                    </span>
-                  )}
-                  {aptosOnlineDoBloco.has(normApto(s.apartamento)) && s.qtdFotos === 0 && (
-                    <span className="text-[11px] font-mono text-success bg-success/10 px-2 py-0.5 rounded-md">
-                      online
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <StatusDot done={s.cybleAntesFeito} partial={emAndamento(s)} label="Antes" />
-                  <StatusDot done={s.cybleDepoisFeito} partial={emAndamento(s)} label="Depois" />
-                  <StatusDot done={s.qtdDocumentos > 0} label="Doc" />
-                  {s.notas && s.notas.length > 0 && (
-                    <span className="flex items-center gap-0.5 text-[9px] text-accent" title={s.notas.join(' | ')}>
-                      <ChatText size={10} weight="fill" />
-                      {s.notas.length}
-                    </span>
-                  )}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); haptic('light'); setAgendamentoRapido({ bloco: blocoAtual!, apto: s.apartamento }); }}
-                    className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors ml-1"
-                    aria-label={`Agendar ${s.apartamento}`}
-                  >
-                    <CalendarDots size={14} weight="bold" />
-                  </button>
-                </div>
-              </motion.div>
+                s={s}
+                aptosOnlineDoBloco={aptosOnlineDoBloco}
+                modoCompacto={modoCompacto}
+                modoEscaneamento={modoEscaneamento}
+                blocoAtual={blocoAtual}
+                onAbrir={() => { setAptoAtual(s.apartamento); setView('captura'); }}
+                onAgendar={() => setAgendamentoRapido({ bloco: blocoAtual!, apto: s.apartamento })}
+              />
             ))}
           </motion.div>
 
@@ -1320,7 +1363,7 @@ export default function Home() {
 
   return (
     <main className="min-h-[100dvh] bg-base" ref={mainRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-      <Confetti show={showConfetti} onComplete={() => setShowConfetti(false)} />
+      <Confetti show={showConfetti} variant={confettiVariant} onComplete={() => setShowConfetti(false)} />
       <SuccessCheck show={showCheck} onComplete={() => setShowCheck(false)} />
 
       {/* PWA Install Banner */}
@@ -1473,8 +1516,8 @@ export default function Home() {
           className="mb-8"
         >
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_0_4px_rgba(232,130,58,0.2)]" />
-            <h1 className="text-2xl font-bold tracking-tight">Vistoria Cyble</h1>
+            <div className={`rounded-full bg-accent transition-all duration-300 ${headerCollapsed ? 'w-1.5 h-1.5 shadow-[0_0_0_2px_rgba(232,130,58,0.2)]' : 'w-2 h-2 shadow-[0_0_0_4px_rgba(232,130,58,0.2)]'}`} />
+            <h1 className={`tracking-tight transition-all duration-300 ${headerCollapsed ? 'text-lg font-medium' : 'text-2xl font-bold'}`}>Vistoria Cyble</h1>
             <div className="ml-auto flex items-center gap-2">
                <button
                 onClick={() => { haptic('selection'); toggleTheme(); }}
@@ -1500,7 +1543,7 @@ export default function Home() {
               <NotificationCenter />
             </div>
           </div>
-          <p className="text-sm text-content-tertiary ml-5">
+          <p className={`text-content-tertiary ml-5 transition-all duration-300 ${headerCollapsed ? 'text-[10px] mt-0 max-h-0 overflow-hidden opacity-0' : 'text-sm mt-1 max-h-8 opacity-100'}`}>
             {modoEscaneamento ? 'Modo escaneamento: toque no apto e tire a foto direto' : 'Selecione o bloco para comecar.'}
           </p>
         </motion.div>
@@ -1590,6 +1633,7 @@ export default function Home() {
       </div>
       <BottomNav
         active={(view === 'blocos' && !blocoAtual) ? 'inicio' : activeNav}
+        badges={pendentes > 0 ? { camera: pendentes } : undefined}
         onNavigate={(v) => {
           setActiveNav(v as typeof activeNav);
           haptic('selection');

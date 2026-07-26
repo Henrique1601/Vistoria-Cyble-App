@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   HouseLine,
   Camera,
@@ -14,6 +14,7 @@ import { haptic } from '@/lib/haptic';
 interface BottomNavProps {
   active: 'inicio' | 'camera' | 'galeria' | 'agenda' | 'exportar' | 'config';
   onNavigate: (view: string) => void;
+  badges?: Partial<Record<string, number>>;
 }
 
 const items = [
@@ -24,12 +25,14 @@ const items = [
   { key: 'config', label: 'Config', icon: GearSix },
 ] as const;
 
-export default function BottomNav({ active, onNavigate }: BottomNavProps) {
+export default function BottomNav({ active, onNavigate, badges }: BottomNavProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[55] bg-base-raised/95 backdrop-blur-lg border-t border-base-border" role="navigation" aria-label="Navegacao principal">
       <div className="max-w-2xl mx-auto flex items-center justify-around py-2 px-2">
         {items.map((item) => {
           const isActive = active === item.key;
+          const badgeCount = badges?.[item.key] ?? 0;
+          const showBadge = badgeCount > 0;
           return (
             <button
               key={item.key}
@@ -53,7 +56,34 @@ export default function BottomNav({ active, onNavigate }: BottomNavProps) {
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
-              <item.icon size={20} weight={isActive ? 'duotone' : 'regular'} />
+              <div className="relative">
+                <item.icon size={20} weight={isActive ? 'duotone' : 'regular'} />
+                <AnimatePresence>
+                  {showBadge && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute -top-1.5 -right-2 min-w-[16px] h-4 flex items-center justify-center px-1 text-[9px] font-bold text-white bg-danger rounded-full"
+                    >
+                      <motion.span
+                        key={badgeCount}
+                        initial={{ y: -8, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="tabular-nums"
+                      >
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </motion.span>
+                      <motion.span
+                        className="absolute inset-0 rounded-full bg-danger"
+                        animate={{ scale: [1, 1.4, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                        style={{ opacity: 0.4, zIndex: -1 }}
+                      />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
               <span className="text-[10px] font-medium leading-none">{item.label}</span>
             </button>
           );

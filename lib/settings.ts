@@ -6,6 +6,7 @@ const DEFAULTS = {
   itensPagina: 20,
   backupAutomatico: true,
   backupIntervalo: 30 as 30 | 60 | 360 | 1440,
+  modoCompacto: false,
 };
 
 function get<T>(key: string, fallback: T): T {
@@ -79,4 +80,12 @@ export function getBackupIntervalo() {
 
 export function setBackupIntervalo(n: 30 | 60 | 360 | 1440) {
   set('backup_intervalo', String(n));
+}
+
+export function getModoCompacto() {
+  return get('modo_compacto', String(DEFAULTS.modoCompacto)) === 'true';
+}
+
+export function setModoCompacto(v: boolean) {
+  set('modo_compacto', String(v));
 }

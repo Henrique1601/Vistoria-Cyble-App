@@ -14,28 +14,43 @@ interface Particle {
 }
 
 const COLORS = ['#e8823a', '#34d399', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa'];
+const GOLD_COLORS = ['#fbbf24', '#f59e0b', '#d97706', '#b45309', '#e8823a', '#34d399'];
 
-export function Confetti({ show, onComplete }: { show: boolean; onComplete?: () => void }) {
+interface ConfettiProps {
+  show: boolean;
+  onComplete?: () => void;
+  variant?: 'normal' | 'block' | 'tower' | 'mega';
+}
+
+export function Confetti({ show, onComplete, variant = 'normal' }: ConfettiProps) {
   const [particles, setParticles] = useState<Particle[]>([]);
 
   useEffect(() => {
     if (!show) { setParticles([]); return; }
-    const p: Particle[] = Array.from({ length: 24 }, (_, i) => ({
+
+    const config = {
+      normal: { count: 24, colors: COLORS, duration: 1500 },
+      block: { count: 60, colors: GOLD_COLORS, duration: 2500 },
+      tower: { count: 48, colors: COLORS, duration: 2000 },
+      mega: { count: 100, colors: [...GOLD_COLORS, ...COLORS], duration: 3000 },
+    }[variant];
+
+    const p: Particle[] = Array.from({ length: config.count }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: -10,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      size: 4 + Math.random() * 6,
+      color: config.colors[Math.floor(Math.random() * config.colors.length)],
+      size: variant === 'mega' ? 6 + Math.random() * 10 : 4 + Math.random() * 6,
       rotation: Math.random() * 360,
-      delay: Math.random() * 0.3,
+      delay: Math.random() * 0.5,
     }));
     setParticles(p);
     const timer = setTimeout(() => {
       setParticles([]);
       onComplete?.();
-    }, 1500);
+    }, config.duration);
     return () => clearTimeout(timer);
-  }, [show, onComplete]);
+  }, [show, onComplete, variant]);
 
   return (
     <AnimatePresence>
@@ -47,11 +62,11 @@ export function Confetti({ show, onComplete }: { show: boolean; onComplete?: () 
               initial={{ x: `${p.x}vw`, y: '20vh', rotate: 0, opacity: 1 }}
               animate={{
                 y: '110vh',
-                x: `${p.x + (Math.random() - 0.5) * 20}vw`,
+                x: `${p.x + (Math.random() - 0.5) * 30}vw`,
                 rotate: p.rotation + 720,
                 opacity: [1, 1, 0],
               }}
-              transition={{ duration: 1.2 + Math.random() * 0.5, delay: p.delay, ease: 'easeOut' }}
+              transition={{ duration: 1.2 + Math.random() * 0.8, delay: p.delay, ease: 'easeOut' }}
               style={{
                 position: 'absolute',
                 width: p.size,
