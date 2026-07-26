@@ -66,6 +66,30 @@ html.light {
   --skeleton-shimmer: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 40%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.4) 60%, transparent 100%);
 }
 
+/* ── High contrast theme (sol forte) ── */
+html.high-contrast {
+  --color-base: #000000;
+  --color-base-raised: #0a0a0a;
+  --color-base-overlay: #141414;
+  --color-base-border: #444444;
+  --color-base-border-subtle: #333333;
+  --color-content: #ffffff;
+  --color-content-secondary: #cccccc;
+  --color-content-tertiary: #999999;
+  --color-accent: #ff9944;
+  --color-accent-dim: #5c3a1a;
+  --color-accent-hover: #ffaa55;
+  --color-success: #44ffaa;
+  --color-success-dim: #064e3b;
+  --color-danger: #ff5555;
+  --color-danger-dim: #7f1d1d;
+  --color-warn: #ffcc44;
+  --shadow-diffusion-color: rgba(255,255,255,0.1);
+  --shadow-glow-accent: rgba(255,153,68,0.25);
+}
+
+html.high-contrast .skeleton { --skeleton-bg: #1a1a1a; --skeleton-shimmer: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.08) 60%, transparent 100%); }
+
 body {
   padding: 0;
   margin: 0;
@@ -133,6 +157,16 @@ html.light ::selection {
 }
 
 @layer utilities {
+  .glass {
+    background: rgba(var(--color-base-raised-rgb, 20, 25, 32), 0.65);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  }
+  .glass-subtle {
+    background: rgba(var(--color-base-overlay-rgb, 26, 32, 41), 0.5);
+    backdrop-filter: blur(12px) saturate(1.1);
+    -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  }
   .skeleton {
     position: relative;
     overflow: hidden;
@@ -146,6 +180,19 @@ html.light ::selection {
     background: var(--skeleton-shimmer);
     animation: shimmer 1.8s ease-in-out infinite;
   }
+  .skeleton-resolve {
+    position: relative;
+    overflow: hidden;
+    background: var(--skeleton-bg);
+    border-radius: 0.5rem;
+  }
+  .skeleton-resolve::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 0%, var(--color-base) 100%);
+    animation: resolve-down 2s ease-out forwards;
+  }
 }
 
 @keyframes shimmer {
@@ -153,7 +200,40 @@ html.light ::selection {
   100% { transform: translateX(100%); }
 }
 
+@keyframes resolve-down {
+  0% { clip-path: inset(0 0 100% 0); opacity: 0.8; }
+  50% { clip-path: inset(0 0 50% 0); opacity: 0.5; }
+  100% { clip-path: inset(0 0 0% 0); opacity: 0; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ring-bell {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+  75% { transform: rotate(2deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 1.5s linear infinite;
+}
+
+.animate-ring-bell {
+  animation: ring-bell 0.8s ease-in-out;
+}
+
 /* Override status dot shadows for light theme */
 html.light .shadow-\[0_0_6px_rgba\(52\,211\,153\,0\.4\)\] { box-shadow: 0 0 6px rgba(16,185,129,0.3); }
 html.light .shadow-\[0_0_6px_rgba\(251\,191\,36\,0\.3\)\] { box-shadow: 0 0 6px rgba(245,158,11,0.25); }
 html.light .shadow-\[0_0_0_4px_rgba\(232\,130\,58\,0\.2\)\] { box-shadow: 0 0 0 4px rgba(232,130,58,0.15); }
+
+/* High contrast overrides */
+html.high-contrast .shadow-\[0_0_6px_rgba\(52\,211\,153\,0\.4\)\] { box-shadow: 0 0 8px rgba(68,255,170,0.5); }
+html.high-contrast .shadow-\[0_0_6px_rgba\(251\,191\,36\,0\.3\)\] { box-shadow: 0 0 8px rgba(255,204,68,0.4); }
+html.high-contrast .shadow-\[0_0_0_4px_rgba\(232\,130\,58\,0\.2\)\] { box-shadow: 0 0 0 4px rgba(255,153,68,0.3); }

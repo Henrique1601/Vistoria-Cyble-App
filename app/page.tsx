@@ -27,6 +27,7 @@ import {
   ArrowDown,
   ArrowClockwise,
   ChatText,
+  CircleHalf,
 } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import { useSyncProgress } from '@/components/ProgressToast';
@@ -69,7 +70,7 @@ import {
   formatarTimestampBackup,
 } from '@/lib/backup';
 import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto } from '@/lib/utils';
-import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo, getModoCompacto, setModoCompacto } from '@/lib/settings';
+import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo, getModoCompacto, setModoCompacto, getAltoContraste, setAltoContraste } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
 import { logAudit } from '@/lib/auditLog';
 import { APP_VERSION } from '@/lib/version';
@@ -161,7 +162,9 @@ export default function Home() {
   const [espacoStorage, setEspacoStorage] = useState<{ usado: number; total: number; pct: number } | null>(null);
   const [ultimoBackup, setUltimoBackup] = useState<string>('Nunca');
   const [modoCompacto, setModoCompactoState] = useState(false);
+  const [altoContraste, setAltoContrasteState] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [apenasPendentes, setApenasPendentes] = useState(false);
   const pullStartY = useRef(0);
   const mainRef = useRef<HTMLDivElement>(null);
   const { menu: ctxMenu, openMenu: ctxOpen, closeMenu: ctxClose } = useContextMenu();
@@ -175,6 +178,7 @@ export default function Home() {
     setDiasAlerta(getDiasAlerta());
     setItensPagina(getItensPagina() as 10 | 20 | 50 | 999);
     setModoCompactoState(getModoCompacto());
+    setAltoContrasteState(getAltoContraste());
   }, []);
 
   const lastActivityRef = useRef(Date.now());
@@ -352,6 +356,11 @@ export default function Home() {
     el.addEventListener('scroll', handler, { passive: true });
     return () => el.removeEventListener('scroll', handler);
   }, [view === 'blocos' && !blocoAtual]);
+
+  // High contrast mode
+  useEffect(() => {
+    document.documentElement.classList.toggle('high-contrast', altoContraste);
+  }, [altoContraste]);
 
   // Carregar fotos recentes
   useEffect(() => {
@@ -930,6 +939,8 @@ export default function Home() {
               onToggleEstatisticasTorre={() => setShowEstatisticasTorre(!showEstatisticasTorre)}
               dataInicio={dataInicio}
               dataFim={dataFiltro}
+              apenasPendentes={apenasPendentes}
+              onToggleApenasPendentes={() => setApenasPendentes(!apenasPendentes)}
               onExportCSV={exportarCSV}
               onExportPDF={(s) => exportarPDF(s, 'Vistoria Cyble')}
               onExportXLSX={(s) => exportarXLSX(s, 'Vistoria Cyble')}
@@ -1185,12 +1196,13 @@ export default function Home() {
             </div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...spring, delay: 0.1 }}
-            className="relative mb-4"
-          >
+          <div className={`sticky top-14 z-20 -mx-4 px-4 py-2 backdrop-blur-xl transition-colors ${scrollY > 80 ? 'bg-base/80 border-b border-base-border' : ''}`}>
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...spring, delay: 0.1 }}
+              className="relative mb-2"
+            >
             <MagnifyingGlass size={16} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" />
             <input
               type="text"
@@ -1240,7 +1252,19 @@ export default function Home() {
             >
               <ArrowDown size={14} weight="bold" className={`inline transition-transform ${modoCompacto ? 'rotate-180' : ''}`} />
             </button>
+            <button
+              onClick={() => { haptic('selection'); const next = !altoContraste; setAltoContrasteState(next); setAltoContraste(next); }}
+              className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ${
+                altoContraste
+                  ? 'bg-accent-dim border-accent text-accent'
+                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+              }`}
+              title={altoContraste ? 'Modo normal' : 'Alto contraste'}
+            >
+              <CircleHalf size={14} weight="bold" className="inline" />
+            </button>
           </motion.div>
+          </div>
 
           <motion.div
             variants={stagger}
@@ -1258,6 +1282,20 @@ export default function Home() {
                 )}
               </div>
             )}
+            {loadingSkeleton && aptosDoBloco.length === 0 && Array.from({ length: 5 }).map((_, i) => (
+              <div key={`apto-skel-${i}`} className="px-4 py-3 flex items-center gap-3">
+                <div className="skeleton w-10 h-10 rounded-xl shrink-0" />
+                <div className="flex-1">
+                  <div className="skeleton w-16 h-4 rounded-md mb-1.5" />
+                  <div className="flex gap-1.5">
+                    <div className="skeleton w-2 h-2 rounded-full" />
+                    <div className="skeleton w-2 h-2 rounded-full" />
+                    <div className="skeleton w-2 h-2 rounded-full" />
+                  </div>
+                </div>
+                <div className="skeleton w-8 h-8 rounded-lg shrink-0" />
+              </div>
+            ))}
             {aptosPaginados.map((s) => (
               <AptoCard
                 key={s.apartamento}
@@ -1725,6 +1763,7 @@ function SyncBanner({ online, pendentes, onClick }: { online: boolean; pendentes
         ) : (
           <CloudSlash size={14} weight="bold" aria-hidden="true" />
         )}
+        {online && <ArrowClockwise size={14} weight="bold" className="animate-[spin-slow_2s_linear_infinite]" />}
         {online ? 'Sincronizando...' : 'Sem internet — fotos salvas no aparelho'}
       </span>
       <span className="font-mono tabular-nums bg-base/20 px-2 py-0.5 rounded-lg">{pendentes} foto{pendentes > 1 ? 's' : ''}</span>

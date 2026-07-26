@@ -7,6 +7,7 @@ const DEFAULTS = {
   backupAutomatico: true,
   backupIntervalo: 30 as 30 | 60 | 360 | 1440,
   modoCompacto: false,
+  altoContraste: false,
 };
 
 function get<T>(key: string, fallback: T): T {
@@ -88,4 +89,27 @@ export function getModoCompacto() {
 
 export function setModoCompacto(v: boolean) {
   set('modo_compacto', String(v));
+}
+
+export function getAltoContraste() {
+  return get('alto_contraste', String(DEFAULTS.altoContraste)) === 'true';
+}
+
+export function setAltoContraste(v: boolean) {
+  set('alto_contraste', String(v));
+}
+
+export function getFavoritos(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem('vistoria_favoritos');
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+
+export function toggleFavorito(apto: string): boolean {
+  const favs = getFavoritos();
+  if (favs.has(apto)) { favs.delete(apto); } else { favs.add(apto); }
+  try { localStorage.setItem('vistoria_favoritos', JSON.stringify([...favs])); } catch {}
+  return favs.has(apto);
 }

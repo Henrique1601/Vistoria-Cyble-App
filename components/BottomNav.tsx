@@ -27,7 +27,7 @@ const items = [
 
 export default function BottomNav({ active, onNavigate, badges }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[55] bg-base-raised/95 backdrop-blur-lg border-t border-base-border" role="navigation" aria-label="Navegacao principal">
+    <nav className="fixed bottom-0 left-0 right-0 z-[55] glass-subtle border-t border-base-border/50" role="navigation" aria-label="Navegacao principal">
       <div className="max-w-2xl mx-auto flex items-center justify-around py-2 px-2">
         {items.map((item) => {
           const isActive = active === item.key;
