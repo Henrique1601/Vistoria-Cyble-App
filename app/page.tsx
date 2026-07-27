@@ -438,18 +438,22 @@ export default function Home() {
   }, [view]);
 
   // Carregar contagem de comentarios por apto
-  useEffect(() => {
-    if (!blocoAtual || !lista?.[blocoAtual]) return;
-    const aptos = lista[blocoAtual];
-    Promise.all(aptos.map(async (apto) => {
-      const c = await obterComentarios(blocoAtual, apto);
-      return [`${blocoAtual}_${apto}`, c.length] as const;
-    })).then((entries) => {
-      const map: Record<string, number> = {};
-      for (const [k, v] of entries) map[k] = v;
-      setComentarioCounts(map);
-    });
+  const refreshCommentCounts = useCallback(async (bloco?: string) => {
+    const b = bloco || blocoAtual;
+    if (!b || !lista?.[b]) return;
+    const aptos = lista[b];
+    const entries = await Promise.all(aptos.map(async (apto) => {
+      const c = await obterComentarios(b, apto);
+      return [`${b}_${apto}`, c.length] as const;
+    }));
+    const map: Record<string, number> = {};
+    for (const [k, v] of entries) map[k] = v;
+    setComentarioCounts((prev) => ({ ...prev, ...map }));
   }, [blocoAtual, lista]);
+
+  useEffect(() => {
+    refreshCommentCounts();
+  }, [refreshCommentCounts]);
 
   // Pull to refresh
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -471,6 +475,7 @@ export default function Home() {
       setIsRefreshing(true);
       await refreshStatus();
       ultimasFotos(10).then(setFotosRecentes);
+      await refreshCommentCounts();
       setIsRefreshing(false);
     }
     setPullDistance(0);
@@ -1825,7 +1830,7 @@ export default function Home() {
           bloco={showCommentsModal.bloco}
           apartamento={showCommentsModal.apto}
           isOpen={!!showCommentsModal}
-          onClose={() => setShowCommentsModal(null)}
+          onClose={() => { setShowCommentsModal(null); refreshCommentCounts(showCommentsModal.bloco); }}
           adminMode={userRole === 'admin'}
         />
       )}
