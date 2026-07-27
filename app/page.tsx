@@ -1579,6 +1579,15 @@ export default function Home() {
             />
           )}
         </AnimatePresence>
+        {showCommentsModal && (
+          <CommentsModal
+            bloco={showCommentsModal.bloco}
+            apartamento={showCommentsModal.apto}
+            isOpen={!!showCommentsModal}
+            onClose={() => { setShowCommentsModal(null); refreshCommentCounts(showCommentsModal.bloco); }}
+            adminMode={userRole === 'admin'}
+          />
+        )}
       </main>
     );
   }

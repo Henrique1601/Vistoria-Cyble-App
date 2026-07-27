@@ -52,6 +52,10 @@ PWA para celular que registra fotos da troca de Cyble em apartamentos, organizad
 - Nunca usar `console.log` em produção (apenas `console.warn` em catches)
 - Normalizar `bloco` com `normalizeBloco()` de `lib/utils.ts` ao comparar valores
 
+## ⚠️ ATENÇÃO — Branch `cyble-trabalho`
+
+**NUNCA deletar a branch `cyble-trabalho`.** Ela é uma referência histórica/backup do projeto e deve ser preservada permanentemente, mesmo que esteja desatualizada em relação à `main`.
+
 ## Comandos de Desenvolvimento
 
 ```bash

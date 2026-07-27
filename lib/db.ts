@@ -337,7 +337,11 @@ export async function comprimirImagem(
   const escala = Math.min(1, MAX_IMAGE_WIDTH / Math.max(realW, realH));
   const w = Math.round(realW * escala);
   const h = Math.round(realH * escala);
-  const canvas = new OffscreenCanvas(w, h);
+  // OffscreenCanvas fallback: use regular canvas on older browsers/iOS
+  const isOffscreen = typeof OffscreenCanvas !== 'undefined';
+  const rawCanvas = isOffscreen ? new OffscreenCanvas(w, h) : document.createElement('canvas');
+  if (!isOffscreen) { (rawCanvas as HTMLCanvasElement).width = w; (rawCanvas as HTMLCanvasElement).height = h; }
+  const canvas = rawCanvas as unknown as OffscreenCanvas;
   const ctx = canvas.getContext('2d')!;
   drawImageWithOrientation(ctx, img, orientation, w, h);
 
@@ -372,7 +376,18 @@ export async function comprimirImagem(
   }
 
   const qualidade = QUALIDADE_MAP[getQualidadeFoto()] ?? 0.75;
-  return canvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
+  // convertToBlob only on OffscreenCanvas; toBlob on regular canvas fallback
+  if (isOffscreen) {
+    return canvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
+  }
+  // Fallback: wrap HTMLCanvasElement.toBlob in a Promise
+  return new Promise<Blob>((resolve, reject) => {
+    (rawCanvas as HTMLCanvasElement).toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('toBlob returned null'))),
+      'image/jpeg',
+      qualidade,
+    );
+  });
 }
 
 // --- Ultimas fotos (para acesso rapido) ---

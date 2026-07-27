@@ -293,14 +293,18 @@ export default function CapturaScreen({
     if (!file) return;
     haptic('medium');
 
+    // Blur detection — if it fails, skip and continue processing
     try {
       const blurResult = await detectBlur(file);
       if (blurResult.isBlurry || blurResult.isDark) {
         setBlurWarning({ message: blurResult.message || 'Foto com problema', file, categoria });
         return;
       }
-    } catch {}
+    } catch {
+      // detectBlur failed (e.g. canvas not supported) — continue without blur check
+    }
 
+    // Compress and open editor
     try {
       const dataStr = new Date().toLocaleDateString('pt-BR');
       const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
@@ -310,15 +314,28 @@ export default function CapturaScreen({
       toast('Erro ao processar a foto. Tente de novo.', 'error');
       haptic('error');
     }
+
+    // Reset input value so the same file can be re-selected
+    const input = inputsRef.current[categoria];
+    if (input) input.value = '';
   }
 
   async function handleBlurOverride() {
     if (!blurWarning) return;
     const { file, categoria } = blurWarning;
     setBlurWarning(null);
-    const dataStr = new Date().toLocaleDateString('pt-BR');
-    const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
-    setEditingPhoto({ blob: comprimido, categoria });
+    try {
+      const dataStr = new Date().toLocaleDateString('pt-BR');
+      const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
+      setEditingPhoto({ blob: comprimido, categoria });
+    } catch (err) {
+      console.warn('Erro ao processar foto (override):', err);
+      toast('Erro ao processar a foto. Tente de novo.', 'error');
+      haptic('error');
+    }
+    // Reset input value so the same file can be re-selected
+    const input = inputsRef.current[categoria];
+    if (input) input.value = '';
   }
 
   async function handleEditorSalvar(blob: Blob) {

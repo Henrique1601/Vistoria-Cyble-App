@@ -167,6 +167,10 @@ Você é um agent especializado no desenvolvimento e manutenção do **Vistoria 
 - Lazy loading de componentes pesados com `next/dynamic`
 - Skeleton `.skeleton-resolve` com stagger delay para estados de loading
 
+## ⚠️ ATENÇÃO — Branch `cyble-trabalho`
+
+**NUNCA deletar a branch `cyble-trabalho`.** Ela é uma referência histórica/backup do projeto e deve ser preservada permanentemente, mesmo que esteja desatualizada em relação à `main`.
+
 ## Comandos de Desenvolvimento
 
 ```bash
