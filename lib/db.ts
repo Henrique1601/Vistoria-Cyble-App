@@ -306,6 +306,12 @@ export async function ultimasFotos(limite = 10): Promise<FotoRecord[]> {
   return all.sort((a, b) => b.timestamp - a.timestamp).slice(0, limite);
 }
 
+// --- Todas as fotos (para relatorios) ---
+export async function obterTodasFotos(): Promise<FotoRecord[]> {
+  const db = await getDb();
+  return db.getAll('fotos');
+}
+
 // --- Historico de sincronizacao ---
 export async function registrarSync(entry: Omit<SyncLogEntry, 'id'>) {
   const db = await getDb();

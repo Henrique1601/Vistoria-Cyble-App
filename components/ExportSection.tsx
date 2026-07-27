@@ -1,10 +1,12 @@
 'use client';
 
-import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar, FunnelSimple, FileJs, PaintBrush } from '@phosphor-icons/react';
+import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar, FunnelSimple, FileJs, PaintBrush, CheckCircle } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { spring } from '@/lib/motion';
 import type { ApartamentoStatus } from '@/lib/db';
 import { statusApto } from '@/lib/export/utils';
+import PeriodReport from '@/components/PeriodReport';
+import type { FotoRecord } from '@/lib/db';
 
 interface ExportSectionProps {
   blocos: string[];
@@ -36,6 +38,9 @@ interface ExportSectionProps {
   onTogglePDFOptions?: () => void;
   pdfAccentColor?: [number, number, number];
   onPDFColorChange?: (color: [number, number, number]) => void;
+  fotos?: FotoRecord[];
+  onMarcarDocsOK?: (bloco: string) => void;
+  pin?: string;
 }
 
 export function ExportSection({
@@ -68,6 +73,9 @@ export function ExportSection({
   onTogglePDFOptions,
   pdfAccentColor = [232, 130, 58],
   onPDFColorChange,
+  fotos = [],
+  onMarcarDocsOK,
+  pin = '',
 }: ExportSectionProps) {
   const effectiveStatus = apenasPendentes
     ? statusExportacao.filter((s) => statusApto(s) !== 'Concluido')
@@ -303,6 +311,24 @@ export function ExportSection({
           </div>
         )}
       </div>
+
+      {/* Relatório por Período */}
+      <div className="mt-3">
+        <PeriodReport fotos={fotos} onExport={() => {}} pin={pin} />
+      </div>
+
+      {/* Marcar todos docs como OK */}
+      {onMarcarDocsOK && torresExportacao.size > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => { for (const t of torresExportacao) onMarcarDocsOK(t); }}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl bg-success/10 text-success hover:bg-success/20 transition-colors w-full"
+          >
+            <CheckCircle size={20} />
+            <span className="text-sm font-semibold">Marcar docs como OK ({torresExportacao.size} torre{torresExportacao.size > 1 ? 's' : ''})</span>
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

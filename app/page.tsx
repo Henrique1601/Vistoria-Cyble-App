@@ -56,6 +56,9 @@ import {
   restaurarDados,
   checarEspacoStorage,
   criarAgendamento,
+  marcarTodosDocsOK,
+  obterTodasFotos,
+  obterComentarios,
   type ApartamentoStatus,
   type FotoRecord,
 } from '@/lib/db';
@@ -88,6 +91,9 @@ import QuickScheduleModal from '@/components/QuickScheduleModal';
 import EditarAgendamentoModal from '@/components/EditarAgendamentoModal';
 import { useContextMenu } from '@/components/ContextMenu';
 import AptoCard from '@/components/AptoCard';
+import TowerComparison from '@/components/TowerComparison';
+import CommentsModal from '@/components/CommentsModal';
+import { useRealTimeStatus } from '@/hooks/useRealTimeStatus';
 
 type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap' | 'agenda';
 
@@ -132,6 +138,7 @@ export default function Home() {
   const [compartilhando, setCompartilhando] = useState<'pdf' | 'xlsx' | 'report' | null>(null);
   const [modoEscaneamento, setModoEscaneamento] = useState(false);
   const [fotosRecentes, setFotosRecentes] = useState<FotoRecord[]>([]);
+  const [allFotos, setAllFotos] = useState<FotoRecord[]>([]);
   const [torresExportacao, setTorresExportacao] = useState<Set<string>>(new Set());
   const [showEstatisticas, setShowEstatisticas] = useState(false);
   const [showEstatisticasTorre, setShowEstatisticasTorre] = useState(false);
@@ -175,6 +182,9 @@ export default function Home() {
   const pullStartY = useRef(0);
   const mainRef = useRef<HTMLDivElement>(null);
   const { menu: ctxMenu, openMenu: ctxOpen, closeMenu: ctxClose } = useContextMenu();
+  const { status: rtStatus, lastUpdate: rtLastUpdate, online: rtOnline, refresh: rtRefresh } = useRealTimeStatus();
+  const [showCommentsModal, setShowCommentsModal] = useState<{ bloco: string; apto: string } | null>(null);
+  const [comentarioCounts, setComentarioCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const saved = localStorage.getItem('vistoria_pin');
@@ -384,10 +394,25 @@ export default function Home() {
     }
   }, [pin]);
 
-  // Carregar fotos recentes
+  // Carregar fotos recentes e todas as fotos
   useEffect(() => {
     ultimasFotos(10).then(setFotosRecentes);
+    obterTodasFotos().then(setAllFotos);
   }, [status]);
+
+  // Carregar contagem de comentarios por apto
+  useEffect(() => {
+    if (!blocoAtual || !lista?.[blocoAtual]) return;
+    const aptos = lista[blocoAtual];
+    Promise.all(aptos.map(async (apto) => {
+      const c = await obterComentarios(blocoAtual, apto);
+      return [`${blocoAtual}_${apto}`, c.length] as const;
+    })).then((entries) => {
+      const map: Record<string, number> = {};
+      for (const [k, v] of entries) map[k] = v;
+      setComentarioCounts(map);
+    });
+  }, [blocoAtual, lista]);
 
   // Pull to refresh
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -1018,6 +1043,15 @@ export default function Home() {
               compartilhando={compartilhando}
               exportandoZIP={exportandoZIP}
               exportandoFotos={exportandoFotos}
+              fotos={allFotos}
+              onMarcarDocsOK={async (bloco) => {
+                const aptos = lista?.[bloco] || [];
+                const count = await marcarTodosDocsOK(bloco, aptos);
+                toast(`${count} documentos marcados como OK`, 'success');
+                ultimasFotos(10).then(setFotosRecentes);
+                obterTodasFotos().then(setAllFotos);
+              }}
+              pin={pin || ''}
             />
           </div>
         </main>
@@ -1355,6 +1389,8 @@ export default function Home() {
                 blocoAtual={blocoAtual}
                 onAbrir={() => { setAptoAtual(s.apartamento); setView('captura'); }}
                 onAgendar={() => setAgendamentoRapido({ bloco: blocoAtual!, apto: s.apartamento })}
+                onComentario={() => setShowCommentsModal({ bloco: blocoAtual!, apto: s.apartamento })}
+                comentarioCount={comentarioCounts[`${blocoAtual}_${s.apartamento}`] || 0}
               />
             ))}
           </motion.div>
@@ -1638,6 +1674,12 @@ export default function Home() {
           <p className={`text-content-tertiary ml-5 transition-all duration-300 ${headerCollapsed ? 'text-[10px] mt-0 max-h-0 overflow-hidden opacity-0' : 'text-sm mt-1 max-h-8 opacity-100'}`}>
             {modoEscaneamento ? 'Modo escaneamento: toque no apto e tire a foto direto' : 'Selecione o bloco para comecar.'}
           </p>
+          {rtOnline && (
+            <div className="ml-5 mt-2 flex items-center gap-1.5 text-[10px] text-content-tertiary">
+              <span className={`w-1.5 h-1.5 rounded-full ${rtOnline ? 'bg-success' : 'bg-danger'}`} />
+              <span>{rtOnline ? 'Online' : 'Offline'}{rtLastUpdate ? ` · atualizado ${rtLastUpdate}` : ''}</span>
+            </div>
+          )}
         </motion.div>
 
         <Dashboard
@@ -1650,6 +1692,8 @@ export default function Home() {
           onFiltroDataChange={setDataFiltro}
           onFiltroInicioChange={setDataInicio}
         />
+
+        <TowerComparison status={status} lista={lista || {}} />
 
         <SearchBar buscaGlobal={buscaGlobal} onBuscaChange={setBuscaGlobal} />
 
@@ -1770,6 +1814,15 @@ export default function Home() {
           />
         )}
       </AnimatePresence>
+      {showCommentsModal && (
+        <CommentsModal
+          bloco={showCommentsModal.bloco}
+          apartamento={showCommentsModal.apto}
+          isOpen={!!showCommentsModal}
+          onClose={() => setShowCommentsModal(null)}
+          adminMode={userRole === 'admin'}
+        />
+      )}
       <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
     </main>
   );

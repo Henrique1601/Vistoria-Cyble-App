@@ -50,9 +50,11 @@ interface AptoCardProps {
   blocoAtual: string | null;
   onAbrir: () => void;
   onAgendar: () => void;
+  onComentario?: () => void;
+  comentarioCount?: number;
 }
 
-export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar }: AptoCardProps) {
+export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0 }: AptoCardProps) {
   const [isFavorited, setIsFavorited] = useState(() => getFavoritos().has(s.apartamento));
   const [swipeX, setSwipeX] = useState(0);
   const [showSwipeAction, setShowSwipeAction] = useState<'open' | 'done' | null>(null);
@@ -172,6 +174,20 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           >
             <CalendarDots size={14} weight="bold" />
           </button>
+          {onComentario && (
+            <button
+              onClick={(e) => { e.stopPropagation(); haptic('light'); onComentario(); }}
+              className="tactile-press relative flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors"
+              aria-label={`Comentarios de ${s.apartamento}`}
+            >
+              <ChatText size={14} weight="bold" />
+              {comentarioCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-accent text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                  {comentarioCount > 9 ? '9+' : comentarioCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>
