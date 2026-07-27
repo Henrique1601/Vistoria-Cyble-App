@@ -23,7 +23,7 @@ export function useRealTimeStatus(intervalMs = 30000) {
 
   const fetchStatus = useCallback(async () => {
     const pin = getPin();
-    if (!pin) return;
+    if (!pin) { setOnline(true); return; }
     try {
       const res = await fetch(`/api/status`, {
         headers: { 'x-app-pin': pin },

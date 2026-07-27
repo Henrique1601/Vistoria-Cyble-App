@@ -7,7 +7,7 @@ function getSql() {
 
 export async function GET(req: NextRequest) {
   const pin = req.headers.get('x-app-pin') || req.nextUrl.searchParams.get('pin') || '';
-  if (!pin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!pin) return NextResponse.json({ status: {}, lastUpdate: Date.now() });
 
   try {
     const sql = getSql();
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const pin = req.headers.get('x-app-pin') || '';
-  if (!pin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!pin) return NextResponse.json({ ok: false, error: 'No PIN' }, { status: 200 });
 
   try {
     const body = await req.json();
