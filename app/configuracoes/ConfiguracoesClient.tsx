@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -140,9 +140,9 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   // Load storage info on mount
-  useState(() => {
+  useEffect(() => {
     checarEspacoStorage().then(setEspaco);
-  });
+  }, []);
 
   async function handleSaveConfig() {
     setSavingConfig(true);

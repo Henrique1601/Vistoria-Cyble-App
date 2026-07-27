@@ -30,6 +30,7 @@ import {
   CircleHalf,
   ChartBar,
   ArrowRight,
+  Download,
 } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import { useSyncProgress } from '@/components/ProgressToast';
@@ -224,23 +225,28 @@ export default function Home() {
   // Checar atualização via service worker
   useEffect(() => {
     if (!pin) return;
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data?.type === 'versionCheck') {
-          setVersaoAtual(event.data.currentVersion);
-          setVersaoNova(event.data.latestVersion);
-          if (event.data.hasUpdate) {
-            navigator.serviceWorker?.controller?.postMessage('skipWaiting');
-            window.location.reload();
-          }
+    if (!('serviceWorker' in navigator)) return;
+
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'versionCheck') {
+        setVersaoAtual(event.data.currentVersion);
+        setVersaoNova(event.data.latestVersion);
+        if (event.data.hasUpdate) {
+          navigator.serviceWorker?.controller?.postMessage('skipWaiting');
+          window.location.reload();
         }
-      });
-      // Register SW and check for updates
-      navigator.serviceWorker.register('/sw.js').then((reg) => {
-        reg.update();
-        reg.active?.postMessage('checkVersion');
-      }).catch(() => {});
-    }
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handler);
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      reg.update();
+      reg.active?.postMessage('checkVersion');
+    }).catch(() => {});
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handler);
+    };
   }, [pin]);
 
   useEffect(() => {
@@ -966,17 +972,21 @@ export default function Home() {
     return (
       <>
         <main className="min-h-dvh bg-base pb-24">
-          <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-base-border">
-            <button
-              onClick={() => setView('blocos')}
-              className="tactile-press w-9 h-9 rounded-xl bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content transition-colors"
-              aria-label="Voltar"
-            >
-              <ArrowLeft size={16} weight="bold" />
-            </button>
-            <h1 className="text-lg font-semibold text-content">Exportar</h1>
-          </div>
-          <div className="px-4 pt-4">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-base-border">
+              <button
+                onClick={() => setView('blocos')}
+                className="tactile-press w-10 h-10 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={18} weight="bold" />
+              </button>
+              <div className="flex items-center gap-2">
+                <Download size={20} weight="duotone" className="text-accent" />
+                <h1 className="text-xl font-semibold tracking-tight">Exportar</h1>
+              </div>
+            </div>
+            <div className="px-4 pt-4">
             <ExportSection
               blocos={blocos}
               torresExportacao={torresExportacao}
@@ -1063,6 +1073,7 @@ export default function Home() {
             {showEstatisticasTorre && (
               <EstatisticasPorTorre status={status} fotosOnline={fotosOnline} lista={lista || {}} />
             )}
+          </div>
           </div>
         </main>
         <BottomNav
@@ -1311,7 +1322,7 @@ export default function Home() {
             </div>
           </motion.div>
 
-          <div className={`sticky top-14 z-20 -mx-4 px-4 py-2 backdrop-blur-xl transition-colors ${scrollY > 80 ? 'bg-base/80 border-b border-base-border' : ''}`}>
+          <div className={`sticky top-14 z-20 -mx-4 px-4 py-2 backdrop-blur-xl transition-colors ${headerCollapsed ? 'bg-base/80 border-b border-base-border' : ''}`}>
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1610,11 +1621,11 @@ export default function Home() {
               ][onboardingStep] && (
                 <>
                   <h2 className="text-lg font-bold text-content mb-2">
-                    {[, 'Tirar fotos', 'Modo escaneamento', 'Sincronização', 'Exportar relatórios'][onboardingStep]}
+                    {['Bem-vindo ao Vistoria Cyble!', 'Tirar fotos', 'Modo escaneamento', 'Sincronização', 'Exportar relatórios'][onboardingStep]}
                   </h2>
                   <p className="text-sm text-content-secondary leading-relaxed mb-6">
                     {[
-                      'Bem-vindo ao Vistoria Cyble! Este app ajuda a registrar fotos das vistorias de troca de Cyble.',
+                      'Este app ajuda a registrar fotos das vistorias de troca de Cyble. Vamos te mostrar como funciona.',
                       'Toque em um apartamento e escolha a categoria (Antes, Depois ou Documento). As fotos são salvas no aparelho automaticamente.',
                       'Ative o modo escaneamento no header para ir direto à câmera sem navegar pelos menus.',
                       'As fotos são enviadas automaticamente quando o aparelho fica online. Você pode trabalhar 100% offline.',
