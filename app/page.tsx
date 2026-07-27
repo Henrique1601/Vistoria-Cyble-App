@@ -1056,6 +1056,13 @@ export default function Home() {
               }}
               pin={pin || ''}
             />
+
+            {showEstatisticas && (
+              <EstatisticasPeriodo fotosOnline={fotosOnline} />
+            )}
+            {showEstatisticasTorre && (
+              <EstatisticasPorTorre status={status} fotosOnline={fotosOnline} lista={lista || {}} />
+            )}
           </div>
         </main>
         <BottomNav
@@ -1810,12 +1817,6 @@ export default function Home() {
             Mapa de progresso
           </button>
         </div>
-        {showEstatisticas && (
-          <EstatisticasPeriodo fotosOnline={fotosOnline} />
-        )}
-        {showEstatisticasTorre && (
-          <EstatisticasPorTorre status={status} fotosOnline={fotosOnline} lista={lista || {}} />
-        )}
 
         <BottomLinks
           online={online}
