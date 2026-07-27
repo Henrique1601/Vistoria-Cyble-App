@@ -51,6 +51,23 @@ export interface Agendamento {
   criadoEm: number;
 }
 
+export interface NotaApto {
+  id?: number;
+  bloco: string;
+  apartamento: string;
+  texto: string;
+  atualizadoEm: number;
+}
+
+export interface ComentarioApto {
+  id?: number;
+  bloco: string;
+  apartamento: string;
+  autor: string;
+  texto: string;
+  criadoEm: number;
+}
+
 interface VistoriaDB extends DBSchema {
   fotos: {
     key: number;
@@ -68,13 +85,23 @@ interface VistoriaDB extends DBSchema {
     key: number;
     value: Agendamento;
   };
+  notas: {
+    key: number;
+    value: NotaApto;
+    indexes: { 'by-bloco-apto': [string, string] };
+  };
+  comentarios: {
+    key: number;
+    value: ComentarioApto;
+    indexes: { 'by-bloco-apto': [string, string] };
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<VistoriaDB>> | null = null;
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<VistoriaDB>('vistoria-cyble', 3, {
+    dbPromise = openDB<VistoriaDB>('vistoria-cyble', 4, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           db.createObjectStore('fotos', { keyPath: 'id', autoIncrement: true });
@@ -85,6 +112,12 @@ function getDb() {
         }
         if (oldVersion < 3) {
           db.createObjectStore('agendamentos', { keyPath: 'id', autoIncrement: true });
+        }
+        if (oldVersion < 4) {
+          const notasStore = db.createObjectStore('notas', { keyPath: 'id', autoIncrement: true });
+          notasStore.createIndex('by-bloco-apto', ['bloco', 'apartamento']);
+          const comentariosStore = db.createObjectStore('comentarios', { keyPath: 'id', autoIncrement: true });
+          comentariosStore.createIndex('by-bloco-apto', ['bloco', 'apartamento']);
         }
       },
     });
@@ -655,4 +688,59 @@ export async function importarConfigXLSX(file: File): Promise<{ blocos: number; 
   if (Object.keys(blocos).length === 0) throw new Error('Nenhum bloco encontrado na planilha');
   await salvarListaApartamentos(blocos);
   return { blocos: Object.keys(blocos).length, aptos };
+}
+
+// --- Notas por Apartamento ---
+export async function salvarNotaApto(bloco: string, apartamento: string, texto: string): Promise<void> {
+  const db = await getDb();
+  const all = await db.getAllFromIndex('notas', 'by-bloco-apto', [bloco, apartamento]);
+  if (all.length > 0 && all[0].id) {
+    await db.put('notas', { ...all[0], texto, atualizadoEm: Date.now() });
+  } else {
+    await db.add('notas', { bloco, apartamento, texto, atualizadoEm: Date.now() });
+  }
+}
+
+export async function obterNotaApto(bloco: string, apartamento: string): Promise<string> {
+  const db = await getDb();
+  const all = await db.getAllFromIndex('notas', 'by-bloco-apto', [bloco, apartamento]);
+  return all[0]?.texto || '';
+}
+
+export async function excluirNotaApto(bloco: string, apartamento: string): Promise<void> {
+  const db = await getDb();
+  const all = await db.getAllFromIndex('notas', 'by-bloco-apto', [bloco, apartamento]);
+  if (all[0]?.id) await db.delete('notas', all[0].id);
+}
+
+// --- Comentarios por Apartamento ---
+export async function adicionarComentario(bloco: string, apartamento: string, autor: string, texto: string): Promise<number> {
+  const db = await getDb();
+  return db.add('comentarios', { bloco, apartamento, autor, texto, criadoEm: Date.now() });
+}
+
+export async function obterComentarios(bloco: string, apartamento: string): Promise<ComentarioApto[]> {
+  const db = await getDb();
+  return db.getAllFromIndex('comentarios', 'by-bloco-apto', [bloco, apartamento]);
+}
+
+export async function excluirComentario(id: number): Promise<void> {
+  const db = await getDb();
+  await db.delete('comentarios', id);
+}
+
+// --- Marcar todos docs como OK ---
+export async function marcarTodosDocsOK(bloco: string, apartamentos: string[]): Promise<number> {
+  const db = await getDb();
+  const all = await db.getAll('fotos');
+  let count = 0;
+  const aptoSet = new Set(apartamentos);
+
+  for (const f of all) {
+    if (f.bloco === bloco && aptoSet.has(normApto(f.apartamento)) && f.categoria === 'documento' && !f.synced) {
+      await db.put('fotos', { ...f, synced: true });
+      count++;
+    }
+  }
+  return count;
 }

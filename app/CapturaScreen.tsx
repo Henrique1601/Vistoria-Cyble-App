@@ -46,6 +46,7 @@ import { playScanFeedback } from '@/lib/scanPro';
 import { EmptyStatePhotos } from '@/components/EmptyState';
 import PhotoEditor from '@/components/PhotoEditor';
 import { spring, stagger, item } from '@/lib/motion';
+import { detectBlur } from '@/lib/blurDetect';
 
 const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi: boolean }[] = [
   { key: 'cyble_antes', label: 'Cyble — Antes', icon: <Camera size={16} weight="duotone" />, multi: false },
@@ -159,6 +160,7 @@ export default function CapturaScreen({
   const [editingPhoto, setEditingPhoto] = useState<{ blob: Blob; categoria: Categoria } | null>(null);
   const [keepInCamera, setKeepInCamera] = useState(false);
   const [fotoZoom, setFotoZoom] = useState<string | null>(null);
+  const [blurWarning, setBlurWarning] = useState<{ message: string; file: File; categoria: Categoria } | null>(null);
   const { toast } = useToast();
   const deletedRef = useRef<Map<number, FotoRecord>>(new Map());
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -246,6 +248,24 @@ export default function CapturaScreen({
   async function handleFile(categoria: Categoria, file: File | null) {
     if (!file) return;
     haptic('medium');
+
+    try {
+      const blurResult = await detectBlur(file);
+      if (blurResult.isBlurry || blurResult.isDark) {
+        setBlurWarning({ message: blurResult.message || 'Foto com problema', file, categoria });
+        return;
+      }
+    } catch {}
+
+    const dataStr = new Date().toLocaleDateString('pt-BR');
+    const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
+    setEditingPhoto({ blob: comprimido, categoria });
+  }
+
+  async function handleBlurOverride() {
+    if (!blurWarning) return;
+    const { file, categoria } = blurWarning;
+    setBlurWarning(null);
     const dataStr = new Date().toLocaleDateString('pt-BR');
     const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
     setEditingPhoto({ blob: comprimido, categoria });
@@ -720,6 +740,48 @@ export default function CapturaScreen({
               className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-base-border"
               onClick={(e) => e.stopPropagation()}
             />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Blur/dark warning modal */}
+      <AnimatePresence>
+        {blurWarning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setBlurWarning(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={spring}
+              className="glass rounded-2xl p-5 w-full max-w-sm space-y-4 text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-14 h-14 mx-auto rounded-full bg-warn/20 flex items-center justify-center">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <h3 className="text-lg font-bold text-content">Foto com problema</h3>
+              <p className="text-sm text-content-secondary">{blurWarning.message}</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setBlurWarning(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-base-surface border border-base-border text-content-secondary font-semibold text-sm hover:bg-base-tertiary transition-colors"
+                >
+                  Reaparar
+                </button>
+                <button
+                  onClick={handleBlurOverride}
+                  className="flex-1 py-2.5 rounded-xl bg-accent text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+                >
+                  Manter assim
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
