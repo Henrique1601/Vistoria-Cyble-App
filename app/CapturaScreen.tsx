@@ -47,6 +47,7 @@ import { EmptyStatePhotos } from '@/components/EmptyState';
 import PhotoEditor from '@/components/PhotoEditor';
 import { spring, stagger, item } from '@/lib/motion';
 import { detectBlur } from '@/lib/blurDetect';
+import { TOUCH_SENSOR_DELAY, TOUCH_SENSOR_TOLERANCE, GPS_TIMEOUT_MS, GPS_MAX_AGE_MS } from '@/lib/constants';
 
 const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi: boolean }[] = [
   { key: 'cyble_antes', label: 'Cyble — Antes', icon: <Camera size={16} weight="duotone" />, multi: false },
@@ -179,7 +180,7 @@ export default function CapturaScreen({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: TOUCH_SENSOR_DELAY, tolerance: TOUCH_SENSOR_TOLERANCE } })
   );
 
   const activePhoto = activeId ? fotos.find((f) => f.id === activeId) : null;
@@ -236,7 +237,7 @@ export default function CapturaScreen({
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
         () => resolve(null),
-        { timeout: 5000, maximumAge: 60000 }
+        { timeout: GPS_TIMEOUT_MS, maximumAge: GPS_MAX_AGE_MS }
       );
     });
   }

@@ -75,9 +75,16 @@ import {
   deveFazerBackup,
   formatarTimestampBackup,
 } from '@/lib/backup';
-import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto, normalizeBloco } from '@/lib/utils';
+import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto, normalizeBloco, emAndamento } from '@/lib/utils';
 import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo, getModoCompacto, setModoCompacto, getAltoContraste, setAltoContraste } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
+import {
+  INACTIVITY_TIMEOUT_MS,
+  STORAGE_WARNING_PCT,
+  SYNC_INTERVAL_MS,
+  SYNC_CONCURRENCY,
+  MS_PER_DAY,
+} from '@/lib/constants';
 import { logAudit } from '@/lib/auditLog';
 import { APP_VERSION } from '@/lib/version';
 import { startAutoBackup, stopAutoBackup } from '@/lib/autoBackup';
@@ -205,7 +212,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!pin) return;
-    const TIMEOUT_MS = 30 * 60 * 1000;
+    const TIMEOUT_MS = INACTIVITY_TIMEOUT_MS;
     const events = ['mousedown', 'touchstart', 'keydown', 'scroll'];
     const resetTimer = () => { lastActivityRef.current = Date.now(); };
     events.forEach((e) => window.addEventListener(e, resetTimer));
@@ -302,7 +309,7 @@ export default function Home() {
     let notified = false;
     checarEspacoStorage().then((e) => {
       setEspacoStorage(e);
-      if (e && e.pct > 85 && !notified) {
+      if (e && e.pct > STORAGE_WARNING_PCT && !notified) {
         notified = true;
         addNotification({ tipo: 'storage', titulo: 'Armazenamento quase cheio', mensagem: `${e.pct}% do espaco utilizado. Considere fazer backup e limpar fotos locais.` });
       }
@@ -310,7 +317,7 @@ export default function Home() {
     const interval = setInterval(() => {
       checarEspacoStorage().then((e) => {
         setEspacoStorage(e);
-        if (e && e.pct > 85 && !notified) {
+      if (e && e.pct > STORAGE_WARNING_PCT && !notified) {
           notified = true;
           addNotification({ tipo: 'storage', titulo: 'Armazenamento quase cheio', mensagem: `${e.pct}% do espaco utilizado. Considere fazer backup e limpar fotos locais.` });
         }
@@ -403,11 +410,17 @@ export default function Home() {
     }
   }, [pin]);
 
-  // Carregar fotos recentes e todas as fotos
+  // Carregar fotos recentes
   useEffect(() => {
     ultimasFotos(10).then(setFotosRecentes);
-    obterTodasFotos().then(setAllFotos);
   }, [status]);
+
+  // Carregar todas as fotos apenas na view de exportação
+  useEffect(() => {
+    if (view === 'exportar') {
+      obterTodasFotos().then(setAllFotos);
+    }
+  }, [view]);
 
   // Carregar contagem de comentarios por apto
   useEffect(() => {
@@ -452,43 +465,58 @@ export default function Home() {
 
   // Backup
   async function handleBackup() {
-    haptic('medium');
-    const result = await fazerBackupManual();
-    if (result.ok) {
-      obterUltimoBackup().then((ts) => {
-        setUltimoBackup(formatarTimestampBackup(ts));
-      });
-      toast('Backup salvo com sucesso', 'success');
-    } else {
+    try {
+      haptic('medium');
+      const result = await fazerBackupManual();
+      if (result.ok) {
+        obterUltimoBackup().then((ts) => {
+          setUltimoBackup(formatarTimestampBackup(ts));
+        });
+        toast('Backup salvo com sucesso', 'success');
+      } else {
+        toast('Erro ao fazer backup', 'error');
+      }
+    } catch (err) {
+      console.warn('handleBackup error:', err);
       toast('Erro ao fazer backup', 'error');
     }
   }
 
   // Restore
   async function handleRestore() {
-    haptic('medium');
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      const result = await restaurarDados(text);
-      toast(`Restaurado: ${result.fotos} fotos, ${result.syncLog} registros`, 'success');
-      await refreshStatus();
-      ultimasFotos(10).then(setFotosRecentes);
-    };
-    input.click();
+    try {
+      haptic('medium');
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        const text = await file.text();
+        const result = await restaurarDados(text);
+        toast(`Restaurado: ${result.fotos} fotos, ${result.syncLog} registros`, 'success');
+        await refreshStatus();
+        ultimasFotos(10).then(setFotosRecentes);
+      };
+      input.click();
+    } catch (err) {
+      console.warn('handleRestore error:', err);
+      toast('Erro ao restaurar backup', 'error');
+    }
   }
 
   async function refreshStatus() {
-    if (lista) {
-      setLoadingSkeleton(true);
-      setStatus(await statusDeTodosApartamentos(lista));
+    try {
+      if (lista) {
+        setLoadingSkeleton(true);
+        setStatus(await statusDeTodosApartamentos(lista));
+        setLoadingSkeleton(false);
+      }
+      setPendentes((await fotosPendentes()).length);
+    } catch (err) {
+      console.warn('refreshStatus error:', err);
       setLoadingSkeleton(false);
     }
-    setPendentes((await fotosPendentes()).length);
   }
 
   useEffect(() => {
@@ -511,7 +539,7 @@ export default function Home() {
     const off = () => setOnline(false);
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
-    const interval = setInterval(tentarSincronizar, 15000);
+    const interval = setInterval(tentarSincronizar, SYNC_INTERVAL_MS);
     return () => {
       clearTimeout(timer);
       window.removeEventListener('online', on);
@@ -537,7 +565,7 @@ export default function Home() {
       pendentesLista.length
     );
 
-    const CONCURRENCY = 3;
+    const CONCURRENCY = SYNC_CONCURRENCY;
     let failed = false;
     let uploadedCount = 0;
 
@@ -800,7 +828,7 @@ export default function Home() {
 
   // Aptos sem foto ha X dias (baseado nas fotos online)
   const aptosEsquecidos = useMemo(() => {
-    const cutoff = Date.now() - diasAlerta * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - diasAlerta * MS_PER_DAY;
     const aptosComFotoRecente = new Set<string>();
     fotosOnline.forEach((f) => {
       const ts = new Date(f.data_leitura + 'T12:00:00').getTime();
@@ -1599,7 +1627,7 @@ export default function Home() {
 
       {/* Alerta de espaço quase cheio */}
       <AnimatePresence>
-        {espacoStorage && espacoStorage.pct > 85 && (
+        {espacoStorage && espacoStorage.pct > STORAGE_WARNING_PCT && (
           <motion.div
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -1832,22 +1860,6 @@ export default function Home() {
   );
 }
 
-function StatusDot({ done, partial, label }: { done: boolean; partial?: boolean; label: string }) {
-  return (
-    <div className="flex items-center gap-1">
-      <div
-        className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-          done ? 'bg-success shadow-[0_0_6px_rgba(52,211,153,0.4)]' :
-          partial ? 'bg-warn shadow-[0_0_6px_rgba(251,191,36,0.3)]' :
-          'bg-base-border'
-        }`}
-        title={label}
-        aria-hidden="true"
-      />
-    </div>
-  );
-}
-
 function SyncBanner({ online, pendentes, onClick }: { online: boolean; pendentes: number; onClick?: () => void }) {
   if (pendentes === 0) return null;
   return (
@@ -2063,12 +2075,6 @@ function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltr
       )}
     </div>
   );
-}
-
-function emAndamento(s: ApartamentoStatus): boolean {
-  const temFoto = s.cybleAntesFeito || s.cybleDepoisFeito;
-  const completo = s.cybleAntesFeito && s.cybleDepoisFeito;
-  return temFoto && !completo;
 }
 
 function EstatisticasPeriodo({ fotosOnline }: { fotosOnline: FotoOnline[] }) {

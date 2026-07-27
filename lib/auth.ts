@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 export type AuthRole = 'admin' | 'viewer';
 
@@ -8,14 +9,22 @@ export interface AuthResult {
   error?: NextResponse;
 }
 
+function timingSafeCompare(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 function isValidAdminPin(pin: string): boolean {
-  if (process.env.ADMIN_PIN && pin === process.env.ADMIN_PIN) return true;
-  if (process.env.APP_PIN && pin === process.env.APP_PIN) return true;
+  if (process.env.ADMIN_PIN && timingSafeCompare(pin, process.env.ADMIN_PIN)) return true;
+  if (process.env.APP_PIN && timingSafeCompare(pin, process.env.APP_PIN)) return true;
   return false;
 }
 
 function isValidViewerPin(pin: string): boolean {
-  if (process.env.VIEWER_PIN && pin === process.env.VIEWER_PIN) return true;
+  if (process.env.VIEWER_PIN && timingSafeCompare(pin, process.env.VIEWER_PIN)) return true;
   return false;
 }
 

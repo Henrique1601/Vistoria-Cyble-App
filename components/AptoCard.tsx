@@ -4,37 +4,10 @@ import { useState, useRef, useCallback } from 'react';
 import { Camera, CalendarDots, ChatText, Star, CheckCircle, CaretRight } from '@phosphor-icons/react';
 import { useLongPress } from '@/components/ContextMenu';
 import { haptic } from '@/lib/haptic';
-import { normApto } from '@/lib/utils';
+import { normApto, emAndamento } from '@/lib/utils';
 import { toggleFavorito, getFavoritos } from '@/lib/settings';
+import StatusDot from '@/components/StatusDot';
 import type { ApartamentoStatus } from '@/lib/db';
-
-interface StatusDotProps {
-  done: boolean;
-  partial?: boolean;
-  label: string;
-}
-
-function StatusDot({ done, partial, label }: StatusDotProps) {
-  return (
-    <div className="flex items-center gap-1">
-      <div
-        className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-          done ? 'bg-success shadow-[0_0_6px_rgba(52,211,153,0.4)]' :
-          partial ? 'bg-warn shadow-[0_0_6px_rgba(251,191,36,0.3)]' :
-          'bg-base-border'
-        }`}
-        title={label}
-        aria-hidden="true"
-      />
-    </div>
-  );
-}
-
-function emAndamento(s: ApartamentoStatus) {
-  const temFoto = s.cybleAntesFeito || s.cybleDepoisFeito;
-  const completo = s.cybleAntesFeito && s.cybleDepoisFeito;
-  return temFoto && !completo;
-}
 
 function statusGradient(s: ApartamentoStatus): string {
   if (s.cybleAntesFeito && s.cybleDepoisFeito) return 'bg-gradient-to-r from-success/5 to-transparent';

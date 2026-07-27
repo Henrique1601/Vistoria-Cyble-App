@@ -64,3 +64,14 @@ export function normalizeBloco(b: string): string {
   }
   return b;
 }
+
+export interface ApartamentoStatus {
+  cybleAntesFeito: boolean;
+  cybleDepoisFeito: boolean;
+}
+
+export function emAndamento(s: ApartamentoStatus): boolean {
+  const temFoto = s.cybleAntesFeito || s.cybleDepoisFeito;
+  const completo = s.cybleAntesFeito && s.cybleDepoisFeito;
+  return temFoto && !completo;
+}
