@@ -105,4 +105,22 @@ self.addEventListener('message', (event) => {
         });
       });
   }
+
+  // Trigger background sync from app
+  if (event.data === 'requestSync') {
+    self.registration.sync.register('sync-fotos').catch(() => {});
+  }
+});
+
+// Background Sync - trigger when connectivity returns
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-fotos') {
+    event.waitUntil(
+      self.clients.matchAll().then((clients) => {
+        for (const client of clients) {
+          client.postMessage({ type: 'syncTriggered' });
+        }
+      })
+    );
+  }
 });

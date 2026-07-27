@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import {
   ArrowLeft,
   Moon,
@@ -123,7 +124,7 @@ function ToggleGroup({
   );
 }
 
-export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void }) {
+export default function ConfiguracoesClient({ onVoltar, onRefresh }: { onVoltar: () => void; onRefresh?: () => void }) {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [qualidade, setQualidade] = useState(getQualidadeFoto);
@@ -134,6 +135,13 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
   const [backupInt, setBackupInt] = useState(getBackupIntervalo);
   const [espaco, setEspaco] = useState<{ usado: number; total: number; pct: number } | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'warning';
+    onConfirm: () => void;
+  }>({ open: false, title: '', message: '', variant: 'danger', onConfirm: () => {} });
   const [savingConfig, setSavingConfig] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [showImportFotos, setShowImportFotos] = useState(false);
@@ -315,11 +323,11 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
           const text = await file.text();
           const result = await importarConfigCSV(text);
           toast(`CSV: ${result.blocos} blocos, ${result.aptos} apartamentos`, 'success');
-          window.location.reload();
+          onRefresh?.();
         } else if (ext === 'xlsx' || ext === 'xls') {
           const result = await importarConfigXLSX(file);
           toast(`XLSX: ${result.blocos} blocos, ${result.aptos} apartamentos`, 'success');
-          window.location.reload();
+          onRefresh?.();
         } else {
           const text = await file.text();
           const dados = JSON.parse(text);
@@ -327,7 +335,7 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
           const result = await restaurarDados(text);
           const label = tipo === 'configuracao' ? 'Configuracao' : tipo === 'fotos' ? 'Fotos' : 'Backup completo';
           toast(`${label}: ${result.blocos} blocos, ${result.fotos} fotos, ${result.syncLog} logs`, 'success');
-          window.location.reload();
+          onRefresh?.();
         }
       } catch {
         toast('Erro ao importar arquivo', 'error');
@@ -348,7 +356,7 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
         const text = await file.text();
         const result = await importarConcluidosTxt(text);
         toast(`${result.aptos} apartamentos marcados como concluidos (${result.blocos} blocos)`, 'success');
-        window.location.reload();
+        onRefresh?.();
       } catch (err: any) {
         toast(err.message || 'Erro ao importar lista', 'error');
       }
@@ -357,11 +365,19 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
   }
 
   async function handleLimparConcluidos() {
-    if (!window.confirm('Remover todos os apartamentos marcados como concluidos?')) return;
-    haptic('medium');
-    await limparConcluidos();
-    toast('Lista de concluidos limpa', 'success');
-    window.location.reload();
+    setConfirmDialog({
+      open: true,
+      title: 'Limpar concluídos?',
+      message: 'Remover todos os apartamentos marcados como concluídos?',
+      variant: 'warning',
+      onConfirm: async () => {
+        setConfirmDialog((d) => ({ ...d, open: false }));
+        haptic('medium');
+        await limparConcluidos();
+        toast('Lista de concluidos limpa', 'success');
+        onRefresh?.();
+      },
+    });
   }
 
   async function handleExportarConcluidos() {
@@ -378,35 +394,59 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
   }
 
   async function handleClearLocalPhotos() {
-    if (!window.confirm('Excluir todas as fotos locais nao sincronizadas? Esta acao nao pode ser desfeita.')) return;
-    setClearing(true);
-    haptic('heavy');
-    try {
-      const { openDB } = await import('idb');
-      const db = await openDB('vistoria-cyble', 2);
-      await db.clear('fotos');
-      await db.clear('syncLog');
-      toast('Fotos locais excluidas', 'success');
-      checarEspacoStorage().then(setEspaco);
-    } catch {
-      toast('Erro ao limpar dados', 'error');
-    }
-    setClearing(false);
+    setConfirmDialog({
+      open: true,
+      title: 'Excluir fotos locais?',
+      message: 'Excluir todas as fotos locais não sincronizadas? Esta ação não pode ser desfeita.',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog((d) => ({ ...d, open: false }));
+        setClearing(true);
+        haptic('heavy');
+        try {
+          const { openDB } = await import('idb');
+          const db = await openDB('vistoria-cyble', 2);
+          await db.clear('fotos');
+          await db.clear('syncLog');
+          toast('Fotos locais excluidas', 'success');
+          checarEspacoStorage().then(setEspaco);
+        } catch {
+          toast('Erro ao limpar dados', 'error');
+        }
+        setClearing(false);
+      },
+    });
   }
 
   async function handleClearAll() {
-    if (!window.confirm('Excluir TODOS os dados do app? Fotos, configuracoes e historico serao perdidos.')) return;
-    if (!window.confirm('Tem certeza absoluta? Nao sera possivel recuperar os dados.')) return;
-    setClearing(true);
-    haptic('heavy');
-    try {
-      indexedDB.deleteDatabase('vistoria-cyble');
-      localStorage.clear();
-      toast('Todos os dados excluidos', 'success');
-      setTimeout(() => window.location.reload(), 1000);
-    } catch {
-      toast('Erro ao limpar dados', 'error');
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Excluir TODOS os dados?',
+      message: 'Fotos, configurações e histórico serão perdidos. Esta ação não pode ser desfeita.',
+      variant: 'danger',
+      onConfirm: () => {
+        setConfirmDialog({
+          open: true,
+          title: 'Tem certeza absoluta?',
+          message: 'Não será possível recuperar os dados. Confirma a exclusão?',
+          variant: 'danger',
+          onConfirm: async () => {
+            setConfirmDialog((d) => ({ ...d, open: false }));
+            setClearing(true);
+            haptic('heavy');
+            try {
+              indexedDB.deleteDatabase('vistoria-cyble');
+              localStorage.clear();
+              toast('Todos os dados excluidos', 'success');
+              setTimeout(() => onVoltar(), 1000);
+            } catch {
+              toast('Erro ao limpar dados', 'error');
+            }
+            setClearing(false);
+          },
+        });
+      },
+    });
   }
 
   function formatBytes(bytes: number) {
@@ -419,6 +459,14 @@ export default function ConfiguracoesClient({ onVoltar }: { onVoltar: () => void
 
   return (
     <main className="min-h-[100dvh] bg-base">
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((d) => ({ ...d, open: false }))}
+      />
       <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
         <motion.div
           initial={{ opacity: 0, x: -12 }}

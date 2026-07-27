@@ -53,7 +53,8 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     const touch = e.touches[0];
     const dx = touch.clientX - touchStartRef.current.x;
     const dy = Math.abs(touch.clientY - touchStartRef.current.y);
-    if (dy > 20) { setSwipeX(0); setShowSwipeAction(null); return; }
+    // Cancel swipe if vertical scroll is dominant (dy > 40px or dy > dx)
+    if (dy > 40 || dy > Math.abs(dx)) { setSwipeX(0); setShowSwipeAction(null); return; }
     const clamped = Math.max(-120, Math.min(120, dx));
     setSwipeX(clamped);
     if (dx > swipeThreshold) setShowSwipeAction('done');

@@ -252,6 +252,9 @@ export default function Home() {
           window.location.reload();
         }
       }
+      if (event.data?.type === 'syncTriggered') {
+        tentarSincronizar();
+      }
     };
 
     navigator.serviceWorker.addEventListener('message', handler);
@@ -950,7 +953,7 @@ export default function Home() {
   if (view === 'configuracoes') {
     return (
       <>
-        <ConfiguracoesClient onVoltar={() => setView('blocos')} />
+        <ConfiguracoesClient onVoltar={() => setView('blocos')} onRefresh={() => refreshStatus()} />
         <BottomNav
           active="config"
           onNavigate={handleNavigation}
@@ -1074,8 +1077,23 @@ export default function Home() {
               fotos={allFotos}
               onMarcarDocsOK={async (bloco) => {
                 const aptos = lista?.[bloco] || [];
+                // Snapshot for undo
+                const snapshot = await obterTodasFotos();
+                const snapshotDocs = snapshot.filter((f) => f.categoria === 'documento' && normalizeBloco(f.bloco) === normalizeBloco(bloco));
                 const count = await marcarTodosDocsOK(bloco, aptos);
-                toast(`${count} documentos marcados como OK`, 'success');
+                toast(`${count} documentos marcados como OK`, 'success', {
+                  onUndo: async () => {
+                    // Restore synced=false for affected photos
+                    for (const doc of snapshotDocs) {
+                      if (doc.id) await marcarSincronizada(doc.id, '');
+                    }
+                    ultimasFotos(10).then(setFotosRecentes);
+                    obterTodasFotos().then(setAllFotos);
+                    toast('Ação desfeita', 'info');
+                  },
+                  undoLabel: 'Desfazer',
+                  duration: 8000,
+                });
                 ultimasFotos(10).then(setFotosRecentes);
                 obterTodasFotos().then(setAllFotos);
               }}
@@ -2088,6 +2106,12 @@ function EstatisticasPorTorre({ status, fotosOnline, lista }: { status: Apartame
   const dados = useMemo(() => {
     const porTorre: Record<string, { total: number; feitos: number; fotos: number }> = {};
 
+    // Pre-build status Map for O(1) lookups
+    const statusMap = new Map<string, ApartamentoStatus>();
+    for (const s of status) {
+      statusMap.set(`${normalizeBloco(s.bloco)}__${normApto(s.apartamento)}`, s);
+    }
+
     // Index online photos by bloco (normalized)
     const onlinePorBloco: Record<string, Set<string>> = {};
     fotosOnline.forEach((f) => {
@@ -2113,7 +2137,7 @@ function EstatisticasPorTorre({ status, fotosOnline, lista }: { status: Apartame
       porTorre[torre] = { total: 0, feitos: 0, fotos: 0 };
       for (const apto of allAptos) {
         porTorre[torre].total++;
-        const local = status.find((s) => normalizeBloco(s.bloco) === torre && s.apartamento === apto);
+        const local = statusMap.get(`${torre}__${normApto(apto)}`);
         const hasLocal = local && local.cybleAntesFeito && local.cybleDepoisFeito;
         const hasOnline = onlineAptos.has(normApto(apto));
         if (hasLocal || hasOnline) porTorre[torre].feitos++;

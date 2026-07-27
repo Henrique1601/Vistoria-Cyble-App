@@ -523,18 +523,47 @@ export async function backupFotos(): Promise<Blob> {
 }
 
 export async function restaurarDados(json: string): Promise<{ fotos: number; syncLog: number; blocos: number }> {
-  const dados = JSON.parse(json);
+  let dados: unknown;
+  try {
+    dados = JSON.parse(json);
+  } catch {
+    throw new Error('Arquivo JSON invalido');
+  }
+
+  // Basic schema validation
+  if (!dados || typeof dados !== 'object') {
+    throw new Error('Formato de backup invalido: dados nao sao um objeto');
+  }
+  const d = dados as Record<string, unknown>;
+  if (d.tipo && typeof d.tipo !== 'string') {
+    throw new Error('Formato de backup invalido: tipo invalido');
+  }
+  if (d.blocos && (typeof d.blocos !== 'object' || Array.isArray(d.blocos))) {
+    throw new Error('Formato de backup invalido: blocos invalidos');
+  }
+  if (d.fotos && !Array.isArray(d.fotos)) {
+    throw new Error('Formato de backup invalido: fotos devem ser um array');
+  }
   const db = await getDb();
-  const tipo = dados.tipo || 'completo';
+  const backupData = d as {
+    tipo?: string;
+    blocos?: Record<string, string[]>;
+    lista?: Record<string, string[]>;
+    config?: Record<string, string[]>;
+    concluidos?: Record<string, string[]>;
+    fotos?: Array<Record<string, unknown> & { blobBase64?: string }>;
+    syncLog?: Array<Record<string, unknown>>;
+  };
+  const tipo = backupData.tipo || 'completo';
 
   let blocosCount = 0;
   let fotosCount = 0;
   let syncCount = 0;
 
   if (tipo === 'configuracao') {
-    if (dados.blocos && typeof dados.blocos === 'object' && !Array.isArray(dados.blocos)) {
-      await db.put('config', dados.blocos, 'blocos');
-      blocosCount = Object.keys(dados.blocos).length;
+    if (backupData.blocos && typeof backupData.blocos === 'object' && !Array.isArray(backupData.blocos)) {
+      await db.put('config', backupData.blocos, 'blocos');
+      blocosCount = Object.keys(backupData.blocos).length;
     }
     return { fotos: 0, syncLog: 0, blocos: blocosCount };
   }
@@ -543,25 +572,25 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
   await db.clear('syncLog');
   await db.clear('config');
 
-  if (dados.blocos && typeof dados.blocos === 'object' && !Array.isArray(dados.blocos)) {
-    await db.put('config', dados.blocos, 'blocos');
-    blocosCount = Object.keys(dados.blocos).length;
-  } else if (dados.lista && typeof dados.lista === 'object' && !Array.isArray(dados.lista)) {
-    await db.put('config', dados.lista, 'blocos');
-    blocosCount = Object.keys(dados.lista).length;
-  } else if (dados.config && typeof dados.config === 'object' && !Array.isArray(dados.config)) {
-    await db.put('config', dados.config, 'blocos');
-    blocosCount = Object.keys(dados.config).length;
+  if (backupData.blocos && typeof backupData.blocos === 'object' && !Array.isArray(backupData.blocos)) {
+    await db.put('config', backupData.blocos, 'blocos');
+    blocosCount = Object.keys(backupData.blocos).length;
+  } else if (backupData.lista && typeof backupData.lista === 'object' && !Array.isArray(backupData.lista)) {
+    await db.put('config', backupData.lista, 'blocos');
+    blocosCount = Object.keys(backupData.lista).length;
+  } else if (backupData.config && typeof backupData.config === 'object' && !Array.isArray(backupData.config)) {
+    await db.put('config', backupData.config, 'blocos');
+    blocosCount = Object.keys(backupData.config).length;
   }
 
-  if (dados.concluidos && typeof dados.concluidos === 'object' && !Array.isArray(dados.concluidos)) {
-    await db.put('config', dados.concluidos, 'concluidos');
+  if (backupData.concluidos && typeof backupData.concluidos === 'object' && !Array.isArray(backupData.concluidos)) {
+    await db.put('config', backupData.concluidos, 'concluidos');
   }
 
-  if (dados.fotos) {
+  if (backupData.fotos) {
     const tx = db.transaction('fotos', 'readwrite');
     const store = tx.objectStore('fotos');
-    for (const f of dados.fotos) {
+    for (const f of backupData.fotos) {
       let blob: Blob;
       if (f.blobBase64) {
         const res = await fetch(f.blobBase64);
@@ -576,9 +605,9 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
     await tx.done;
   }
 
-  if (dados.syncLog) {
-    for (const entry of dados.syncLog) {
-      await db.add('syncLog', entry as SyncLogEntry);
+  if (backupData.syncLog) {
+    for (const entry of backupData.syncLog) {
+      await db.add('syncLog', entry as unknown as SyncLogEntry);
       syncCount++;
     }
   }
@@ -611,7 +640,8 @@ export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   const local = (await db.get('config', 'concluidos')) ?? {};
   if (Object.keys(local).length > 0) return local;
   try {
-    const resp = await fetch('/api/concluidos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
+    const { authFetch } = await import('@/lib/api');
+    const resp = await authFetch('/api/concluidos');
     if (resp.ok) {
       const remote = await resp.json();
       if (Object.keys(remote).length > 0) {
@@ -629,9 +659,10 @@ async function syncConcluidosToAPI(lista: Record<string, string[]>) {
   if (_syncConcluidosLock) return;
   _syncConcluidosLock = true;
   try {
-    await fetch('/api/concluidos', {
+    const { authFetch } = await import('@/lib/api');
+    await authFetch('/api/concluidos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(lista),
     });
   } catch (err) {

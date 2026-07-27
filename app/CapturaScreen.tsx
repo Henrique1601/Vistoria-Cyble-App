@@ -8,6 +8,7 @@ import {
   Trash,
   FileText,
   CloudCheck,
+  CloudSlash,
   Hourglass,
   Image as ImageIcon,
   ChatText,
@@ -64,6 +65,8 @@ function SortablePhoto({
   onShare,
   onZoom,
   compartilhando,
+  confirmDeleteId,
+  onConfirmDelete,
 }: {
   foto: FotoRecord;
   src: string;
@@ -73,6 +76,8 @@ function SortablePhoto({
   onShare: (f: FotoRecord) => void;
   onZoom: (src: string) => void;
   compartilhando: number | null;
+  confirmDeleteId: number | null;
+  onConfirmDelete: (id: number | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortDragging } = useSortable({
     id: foto.id!,
@@ -107,9 +112,23 @@ function SortablePhoto({
       </div>
 
       <button
-        onClick={() => foto.id && onDelete(foto.id)}
-        aria-label={`Excluir foto ${categoriaLabel}`}
-        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-danger border-2 border-base-raised flex items-center justify-center text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+        onClick={() => {
+          if (!foto.id) return;
+          if (confirmDeleteId === foto.id) {
+            onDelete(foto.id);
+            onConfirmDelete(null);
+          } else {
+            haptic('medium');
+            onConfirmDelete(foto.id);
+            setTimeout(() => onConfirmDelete(null), 3000);
+          }
+        }}
+        aria-label={confirmDeleteId === foto.id ? `Confirmar exclusão de ${categoriaLabel}` : `Excluir foto ${categoriaLabel}`}
+        className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full border-2 border-base-raised flex items-center justify-center text-white transition-all ${
+          confirmDeleteId === foto.id
+            ? 'bg-danger scale-125 opacity-100 animate-pulse'
+            : 'bg-danger opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+        }`}
       >
         <Trash size={10} weight="bold" aria-hidden="true" />
       </button>
@@ -158,6 +177,7 @@ export default function CapturaScreen({
   const [timer, setTimer] = useState(0);
   const [showCompare, setShowCompare] = useState(false);
   const [compartilhando, setCompartilhando] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<{ blob: Blob; categoria: Categoria } | null>(null);
   const [keepInCamera, setKeepInCamera] = useState(false);
   const [fotoZoom, setFotoZoom] = useState<string | null>(null);
@@ -166,6 +186,18 @@ export default function CapturaScreen({
   const deletedRef = useRef<Map<number, FotoRecord>>(new Map());
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overCategory, setOverCategory] = useState<Categoria | null>(null);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
 
   // Revoke blob URLs when fotos change to prevent memory leaks
   useEffect(() => {
@@ -425,6 +457,12 @@ export default function CapturaScreen({
             <h1 className="text-xl font-semibold tracking-tight">{bloco}</h1>
             <p className="text-xs text-content-tertiary font-mono mt-0.5">{apartamento}</p>
           </div>
+          {!isOnline && (
+            <div className="ml-2 flex items-center gap-1 px-2 py-1 rounded-full bg-warn-dim border border-warn/30 text-warn text-[10px] font-medium">
+              <CloudSlash size={10} weight="bold" />
+              Offline
+            </div>
+          )}
           <div className="ml-auto flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-content-tertiary">
               <Clock size={14} weight="bold" />
@@ -543,6 +581,8 @@ export default function CapturaScreen({
                                   onShare={handleCompartilhar}
                                   onZoom={setFotoZoom}
                                   compartilhando={compartilhando}
+                                  confirmDeleteId={confirmDeleteId}
+                                  onConfirmDelete={setConfirmDeleteId}
                                 />
                               );
                             })}
