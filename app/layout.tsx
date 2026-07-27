@@ -28,11 +28,6 @@ const geist = localFont({
       weight: '700',
       style: 'normal',
     },
-    {
-      path: '../node_modules/geist/dist/fonts/geist-sans/Geist-Black.woff2',
-      weight: '900',
-      style: 'normal',
-    },
   ],
   variable: '--font-geist',
   display: 'swap',
@@ -87,11 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={`${geist.variable} ${geistMono.variable} dark`} suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('vistoria_theme');if(t==='light')document.documentElement.classList.replace('dark','light');}catch(e){}})();`,
-          }}
-        />
+        <script src="/theme-init.js" />
       </head>
       <body>
         <ThemeProvider>

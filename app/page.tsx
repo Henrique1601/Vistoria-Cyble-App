@@ -210,6 +210,16 @@ export default function Home() {
   const lastActivityRef = useRef(Date.now());
   const syncLockRef = useRef(false);
 
+  const handleNavigation = useCallback((v: string) => {
+    setActiveNav(v as typeof activeNav);
+    haptic('selection');
+    if (v === 'camera') setModoEscaneamento(true);
+    else if (v === 'config') setView('configuracoes');
+    else if (v === 'exportar') setView('exportar');
+    else if (v === 'inicio') { setView('blocos'); setBlocoAtual(null); }
+    else if (v === 'agenda') setView('agenda');
+  }, []);
+
   useEffect(() => {
     if (!pin) return;
     const TIMEOUT_MS = INACTIVITY_TIMEOUT_MS;
@@ -286,9 +296,9 @@ export default function Home() {
 
   // PWA install prompt
   useEffect(() => {
-    const handler = (e: any) => {
+    const handler = (e: Event & { preventDefault: () => void }) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as typeof deferredPrompt);
       const dismissed = localStorage.getItem('vistoria_install_dismissed');
       if (!dismissed) setShowInstallBanner(true);
     };
@@ -599,11 +609,12 @@ export default function Home() {
             categoria: foto.categoria, url: '', ok: false, erro: `HTTP ${resp.status}`,
           });
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const err = e instanceof Error ? e : new Error(String(e));
         failed = true;
         await registrarSync({
           timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
-          categoria: foto.categoria, url: '', ok: false, erro: e?.message ?? 'offline',
+          categoria: foto.categoria, url: '', ok: false, erro: err.message ?? 'offline',
         });
       }
     }
@@ -942,15 +953,7 @@ export default function Home() {
         <ConfiguracoesClient onVoltar={() => setView('blocos')} />
         <BottomNav
           active="config"
-          onNavigate={(v) => {
-            setActiveNav(v as typeof activeNav);
-            haptic('selection');
-            if (v === 'camera') setModoEscaneamento(true);
-            else if (v === 'config') setView('configuracoes');
-            else if (v === 'exportar') setView('exportar');
-            else if (v === 'inicio') setView('blocos');
-            else if (v === 'agenda') setView('agenda');
-          }}
+          onNavigate={handleNavigation}
         />
       </>
     );
@@ -962,15 +965,7 @@ export default function Home() {
         <SyncQueueScreen onVoltar={() => setView('blocos')} />
         <BottomNav
           active="inicio"
-          onNavigate={(v) => {
-            setActiveNav(v as typeof activeNav);
-            haptic('selection');
-            if (v === 'camera') setModoEscaneamento(true);
-            else if (v === 'config') setView('configuracoes');
-            else if (v === 'exportar') setView('exportar');
-            else if (v === 'inicio') setView('blocos');
-            else if (v === 'agenda') setView('agenda');
-          }}
+          onNavigate={handleNavigation}
         />
       </>
     );
@@ -982,15 +977,7 @@ export default function Home() {
         <AuditLogScreen onVoltar={() => setView('blocos')} />
         <BottomNav
           active="inicio"
-          onNavigate={(v) => {
-            setActiveNav(v as typeof activeNav);
-            haptic('selection');
-            if (v === 'camera') setModoEscaneamento(true);
-            else if (v === 'config') setView('configuracoes');
-            else if (v === 'exportar') setView('exportar');
-            else if (v === 'inicio') setView('blocos');
-            else if (v === 'agenda') setView('agenda');
-          }}
+          onNavigate={handleNavigation}
         />
       </>
     );
@@ -1106,15 +1093,7 @@ export default function Home() {
         </main>
         <BottomNav
           active="exportar"
-          onNavigate={(v) => {
-            setActiveNav(v as typeof activeNav);
-            haptic('selection');
-            if (v === 'camera') setModoEscaneamento(true);
-            else if (v === 'config') setView('configuracoes');
-            else if (v === 'exportar') setView('exportar');
-            else if (v === 'inicio') setView('blocos');
-            else if (v === 'agenda') setView('agenda');
-          }}
+          onNavigate={handleNavigation}
         />
       </>
     );
@@ -1150,15 +1129,7 @@ export default function Home() {
         </main>
         <BottomNav
           active="inicio"
-          onNavigate={(v) => {
-            setActiveNav(v as typeof activeNav);
-            haptic('selection');
-            if (v === 'camera') setModoEscaneamento(true);
-            else if (v === 'config') setView('configuracoes');
-            else if (v === 'exportar') setView('exportar');
-            else if (v === 'inicio') setView('blocos');
-            else if (v === 'agenda') setView('agenda');
-          }}
+          onNavigate={handleNavigation}
         />
       </>
     );
@@ -1195,15 +1166,7 @@ export default function Home() {
         </main>
         <BottomNav
           active="inicio"
-          onNavigate={(v) => {
-            setActiveNav(v as typeof activeNav);
-            haptic('selection');
-            if (v === 'camera') setModoEscaneamento(true);
-            else if (v === 'config') setView('configuracoes');
-            else if (v === 'exportar') setView('exportar');
-            else if (v === 'inicio') setView('blocos');
-            else if (v === 'agenda') setView('agenda');
-          }}
+          onNavigate={handleNavigation}
         />
       </>
     );
@@ -1225,15 +1188,7 @@ export default function Home() {
         />
         <BottomNav
           active="agenda"
-          onNavigate={(v) => {
-            setActiveNav(v as typeof activeNav);
-            haptic('selection');
-            if (v === 'camera') setModoEscaneamento(true);
-            else if (v === 'config') setView('configuracoes');
-            else if (v === 'exportar') setView('exportar');
-            else if (v === 'inicio') setView('blocos');
-            else if (v === 'agenda') setView('agenda');
-          }}
+          onNavigate={handleNavigation}
         />
         {showAgendamentoModal && lista && (
           <NovoAgendamentoModal
@@ -1373,9 +1328,10 @@ export default function Home() {
             transition={{ ...spring, delay: 0.15 }}
             className="mb-4 space-y-2"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" role="group" aria-label="Ordenação e filtros">
               <button
                 onClick={() => setOrdem('original')}
+                aria-pressed={ordem === 'original'}
                 className={`tactile-press px-4 py-2 rounded-full text-xs font-medium border transition-all ${
                   ordem === 'original'
                     ? 'bg-accent-dim border-accent text-accent'
@@ -1387,6 +1343,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setOrdem('pendentes')}
+                aria-pressed={ordem === 'pendentes'}
                 className={`tactile-press px-4 py-2 rounded-full text-xs font-medium border transition-all ${
                   ordem === 'pendentes'
                     ? 'bg-accent-dim border-accent text-accent'
@@ -1399,6 +1356,8 @@ export default function Home() {
               <div className="flex gap-1 ml-auto shrink-0">
                 <button
                   onClick={() => { haptic('selection'); const next = !modoCompacto; setModoCompactoState(next); setModoCompacto(next); }}
+                  aria-pressed={modoCompacto}
+                  aria-label={modoCompacto ? 'Modo normal' : 'Modo compacto'}
                   className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ${
                     modoCompacto
                       ? 'bg-accent-dim border-accent text-accent'
@@ -1410,6 +1369,8 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => { haptic('selection'); const next = !altoContraste; setAltoContrasteState(next); setAltoContraste(next); }}
+                  aria-pressed={altoContraste}
+                  aria-label={altoContraste ? 'Modo normal' : 'Alto contraste'}
                   className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ${
                     altoContraste
                       ? 'bg-accent-dim border-accent text-accent'
@@ -1421,7 +1382,7 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtro por status">
               {[
                 { key: 'todos', label: 'Todos' },
                 { key: 'pendente', label: 'Pendente' },
@@ -1431,6 +1392,7 @@ export default function Home() {
                 <button
                   key={key}
                   onClick={() => { haptic('light'); setStatusFilter(key as typeof statusFilter); }}
+                  aria-pressed={statusFilter === key}
                   className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all ${
                     statusFilter === key
                       ? key === 'concluido' ? 'bg-success-dim border-success text-success'
@@ -1501,11 +1463,13 @@ export default function Home() {
               className="mt-4 flex flex-col gap-3"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5" role="group" aria-label="Itens por página">
                   {([10, 20, 50, 999] as const).map((n) => (
                     <button
                       key={n}
                       onClick={() => { setItensPagina(n); setPaginaAtual(1); }}
+                      aria-pressed={itensPagina === n}
+                      aria-label={`${n === 999 ? 'Todos' : n} itens por página`}
                       className={`tactile-press px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all ${
                         itensPagina === n
                           ? 'bg-accent-dim border-accent text-accent'
@@ -1516,15 +1480,16 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
-                <span className="text-[11px] text-content-tertiary font-mono">
+                <span className="text-[11px] text-content-tertiary font-mono" aria-label={`Página ${paginaAtual} de ${totalPaginas}`}>
                   {paginaAtual}/{totalPaginas}
                 </span>
               </div>
               {totalPaginas > 1 && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between" role="group" aria-label="Paginação">
                   <button
-                    onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+                    onClick={() => { haptic('light'); setPaginaAtual((p) => Math.max(1, p - 1)); }}
                     disabled={paginaAtual === 1}
+                    aria-label="Página anterior"
                     className="tactile-press px-3 py-1.5 rounded-xl text-xs font-medium bg-base-raised border border-base-border text-content-secondary hover:text-content disabled:opacity-30 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
                   >
                     Anterior
@@ -1543,7 +1508,9 @@ export default function Home() {
                         ) : (
                           <button
                             key={p}
-                            onClick={() => setPaginaAtual(p as number)}
+                            onClick={() => { haptic('light'); setPaginaAtual(p as number); }}
+                            aria-pressed={paginaAtual === p}
+                            aria-label={`Página ${p}`}
                             className={`tactile-press w-8 h-8 rounded-lg text-[11px] font-medium border transition-all ${
                               paginaAtual === p
                                 ? 'bg-accent-dim border-accent text-accent'
@@ -1556,9 +1523,9 @@ export default function Home() {
                       )}
                   </div>
                   <button
-                    onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))}
+                    onClick={() => { haptic('light'); setPaginaAtual((p) => Math.min(totalPaginas, p + 1)); }}
                     disabled={paginaAtual === totalPaginas}
-                    className="tactile-press px-3 py-1.5 rounded-xl text-xs font-medium bg-base-raised border border-base-border text-content-secondary hover:text-content disabled:opacity-30 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
+                    aria-label="Próxima página"
                   >
                     Proximo
                   </button>
@@ -1802,22 +1769,7 @@ export default function Home() {
       <BottomNav
         active={(view === 'blocos' && !blocoAtual) ? 'inicio' : activeNav}
         badges={pendentes > 0 ? { camera: pendentes } : undefined}
-        onNavigate={(v) => {
-          setActiveNav(v as typeof activeNav);
-          haptic('selection');
-          if (v === 'camera') {
-            setModoEscaneamento(true);
-          } else if (v === 'config') {
-            setView('configuracoes');
-          } else if (v === 'exportar') {
-            setView('exportar');
-          } else if (v === 'inicio') {
-            setView('blocos');
-            setBlocoAtual(null);
-          } else if (v === 'agenda') {
-            setView('agenda');
-          }
-        }}
+        onNavigate={handleNavigation}
       />
       <AnimatePresence>
         {selectedTower && (

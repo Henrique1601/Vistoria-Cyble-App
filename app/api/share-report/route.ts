@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         : [];
 
       for (const b of [...expired, ...excess]) {
-        await del(b.url, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => {});
+        await del(b.url, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch((err) => console.warn('del blob error:', err));
       }
     } catch {
       // Cleanup non-critical

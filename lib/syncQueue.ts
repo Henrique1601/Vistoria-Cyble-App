@@ -149,12 +149,13 @@ export async function syncAll(pin: string, onDone?: () => void) {
           item.nextRetryAt = Date.now() + getDelay(item.attempts);
         }
       }
-    } catch (e: any) {
-      if (e?.name === 'AbortError') {
+    } catch (e: unknown) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      if (err.name === 'AbortError') {
         item.status = 'pending';
       } else {
         item.status = 'failed';
-        item.lastError = e?.message ?? 'Connection error';
+        item.lastError = err.message ?? 'Connection error';
         if (item.attempts < MAX_ATTEMPTS) {
           item.nextRetryAt = Date.now() + getDelay(item.attempts);
         }

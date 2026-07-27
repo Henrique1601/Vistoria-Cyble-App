@@ -603,7 +603,7 @@ export async function checarEspacoStorage(): Promise<{ usado: number; total: num
 export async function salvarConcluidos(lista: Record<string, string[]>) {
   const db = await getDb();
   await db.put('config', lista, 'concluidos');
-  syncConcluidosToAPI(lista).catch(() => {});
+  syncConcluidosToAPI(lista).catch((err) => console.warn('syncConcluidosToAPI error:', err));
 }
 
 export async function carregarConcluidos(): Promise<Record<string, string[]>> {
@@ -644,7 +644,7 @@ async function syncConcluidosToAPI(lista: Record<string, string[]>) {
 export async function limparConcluidos() {
   const db = await getDb();
   await db.delete('config', 'concluidos');
-  syncConcluidosToAPI({}).catch(() => {});
+  syncConcluidosToAPI({}).catch((err) => console.warn('syncConcluidosToAPI error:', err));
 }
 
 export async function importarConcluidosTxt(text: string): Promise<{ blocos: number; aptos: number }> {
