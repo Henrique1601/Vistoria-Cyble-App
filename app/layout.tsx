@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import localFont from 'next/font/local';
 import './globals.css';
 import SwRegister from './sw-register';
@@ -81,10 +82,8 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${geist.variable} ${geistMono.variable} dark`} suppressHydrationWarning>
-      <head>
-        <script src="/theme-init.js" />
-      </head>
       <body>
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <ThemeProvider>
           <ToastProvider>
             <ProgressToastProvider>
