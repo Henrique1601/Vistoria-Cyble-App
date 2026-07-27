@@ -253,17 +253,93 @@ export async function statusDeTodosApartamentos(
 const MAX_IMAGE_WIDTH = 1920;
 const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.90 };
 
+function loadImageFromBlob(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(img.src); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('Failed to load image')); };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function getExifOrientation(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const view = new DataView(reader.result as ArrayBuffer);
+      if (view.getUint16(0, false) !== 0xFFD8) { resolve(1); return; }
+      let offset = 2;
+      while (offset < view.byteLength - 2) {
+        const marker = view.getUint16(offset, false);
+        offset += 2;
+        if (marker === 0xFFE1) {
+          const length = view.getUint16(offset, false);
+          if (view.getUint32(offset + 2, false) === 0x45786966) {
+            const tiffOffset = offset + 8;
+            const bigEndian = view.getUint16(tiffOffset, false) === 0x4D4D;
+            const ifdOffset = view.getUint32(tiffOffset + 4, bigEndian) + tiffOffset;
+            const numEntries = view.getUint16(ifdOffset, bigEndian);
+            for (let i = 0; i < numEntries; i++) {
+              const entryOffset = ifdOffset + 2 + i * 12;
+              if (entryOffset + 12 > view.byteLength) break;
+              if (view.getUint16(entryOffset, bigEndian) === 0x0112) {
+                resolve(view.getUint16(entryOffset + 8, bigEndian));
+                return;
+              }
+            }
+          }
+          offset += length;
+        } else if ((marker & 0xFF00) === 0xFF00) {
+          offset += view.getUint16(offset, false);
+        } else {
+          break;
+        }
+      }
+      resolve(1);
+    };
+    reader.readAsArrayBuffer(file.slice(0, 65536));
+  });
+}
+
+function drawImageWithOrientation(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  img: HTMLImageElement,
+  orientation: number,
+  dw: number,
+  dh: number
+) {
+  const sw = img.naturalWidth;
+  const sh = img.naturalHeight;
+  ctx.save();
+  switch (orientation) {
+    case 2: ctx.transform(-1, 0, 0, 1, dw, 0); break;
+    case 3: ctx.transform(-1, 0, 0, -1, dw, dh); break;
+    case 4: ctx.transform(1, 0, 0, -1, 0, dh); break;
+    case 5: ctx.transform(0, 1, 1, 0, 0, 0); ctx.scale(dw / sh, dh / sw); ctx.drawImage(img, 0, 0, sh, sw); ctx.restore(); return;
+    case 6: ctx.transform(0, 1, -1, 0, dw, 0); ctx.scale(dw / sh, dh / sw); ctx.drawImage(img, 0, 0, sh, sw); ctx.restore(); return;
+    case 7: ctx.transform(0, -1, -1, 0, dw, dh); ctx.scale(dw / sh, dh / sw); ctx.drawImage(img, 0, 0, sh, sw); ctx.restore(); return;
+    case 8: ctx.transform(0, -1, 1, 0, 0, dh); ctx.scale(dw / sh, dh / sw); ctx.drawImage(img, 0, 0, sh, sw); ctx.restore(); return;
+  }
+  ctx.drawImage(img, 0, 0, dw, dh);
+  ctx.restore();
+}
+
 export async function comprimirImagem(
   file: File,
   watermark?: { texto: string; bloco?: string; apartamento?: string }
 ): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
-  const escala = Math.min(1, MAX_IMAGE_WIDTH / Math.max(bitmap.width, bitmap.height));
-  const w = Math.round(bitmap.width * escala);
-  const h = Math.round(bitmap.height * escala);
+  const [img, orientation] = await Promise.all([loadImageFromBlob(file), getExifOrientation(file)]);
+  const srcW = img.naturalWidth;
+  const srcH = img.naturalHeight;
+  const isRotated = orientation >= 5;
+  const realW = isRotated ? srcH : srcW;
+  const realH = isRotated ? srcW : srcH;
+  const escala = Math.min(1, MAX_IMAGE_WIDTH / Math.max(realW, realH));
+  const w = Math.round(realW * escala);
+  const h = Math.round(realH * escala);
   const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(bitmap, 0, 0, w, h);
+  drawImageWithOrientation(ctx, img, orientation, w, h);
 
   if (watermark) {
     const fontSize = Math.max(16, Math.round(h * 0.025));

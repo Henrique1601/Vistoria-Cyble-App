@@ -28,6 +28,8 @@ import {
   ArrowClockwise,
   ChatText,
   CircleHalf,
+  ChartBar,
+  ArrowRight,
 } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import { useSyncProgress } from '@/components/ProgressToast';
@@ -95,7 +97,7 @@ import TowerComparison from '@/components/TowerComparison';
 import CommentsModal from '@/components/CommentsModal';
 import { useRealTimeStatus } from '@/hooks/useRealTimeStatus';
 
-type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap' | 'agenda';
+type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap' | 'agenda' | 'comparativo';
 
 interface FotoOnline {
   id: number;
@@ -1116,6 +1118,51 @@ export default function Home() {
     );
   }
 
+  if (view === 'comparativo') {
+    return (
+      <>
+        <main className="min-h-[100dvh] bg-base">
+          <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={spring}
+              className="flex items-center gap-3 mb-6"
+            >
+              <button
+                onClick={() => setView('blocos')}
+                aria-label="Voltar"
+                className="tactile-press w-10 h-10 rounded-xl bg-base-raised border border-base-border flex items-center justify-center text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+              >
+                <ArrowLeft size={18} weight="bold" aria-hidden="true" />
+              </button>
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">Comparativo entre Torres</h1>
+                <p className="text-xs text-content-tertiary mt-0.5">
+                  Progresso de cada torre lado a lado
+                </p>
+              </div>
+            </motion.div>
+
+            <TowerComparison status={status} lista={lista || {}} />
+          </div>
+        </main>
+        <BottomNav
+          active="inicio"
+          onNavigate={(v) => {
+            setActiveNav(v as typeof activeNav);
+            haptic('selection');
+            if (v === 'camera') setModoEscaneamento(true);
+            else if (v === 'config') setView('configuracoes');
+            else if (v === 'exportar') setView('exportar');
+            else if (v === 'inicio') setView('blocos');
+            else if (v === 'agenda') setView('agenda');
+          }}
+        />
+      </>
+    );
+  }
+
   if (view === 'agenda') {
     return (
       <>
@@ -1278,31 +1325,57 @@ export default function Home() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...spring, delay: 0.15 }}
-            className="flex gap-2 mb-4"
+            className="mb-4 space-y-2"
           >
-            <button
-              onClick={() => setOrdem('original')}
-              className={`tactile-press px-4 py-2 rounded-full text-xs font-medium border transition-all ${
-                ordem === 'original'
-                  ? 'bg-accent-dim border-accent text-accent'
-                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
-              }`}
-            >
-              <SortAscending size={14} weight="bold" className="inline mr-1.5 -mt-0.5" />
-              Numerica
-            </button>
-            <button
-              onClick={() => setOrdem('pendentes')}
-              className={`tactile-press px-4 py-2 rounded-full text-xs font-medium border transition-all ${
-                ordem === 'pendentes'
-                  ? 'bg-accent-dim border-accent text-accent'
-                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
-              }`}
-            >
-              <FunnelSimple size={14} weight="bold" className="inline mr-1.5 -mt-0.5" />
-              Pendentes primeiro
-            </button>
-            <div className="flex gap-1 ml-auto">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setOrdem('original')}
+                className={`tactile-press px-4 py-2 rounded-full text-xs font-medium border transition-all ${
+                  ordem === 'original'
+                    ? 'bg-accent-dim border-accent text-accent'
+                    : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                }`}
+              >
+                <SortAscending size={14} weight="bold" className="inline mr-1.5 -mt-0.5" />
+                Numerica
+              </button>
+              <button
+                onClick={() => setOrdem('pendentes')}
+                className={`tactile-press px-4 py-2 rounded-full text-xs font-medium border transition-all ${
+                  ordem === 'pendentes'
+                    ? 'bg-accent-dim border-accent text-accent'
+                    : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                }`}
+              >
+                <FunnelSimple size={14} weight="bold" className="inline mr-1.5 -mt-0.5" />
+                Pendentes primeiro
+              </button>
+              <div className="flex gap-1 ml-auto shrink-0">
+                <button
+                  onClick={() => { haptic('selection'); const next = !modoCompacto; setModoCompactoState(next); setModoCompacto(next); }}
+                  className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ${
+                    modoCompacto
+                      ? 'bg-accent-dim border-accent text-accent'
+                      : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                  }`}
+                  title={modoCompacto ? 'Modo normal' : 'Modo compacto'}
+                >
+                  <ArrowDown size={14} weight="bold" className={`inline transition-transform ${modoCompacto ? 'rotate-180' : ''}`} />
+                </button>
+                <button
+                  onClick={() => { haptic('selection'); const next = !altoContraste; setAltoContrasteState(next); setAltoContraste(next); }}
+                  className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ${
+                    altoContraste
+                      ? 'bg-accent-dim border-accent text-accent'
+                      : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                  }`}
+                  title={altoContraste ? 'Modo normal' : 'Alto contraste'}
+                >
+                  <CircleHalf size={14} weight="bold" className="inline" />
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
               {[
                 { key: 'todos', label: 'Todos' },
                 { key: 'pendente', label: 'Pendente' },
@@ -1312,7 +1385,7 @@ export default function Home() {
                 <button
                   key={key}
                   onClick={() => { haptic('light'); setStatusFilter(key as typeof statusFilter); }}
-                  className={`tactile-press px-2 py-1.5 rounded-full text-[10px] font-medium border transition-all ${
+                  className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all ${
                     statusFilter === key
                       ? key === 'concluido' ? 'bg-success-dim border-success text-success'
                         : key === 'em_andamento' ? 'bg-warn-dim border-warn text-warn'
@@ -1325,28 +1398,6 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => { haptic('selection'); const next = !modoCompacto; setModoCompactoState(next); setModoCompacto(next); }}
-              className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ml-auto ${
-                modoCompacto
-                  ? 'bg-accent-dim border-accent text-accent'
-                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
-              }`}
-              title={modoCompacto ? 'Modo normal' : 'Modo compacto'}
-            >
-              <ArrowDown size={14} weight="bold" className={`inline transition-transform ${modoCompacto ? 'rotate-180' : ''}`} />
-            </button>
-            <button
-              onClick={() => { haptic('selection'); const next = !altoContraste; setAltoContrasteState(next); setAltoContraste(next); }}
-              className={`tactile-press px-3 py-2 rounded-full text-xs font-medium border transition-all ${
-                altoContraste
-                  ? 'bg-accent-dim border-accent text-accent'
-                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
-              }`}
-              title={altoContraste ? 'Modo normal' : 'Alto contraste'}
-            >
-              <CircleHalf size={14} weight="bold" className="inline" />
-            </button>
           </motion.div>
           </div>
 
@@ -1694,7 +1745,19 @@ export default function Home() {
           onFiltroInicioChange={setDataInicio}
         />
 
-        <TowerComparison status={status} lista={lista || {}} />
+        <button
+          onClick={() => setView('comparativo')}
+          className="tactile-press w-full flex items-center gap-3 px-4 py-3 bg-base-raised border border-base-border rounded-xl hover:border-accent/30 transition-all"
+        >
+          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+            <ChartBar size={20} weight="duotone" className="text-accent" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-content">Comparativo entre Torres</p>
+            <p className="text-[11px] text-content-tertiary">Visualizar progresso por torre</p>
+          </div>
+          <ArrowRight size={16} weight="bold" className="ml-auto text-content-tertiary" />
+        </button>
 
         <SearchBar buscaGlobal={buscaGlobal} onBuscaChange={setBuscaGlobal} />
 

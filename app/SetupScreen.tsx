@@ -127,11 +127,67 @@ export default function SetupScreen({
     return null;
   }
 
+  function parseCsvText(text: string): Record<string, string[]> | null {
+    const lines = text.trim().split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return null;
+
+    const sep = lines[0].includes(';') ? ';' : ',';
+    const header = lines[0].split(sep).map((h) => h.trim().toLowerCase().replace(/"/g, ''));
+    const blocoCol = header.findIndex((h) => /torre|bloco|tower|block/.test(h));
+    const aptoCol = header.findIndex((h) => /apto|apartamento|unit|flat|number|numero|num/.test(h));
+
+    if (blocoCol === -1 || aptoCol === -1) {
+      if (header.length >= 2) {
+        const lista: Record<string, string[]> = {};
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(sep).map((c) => c.trim().replace(/"/g, ''));
+          const bloco = cols[0];
+          const apto = cols[1];
+          if (bloco && apto) {
+            if (!lista[bloco]) lista[bloco] = [];
+            const n = normApto(apto);
+            if (n && !lista[bloco].includes(n)) lista[bloco].push(n);
+          }
+        }
+        return Object.keys(lista).length > 0 ? lista : null;
+      }
+      return null;
+    }
+
+    const lista: Record<string, string[]> = {};
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(sep).map((c) => c.trim().replace(/"/g, ''));
+      const bloco = cols[blocoCol];
+      const apto = cols[aptoCol];
+      if (bloco && apto) {
+        if (!lista[bloco]) lista[bloco] = [];
+        const n = normApto(apto);
+        if (n && !lista[bloco].includes(n)) lista[bloco].push(n);
+      }
+    }
+    return Object.keys(lista).length > 0 ? lista : null;
+  }
+
+  async function parseExcelFile(file: File): Promise<Record<string, string[]> | null> {
+    try {
+      const XLSX = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const sheetName = wb.SheetNames[0];
+      if (!sheetName) return null;
+      const sheet = wb.Sheets[sheetName];
+      const csv = XLSX.utils.sheet_to_csv(sheet, { FS: ';' });
+      return parseCsvText(csv);
+    } catch {
+      return null;
+    }
+  }
+
   function handleImport() {
     setImportError('');
     const lista = parseImport(importText);
     if (!lista) {
-      setImportError('Nao consegui interpretar. Use JSON ({\"Torre A\":[\"0031\",...]}) ou TXT (nome do bloco seguido de aptos).');
+      setImportError('Nao consegui interpretar. Use JSON, TXT, CSV ou cole o conteudo na caixa de texto.');
       return;
     }
     setListaImportada(lista);
@@ -142,23 +198,51 @@ export default function SetupScreen({
   const [loadingBuildings, setLoadingBuildings] = useState(false);
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingConfig | null>(null);
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result);
-      setImportText(text);
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'csv') {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = String(reader.result);
+        setImportText(text);
+        setMode('importar');
+        const lista = parseCsvText(text);
+        if (lista) {
+          setListaImportada(lista);
+          setImportError('');
+        } else {
+          setImportError('CSV nao reconhecido. Use colunas Torre/Bloco e Apto/Apartamento.');
+        }
+      };
+      reader.readAsText(file);
+    } else if (ext === 'xlsx' || ext === 'xls') {
       setMode('importar');
-      const lista = parseImport(text);
+      setImportText(`[Arquivo: ${file.name}]`);
+      const lista = await parseExcelFile(file);
       if (lista) {
         setListaImportada(lista);
         setImportError('');
       } else {
-        setImportError('Arquivo nao reconhecido. Use .json ou .txt.');
+        setImportError('Planilha nao reconhecida. Use colunas Torre/Bloco e Apto/Apartamento.');
       }
-    };
-    reader.readAsText(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = String(reader.result);
+        setImportText(text);
+        setMode('importar');
+        const lista = parseImport(text);
+        if (lista) {
+          setListaImportada(lista);
+          setImportError('');
+        } else {
+          setImportError('Arquivo nao reconhecido. Use .json, .txt, .csv ou .xlsx.');
+        }
+      };
+      reader.readAsText(file);
+    }
     e.target.value = '';
   }
 
@@ -350,13 +434,13 @@ export default function SetupScreen({
                 <div className="flex items-center gap-2 mb-3">
                   <FileText size={16} weight="duotone" className="text-content-tertiary" aria-hidden="true" />
                   <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
-                    Importar de arquivo (.json ou .txt)
+                    Importar de arquivo (.json, .txt, .csv, .xlsx)
                   </span>
                 </div>
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".json,.txt"
+                  accept=".json,.txt,.csv,.xlsx,.xls"
                   style={{ display: 'none' }}
                   onChange={handleFile}
                 />

@@ -22,6 +22,7 @@ const items = [
   { key: 'camera', label: 'Camera', icon: Camera },
   { key: 'galeria', label: 'Galeria', icon: Images, href: '/galeria' },
   { key: 'agenda', label: 'Agenda', icon: CalendarDots },
+  { key: 'exportar', label: 'Exportar', icon: Download },
   { key: 'config', label: 'Config', icon: GearSix },
 ] as const;
 
