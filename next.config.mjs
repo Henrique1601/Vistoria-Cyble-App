@@ -21,7 +21,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // unsafe-inline for theme-init, unsafe-eval for Next.js dev
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // unsafe-inline: Next.js inline styles + next/script; unsafe-eval: Next.js dev HMR
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https://*.blob.vercel-storage.com data: blob:",
               "font-src 'self' data:",

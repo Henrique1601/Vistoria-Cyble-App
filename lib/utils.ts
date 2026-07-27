@@ -65,6 +65,11 @@ export function normalizeBloco(b: string): string {
   return b;
 }
 
+/** Consistent map key for foto lookups: normalize both bloco and apartamento. */
+export function fotosMapKey(bloco: string, apartamento: string): string {
+  return `${normalizeBloco(bloco)}__${normApto(apartamento)}`;
+}
+
 export interface ApartamentoStatus {
   cybleAntesFeito: boolean;
   cybleDepoisFeito: boolean;

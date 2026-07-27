@@ -70,7 +70,7 @@ export default function CommentsModal({ bloco, apartamento, isOpen, onClose, adm
                 <h2 className="text-lg font-bold text-content">Comentários</h2>
                 <p className="text-xs text-content-tertiary">{bloco} — Apt {apartamento}</p>
               </div>
-              <button onClick={onClose} className="p-1 rounded-full hover:bg-base-surface">
+              <button onClick={onClose} className="p-1 rounded-full hover:bg-base-surface" aria-label="Fechar">
                 <X size={20} className="text-content-tertiary" />
               </button>
             </div>
@@ -93,7 +93,7 @@ export default function CommentsModal({ bloco, apartamento, isOpen, onClose, adm
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-content-tertiary">{formatTime(c.criadoEm)}</span>
                         {adminMode && (
-                          <button onClick={() => c.id && handleExcluir(c.id)} className="p-0.5 hover:text-danger transition-colors">
+                          <button onClick={() => c.id && handleExcluir(c.id)} className="p-0.5 hover:text-danger transition-colors" aria-label="Excluir comentario">
                             <Trash size={12} className="text-content-tertiary" />
                           </button>
                         )}
@@ -118,6 +118,7 @@ export default function CommentsModal({ bloco, apartamento, isOpen, onClose, adm
                 onClick={handleEnviar}
                 disabled={!novoComentario.trim()}
                 className="p-2 rounded-lg bg-accent text-white disabled:opacity-40 hover:opacity-90 transition-opacity"
+                aria-label="Enviar comentario"
               >
                 <PaperPlaneTilt size={18} />
               </button>

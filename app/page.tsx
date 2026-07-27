@@ -78,7 +78,7 @@ import {
   deveFazerBackup,
   formatarTimestampBackup,
 } from '@/lib/backup';
-import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto, normalizeBloco, emAndamento } from '@/lib/utils';
+import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto, normalizeBloco, emAndamento, fotosMapKey } from '@/lib/utils';
 import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo, getModoCompacto, setModoCompacto, getAltoContraste, setAltoContraste } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
 import {
@@ -1036,7 +1036,7 @@ export default function Home() {
                 const { gerarRelatorioHTML, downloadHTML } = await loadExport();
                 const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
                 for (const f of fotosOnline) {
-                  const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
+                  const key = fotosMapKey(f.bloco, f.apartamento);
                   const arr = fotosMap.get(key) ?? [];
                   arr.push({ fotoUrl: f.foto_url, categoria: f.foto_url.includes('antes') ? 'cyble_antes' : f.foto_url.includes('depois') ? 'cyble_depois' : 'documento' });
                   fotosMap.set(key, arr);
@@ -1056,7 +1056,7 @@ export default function Home() {
                   const { gerarRelatorioHTML } = await loadExport();
                   const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
                   for (const f of fotosOnline) {
-                    const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
+                    const key = fotosMapKey(f.bloco, f.apartamento);
                     const arr = fotosMap.get(key) ?? [];
                     arr.push({ fotoUrl: f.foto_url, categoria: f.foto_url.includes('antes') ? 'cyble_antes' : f.foto_url.includes('depois') ? 'cyble_depois' : 'documento' });
                     fotosMap.set(key, arr);
@@ -1453,17 +1453,17 @@ export default function Home() {
               </div>
             )}
             {loadingSkeleton && aptosDoBloco.length === 0 && Array.from({ length: 5 }).map((_, i) => (
-              <div key={`apto-skel-${i}`} className="px-4 py-3 flex items-center gap-3">
-                <div className="skeleton w-10 h-10 rounded-xl shrink-0" />
+              <div key={`apto-skel-${i}`} className="px-4 py-3 flex items-center gap-3" style={{ animationDelay: `${i * 80}ms` }}>
+                <div className="skeleton-resolve w-10 h-10 rounded-xl shrink-0" />
                 <div className="flex-1">
-                  <div className="skeleton w-16 h-4 rounded-md mb-1.5" />
+                  <div className="skeleton-resolve w-16 h-4 rounded-md mb-1.5" />
                   <div className="flex gap-1.5">
-                    <div className="skeleton w-2 h-2 rounded-full" />
-                    <div className="skeleton w-2 h-2 rounded-full" />
-                    <div className="skeleton w-2 h-2 rounded-full" />
+                    <div className="skeleton-resolve w-2 h-2 rounded-full" />
+                    <div className="skeleton-resolve w-2 h-2 rounded-full" />
+                    <div className="skeleton-resolve w-2 h-2 rounded-full" />
                   </div>
                 </div>
-                <div className="skeleton w-8 h-8 rounded-lg shrink-0" />
+                <div className="skeleton-resolve w-8 h-8 rounded-lg shrink-0" />
               </div>
             ))}
             {aptosPaginados.map((s) => (

@@ -66,13 +66,13 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     const now = Date.now();
     const timeSinceLastTap = now - lastTapRef.current;
 
-    if (Math.abs(swipeX) > swipeThreshold) {
+    if (swipeX < -swipeThreshold) {
+      // Swipe left → open camera
       haptic('medium');
-      if (showSwipeAction === 'done') {
-        onAbrir();
-      } else if (showSwipeAction === 'open') {
-        onAbrir();
-      }
+      onAbrir();
+    } else if (swipeX > swipeThreshold) {
+      // Swipe right → placeholder for "concluir" (no-op until onConcluir prop exists)
+      haptic('light');
     } else if (swipeX === 0 && timeSinceLastTap < 300 && timeSinceLastTap > 0) {
       haptic('success');
       const wasFav = toggleFavorito(s.apartamento);
