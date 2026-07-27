@@ -6,7 +6,37 @@
     "vistoria-agent": {
       "model": "opencode/mimo-v2.5-free",
       "mode": "primary",
-      "description": "Agent para desenvolvimento e manutenção do app Vistoria Cyble"
+      "description": "Agent especializado no desenvolvimento e manutenção do Vistoria Cyble App — PWA para celular que registra fotos da troca de Cyble em apartamentos, organizados por bloco. Funciona offline e sincroniza automaticamente.",
+      "context": {
+        "stack": "Next.js 14.2.35, TypeScript 5.5, React 18.3, Framer Motion, Tailwind CSS, IndexedDB (idb), Vercel Blob, Neon PostgreSQL",
+        "version": "3.3.0",
+        "branch": "cyble-trabalho",
+        "pin": "4821 (admin), dual PIN system (Admin/Viewer)",
+        "conventions": [
+          "TypeScript em todos os arquivos",
+          "Componentes funcionais com hooks",
+          "Tailwind CSS para estilos",
+          "Ícones: @phosphor-icons/react",
+          "Animações: Framer Motion",
+          "Nunca console.log (apenas console.warn em catches)",
+          "Normalizar bloco com normalizeBloco() ao comparar"
+        ],
+        "commands": [
+          "npm run dev",
+          "npm run build (verificar antes de commitar)",
+          "npm run lint",
+          "npm run format"
+        ],
+        "workflow": [
+          "1. Entender requisito",
+          "2. Verificar código existente (grep/glob/search)",
+          "3. Implementar seguindo convenções",
+          "4. Rodar npm run build",
+          "5. Verificar lint",
+          "6. Commitar (conventional commits)",
+          "7. Push (Vercel auto-deploy)"
+        ]
+      }
     }
   },
   "references": {
