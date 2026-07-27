@@ -263,11 +263,12 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/fotos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } })
+    if (!pin) return;
+    fetch('/api/fotos', { headers: { 'x-app-pin': pin } })
       .then((r) => r.json())
       .then((data) => setFotosOnline(data.fotos || []))
       .catch(() => {});
-  }, []);
+  }, [pin]);
 
   // PWA install prompt
   useEffect(() => {
