@@ -301,9 +301,15 @@ export default function CapturaScreen({
       }
     } catch {}
 
-    const dataStr = new Date().toLocaleDateString('pt-BR');
-    const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
-    setEditingPhoto({ blob: comprimido, categoria });
+    try {
+      const dataStr = new Date().toLocaleDateString('pt-BR');
+      const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
+      setEditingPhoto({ blob: comprimido, categoria });
+    } catch (err) {
+      console.warn('Erro ao processar foto:', err);
+      toast('Erro ao processar a foto. Tente de novo.', 'error');
+      haptic('error');
+    }
   }
 
   async function handleBlurOverride() {
@@ -317,21 +323,28 @@ export default function CapturaScreen({
 
   async function handleEditorSalvar(blob: Blob) {
     if (!editingPhoto) return;
-    const dataStr = new Date().toLocaleDateString('pt-BR');
-    const [comprimido, gps] = await Promise.all([comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' }), { texto: dataStr, bloco, apartamento }), getGPS()]);
     const cat = editingPhoto.categoria;
-    const isMulti = CATEGORIAS.find((c) => c.key === cat)?.multi ?? false;
-    await salvarFoto({
-      bloco, apartamento, categoria: cat, blob: comprimido, timestamp: Date.now(), synced: false,
-      gps: gps || undefined,
-    });
-    haptic('success');
-    playScanFeedback('photo_captured');
-    setEditingPhoto(null);
-    await recarregar();
-    onFotoSalva();
-    if (keepInCamera && isMulti) {
-      setTimeout(() => { inputsRef.current[cat]?.click(); }, 300);
+    try {
+      const dataStr = new Date().toLocaleDateString('pt-BR');
+      const [comprimido, gps] = await Promise.all([comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' }), { texto: dataStr, bloco, apartamento }), getGPS()]);
+      await salvarFoto({
+        bloco, apartamento, categoria: cat, blob: comprimido, timestamp: Date.now(), synced: false,
+        gps: gps || undefined,
+      });
+      haptic('success');
+      playScanFeedback('photo_captured');
+      setEditingPhoto(null);
+      await recarregar();
+      onFotoSalva();
+      const isMulti = CATEGORIAS.find((c) => c.key === cat)?.multi ?? false;
+      if (keepInCamera && isMulti) {
+        setTimeout(() => { inputsRef.current[cat]?.click(); }, 300);
+      }
+    } catch (err) {
+      console.warn('Erro ao salvar foto:', err);
+      toast('Erro ao salvar foto. Tente de novo.', 'error');
+      haptic('error');
+      setEditingPhoto(null);
     }
   }
 
@@ -340,9 +353,16 @@ export default function CapturaScreen({
     if (!foto) return;
     haptic('heavy');
     deletedRef.current.set(id, foto);
-    await deletarFoto(id);
-    await recarregar();
-    onFotoSalva();
+    try {
+      await deletarFoto(id);
+      await recarregar();
+      onFotoSalva();
+    } catch (err) {
+      console.warn('Erro ao deletar foto:', err);
+      toast('Erro ao excluir foto', 'error');
+      deletedRef.current.delete(id);
+      return;
+    }
     toast('Foto excluida', 'info', {
       duration: 5000,
       undoLabel: 'Desfazer',

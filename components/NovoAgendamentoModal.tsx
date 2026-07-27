@@ -1,27 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, CalendarDots, Buildings, ListNumbers } from '@phosphor-icons/react';
+import { X, CalendarDots, Buildings, ListNumbers, FunnelSimple } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
+import { normApto } from '@/lib/utils';
+import type { ApartamentoStatus } from '@/lib/db';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
 interface NovoAgendamentoModalProps {
   blocos: Record<string, string[]>;
+  statusList?: ApartamentoStatus[];
   onFechar: () => void;
   onSalvo: () => void;
 }
 
-export default function NovoAgendamentoModal({ blocos, onFechar, onSalvo }: NovoAgendamentoModalProps) {
+export default function NovoAgendamentoModal({ blocos, statusList, onFechar, onSalvo }: NovoAgendamentoModalProps) {
   const [bloco, setBloco] = useState('');
   const [apto, setApto] = useState('');
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [obs, setObs] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [apenasPendentes, setApenasPendentes] = useState(false);
 
-  const listaAptos = bloco ? (blocos[bloco] || []) : [];
   const blocosNomes = Object.keys(blocos);
+
+  // Build a lookup map for status: key = "bloco__aparto" -> status
+  const statusMap = useMemo(() => {
+    if (!statusList) return null;
+    const m = new Map<string, ApartamentoStatus>();
+    for (const s of statusList) {
+      m.set(`${s.bloco}__${normApto(s.apartamento)}`, s);
+    }
+    return m;
+  }, [statusList]);
+
+  // Filter apartments based on toggle
+  const listaAptos = useMemo(() => {
+    if (!bloco) return [];
+    const all = blocos[bloco] || [];
+    if (!apenasPendentes || !statusMap) return all;
+    return all.filter((a) => {
+      const key = `${bloco}__${normApto(a)}`;
+      const st = statusMap.get(key);
+      // Pending = not both cyble antes AND depois done
+      if (!st) return true; // no status = pending
+      return !(st.cybleAntesFeito && st.cybleDepoisFeito);
+    });
+  }, [bloco, blocos, apenasPendentes, statusMap]);
+
+  const totalPendentes = useMemo(() => {
+    if (!bloco) return 0;
+    const all = blocos[bloco] || [];
+    if (!statusMap) return all.length;
+    return all.filter((a) => {
+      const key = `${bloco}__${normApto(a)}`;
+      const st = statusMap.get(key);
+      if (!st) return true;
+      return !(st.cybleAntesFeito && st.cybleDepoisFeito);
+    }).length;
+  }, [bloco, blocos, statusMap]);
 
   async function handleSalvar() {
     if (!bloco || !apto || !data) return;
@@ -94,6 +133,33 @@ export default function NovoAgendamentoModal({ blocos, onFechar, onSalvo }: Novo
             </div>
           </div>
 
+          {/* Filter toggle */}
+          {bloco && statusList && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { haptic('selection'); setApenasPendentes(false); setApto(''); }}
+                className={`tactile-press px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  !apenasPendentes
+                    ? 'bg-accent-dim border-accent text-accent'
+                    : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                }`}
+              >
+                Todos ({blocos[bloco]?.length || 0})
+              </button>
+              <button
+                onClick={() => { haptic('selection'); setApenasPendentes(true); setApto(''); }}
+                className={`tactile-press px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${
+                  apenasPendentes
+                    ? 'bg-warn-dim border-warn text-warn'
+                    : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+                }`}
+              >
+                <FunnelSimple size={12} weight="bold" />
+                Pendentes ({totalPendentes})
+              </button>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-semibold uppercase tracking-widest text-content-tertiary mb-1.5 block">
               Apartamento
@@ -106,10 +172,21 @@ export default function NovoAgendamentoModal({ blocos, onFechar, onSalvo }: Novo
                 disabled={!bloco}
                 className="w-full bg-base-overlay border border-base-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-content appearance-none focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-40"
               >
-                <option value="">Selecionar...</option>
-                {listaAptos.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
+                <option value="">
+                  {listaAptos.length === 0 && bloco && apenasPendentes
+                    ? 'Nenhum pendente'
+                    : 'Selecionar...'}
+                </option>
+                {listaAptos.map((a) => {
+                  const key = `${bloco}__${normApto(a)}`;
+                  const st = statusMap?.get(key);
+                  const done = st?.cybleAntesFeito && st?.cybleDepoisFeito;
+                  return (
+                    <option key={a} value={a}>
+                      {a}{done ? ' ✓' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>

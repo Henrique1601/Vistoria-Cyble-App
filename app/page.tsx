@@ -393,6 +393,12 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
 
+  // Scroll to top on view change (fixes PC list starting at bottom)
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [view, blocoAtual]);
+
   // Collapsible header on scroll
   useEffect(() => {
     if (view !== 'blocos' || blocoAtual) return;
@@ -1220,6 +1226,7 @@ export default function Home() {
         {showAgendamentoModal && lista && (
           <NovoAgendamentoModal
             blocos={lista}
+            statusList={statusMerged}
             onFechar={() => setShowAgendamentoModal(false)}
             onSalvo={() => { setShowAgendamentoModal(false); setAgendaKey((k) => k + 1); toast('Agendamento criado', 'success'); }}
           />
