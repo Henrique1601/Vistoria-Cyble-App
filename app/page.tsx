@@ -40,7 +40,8 @@ import { SearchBar, SearchResults } from '@/components/SearchBar';
 import { FotosRecentes } from '@/components/FotosRecentes';
 import { AtrasadosSection } from '@/components/AtrasadosSection';
 import { BlocosGrid } from '@/components/BlocosGrid';
-import { ExportSection } from '@/components/ExportSection';
+import dynamic from 'next/dynamic';
+const ExportSection = dynamic(() => import('@/components/ExportSection').then(m => ({ default: m.ExportSection })), { ssr: false, loading: () => <div className="h-32 bg-base-raised rounded-2xl animate-pulse" /> });
 import { ProgressHeatmap } from '@/components/ProgressHeatmap';
 import { BottomLinks } from '@/components/BottomLinks';
 import { haptic } from '@/lib/haptic';
@@ -65,7 +66,9 @@ import {
   type ApartamentoStatus,
   type FotoRecord,
 } from '@/lib/db';
-import { exportarCSV, exportarPDF, exportarXLSX, compartilharPDF, compartilharXLSX, exportarZIP, relatorioPDFComFotos, gerarRelatorioHTML, downloadHTML } from '@/lib/export';
+// Lazy-loaded export functions (heavy libraries: jspdf, xlsx, jszip)
+const loadExport = () => import('@/lib/export');
+const loadExportJSON = () => import('@/lib/export/json');
 import { useTheme } from '@/lib/theme';
 import { Confetti, SuccessCheck } from '@/components/SuccessAnimation';
 import {
@@ -88,7 +91,6 @@ import {
 import { logAudit } from '@/lib/auditLog';
 import { APP_VERSION } from '@/lib/version';
 import { startAutoBackup, stopAutoBackup } from '@/lib/autoBackup';
-import { exportarJSON } from '@/lib/export/json';
 import { OnboardingTour, shouldShowTutorial, markTutorialDone } from '@/components/OnboardingTour';
 import NotificationCenter from '@/components/NotificationCenter';
 import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
@@ -1018,14 +1020,15 @@ export default function Home() {
               dataFim={dataFiltro}
               apenasPendentes={apenasPendentes}
               onToggleApenasPendentes={() => setApenasPendentes(!apenasPendentes)}
-              onExportCSV={exportarCSV}
-              onExportPDF={(s) => exportarPDF(s, 'Vistoria Cyble')}
-              onExportXLSX={(s) => exportarXLSX(s, 'Vistoria Cyble')}
-              onCompartilharPDF={async (s) => { setCompartilhando('pdf'); await compartilharPDF(s, 'Vistoria Cyble'); setCompartilhando(null); }}
-              onCompartilharXLSX={async (s) => { setCompartilhando('xlsx'); await compartilharXLSX(s, 'Vistoria Cyble'); setCompartilhando(null); }}
-              onExportZIP={async (s) => { setExportandoZIP(true); try { await exportarZIP(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoZIP(false); } }}
-              onRelatorioPDFComFotos={async (s) => { setExportandoFotos(true); try { await relatorioPDFComFotos(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoFotos(false); } }}
-              onExportHTML={(s) => {
+              onExportCSV={async (s) => { const { exportarCSV } = await loadExport(); exportarCSV(s); }}
+              onExportPDF={async (s) => { const { exportarPDF } = await loadExport(); exportarPDF(s, 'Vistoria Cyble'); }}
+              onExportXLSX={async (s) => { const { exportarXLSX } = await loadExport(); exportarXLSX(s, 'Vistoria Cyble'); }}
+              onCompartilharPDF={async (s) => { setCompartilhando('pdf'); const { compartilharPDF } = await loadExport(); await compartilharPDF(s, 'Vistoria Cyble'); setCompartilhando(null); }}
+              onCompartilharXLSX={async (s) => { setCompartilhando('xlsx'); const { compartilharXLSX } = await loadExport(); await compartilharXLSX(s, 'Vistoria Cyble'); setCompartilhando(null); }}
+              onExportZIP={async (s) => { setExportandoZIP(true); try { const { exportarZIP } = await loadExport(); await exportarZIP(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoZIP(false); } }}
+              onRelatorioPDFComFotos={async (s) => { setExportandoFotos(true); try { const { relatorioPDFComFotos } = await loadExport(); await relatorioPDFComFotos(s, 'Vistoria Cyble', { onProgress: () => {} }); } finally { setExportandoFotos(false); } }}
+              onExportHTML={async (s) => {
+                const { gerarRelatorioHTML, downloadHTML } = await loadExport();
                 const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
                 for (const f of fotosOnline) {
                   const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
@@ -1037,7 +1040,7 @@ export default function Home() {
                 downloadHTML(html, `vistoria-cyble-${new Date().toISOString().slice(0, 10)}.html`);
                 logAudit('export_html', `Relatorio HTML gerado (${s.length} aptos)`);
               }}
-              onExportJSON={(s) => { exportarJSON(s, 'Vistoria Cyble'); logAudit('export_json', `Export JSON gerado (${s.length} aptos)`); }}
+              onExportJSON={async (s) => { const { exportarJSON } = await loadExportJSON(); exportarJSON(s, 'Vistoria Cyble'); logAudit('export_json', `Export JSON gerado (${s.length} aptos)`); }}
               showPDFOptions={showPDFOptions}
               onTogglePDFOptions={() => setShowPDFOptions(!showPDFOptions)}
               pdfAccentColor={pdfAccentColor}
@@ -1045,6 +1048,7 @@ export default function Home() {
               onShareReport={async (s) => {
                 setCompartilhando('report');
                 try {
+                  const { gerarRelatorioHTML } = await loadExport();
                   const fotosMap = new Map<string, { fotoUrl: string; categoria: string }[]>();
                   for (const f of fotosOnline) {
                     const key = `${f.bloco}_${f.apartamento.replace(/^0+/, '')}`;
