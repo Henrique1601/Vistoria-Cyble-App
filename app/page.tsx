@@ -166,7 +166,6 @@ export default function Home() {
   const [versaoAtual, setVersaoAtual] = useState(APP_VERSION);
   const [versaoNova, setVersaoNova] = useState(APP_VERSION);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(0);
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   const [agendamentoRapido, setAgendamentoRapido] = useState<{ bloco: string; apto: string } | null>(null);
   const [agendaKey, setAgendaKey] = useState(0);
@@ -292,7 +291,7 @@ export default function Home() {
 
   // Onboarding na primeira vez
   useEffect(() => {
-    if (pin && !localStorage.getItem('vistoria_onboarding_done')) {
+    if (pin && !localStorage.getItem('vistoria_onboarding_done') && !shouldShowTutorial()) {
       setShowOnboarding(true);
     }
   }, [pin]);
@@ -374,6 +373,7 @@ export default function Home() {
 
   // Collapsible header on scroll
   useEffect(() => {
+    if (view !== 'blocos' || blocoAtual) return;
     const el = mainRef.current;
     if (!el) return;
     const handler = () => {
@@ -381,7 +381,7 @@ export default function Home() {
     };
     el.addEventListener('scroll', handler, { passive: true });
     return () => el.removeEventListener('scroll', handler);
-  }, [view === 'blocos' && !blocoAtual]);
+  }, [view, blocoAtual]);
 
   // High contrast mode
   useEffect(() => {
@@ -903,7 +903,7 @@ export default function Home() {
     return (
       <SetupScreen
         onDone={(l) => setLista(l)}
-        onCancel={() => { setLista(listaAnterior); setListaAnterior(null); setView('blocos'); }}
+        onCancel={() => { if (listaAnterior) { setLista(listaAnterior); setListaAnterior(null); } setView('blocos'); }}
       />
     );
   }
@@ -1593,78 +1593,6 @@ export default function Home() {
                 Instalar
               </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Onboarding Tour */}
-      <AnimatePresence>
-        {showOnboarding && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-base/90 backdrop-blur-sm z-[70] flex items-center justify-center px-6"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-base-raised border border-base-border rounded-2xl p-6 max-w-sm w-full"
-            >
-              {[
-                { title: 'Bem-vindo ao Vistoria Cyble!', desc: 'Este app ajuda a registrar fotos das vistorias de troca de Cyble. Vamos te mostrar como funciona.' },
-                { title: 'Tirar fotos', desc: 'Toque em um apartamento e escolha a categoria (Antes, Depois ou Documento). As fotos são salvas no aparelho automaticamente.' },
-                { title: 'Modo escaneamento', desc: 'Ative o modo escaneamento no header para ir direto à câmera sem navegar pelos menus.' },
-                { title: 'Sincronização', desc: 'As fotos são enviadas automaticamente quando o aparelho fica online. Você pode trabalhar 100% offline.' },
-                { title: 'Exportar relatórios', desc: 'Use os botões de exportar para gerar PDF, XLSX, CSV ou ZIP com todas as fotos.' },
-              ][onboardingStep] && (
-                <>
-                  <h2 className="text-lg font-bold text-content mb-2">
-                    {['Bem-vindo ao Vistoria Cyble!', 'Tirar fotos', 'Modo escaneamento', 'Sincronização', 'Exportar relatórios'][onboardingStep]}
-                  </h2>
-                  <p className="text-sm text-content-secondary leading-relaxed mb-6">
-                    {[
-                      'Este app ajuda a registrar fotos das vistorias de troca de Cyble. Vamos te mostrar como funciona.',
-                      'Toque em um apartamento e escolha a categoria (Antes, Depois ou Documento). As fotos são salvas no aparelho automaticamente.',
-                      'Ative o modo escaneamento no header para ir direto à câmera sem navegar pelos menus.',
-                      'As fotos são enviadas automaticamente quando o aparelho fica online. Você pode trabalhar 100% offline.',
-                      'Use os botões de exportar para gerar PDF, XLSX, CSV ou ZIP com todas as fotos.',
-                    ][onboardingStep]}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-1.5">
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === onboardingStep ? 'bg-accent' : 'bg-base-overlay'}`} />
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      {onboardingStep > 0 && (
-                        <button
-                          onClick={() => setOnboardingStep(onboardingStep - 1)}
-                          className="text-xs font-medium px-4 py-2 rounded-xl bg-base-overlay text-content-secondary hover:text-content transition-colors"
-                        >
-                          Voltar
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          if (onboardingStep < 4) {
-                            setOnboardingStep(onboardingStep + 1);
-                          } else {
-                            setShowOnboarding(false);
-                            localStorage.setItem('vistoria_onboarding_done', '1');
-                          }
-                        }}
-                        className="text-xs font-semibold px-4 py-2 rounded-xl bg-accent text-base hover:bg-accent-hover transition-colors"
-                      >
-                        {onboardingStep < 4 ? 'Próximo' : 'Começar'}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDots,
@@ -53,6 +53,8 @@ export default function AgendaScreen({
   onEditar,
 }: AgendaScreenProps) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const agendamentosRef = useRef(agendamentos);
+  agendamentosRef.current = agendamentos;
   const [loading, setLoading] = useState(true);
   const today = hoje();
 
@@ -95,7 +97,7 @@ export default function AgendaScreen({
 
   const handleExcluir = useCallback(async (id: number) => {
     haptic('medium');
-    const anteriores = agendamentos;
+    const anteriores = agendamentosRef.current;
     setAgendamentos((prev) => prev.filter((a) => a.id !== id));
     try {
       await fetch('/api/agendamentos', {
@@ -106,7 +108,7 @@ export default function AgendaScreen({
     } catch {
       setAgendamentos(anteriores);
     }
-  }, [agendamentos]);
+  }, []);
 
   const atrasados = agendamentos.filter((a) => !a.concluido && a.data < today);
   const hojeLista = agendamentos.filter((a) => !a.concluido && a.data === today);

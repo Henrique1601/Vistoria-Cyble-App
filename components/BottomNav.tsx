@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import {
   HouseLine,
   Camera,
@@ -27,6 +28,7 @@ const items = [
 ] as const;
 
 export default function BottomNav({ active, onNavigate, badges }: BottomNavProps) {
+  const router = useRouter();
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[55] glass-subtle border-t border-base-border/50" role="navigation" aria-label="Navegacao principal">
       <div className="max-w-2xl mx-auto flex items-center justify-around py-2 px-2">
@@ -40,7 +42,7 @@ export default function BottomNav({ active, onNavigate, badges }: BottomNavProps
               onClick={() => {
                 haptic('selection');
                 if ('href' in item && item.href) {
-                  window.location.href = item.href;
+                  router.push(item.href);
                 } else {
                   onNavigate(item.key);
                 }

@@ -155,7 +155,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
         }
       }
     } catch (err) {
-      console.error('Erro ao deletar foto:', err);
+      console.warn('Erro ao deletar foto:', err);
     } finally {
       setDeleting(false);
     }
@@ -194,7 +194,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
         }
       }
     } catch (err) {
-      console.error('Erro ao editar foto:', err);
+      console.warn('Erro ao editar foto:', err);
     } finally {
       setEditing(false);
     }
@@ -247,7 +247,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
         setSelectionMode(false);
       }
     } catch (err) {
-      console.error('Erro ao excluir fotos:', err);
+      console.warn('Erro ao excluir fotos:', err);
     } finally {
       setBulkDeleting(false);
     }
@@ -276,7 +276,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Erro ao baixar fotos:', err);
+      console.warn('Erro ao baixar fotos:', err);
     } finally {
       setDownloadingGrupo(null);
     }

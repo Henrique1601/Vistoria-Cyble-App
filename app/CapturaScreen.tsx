@@ -166,6 +166,17 @@ export default function CapturaScreen({
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overCategory, setOverCategory] = useState<Categoria | null>(null);
 
+  // Revoke blob URLs when fotos change to prevent memory leaks
+  useEffect(() => {
+    const urls: string[] = [];
+    for (const f of fotos) {
+      if (!f.synced && f.blob.size > 0) {
+        urls.push(URL.createObjectURL(f.blob));
+      }
+    }
+    return () => { urls.forEach(URL.revokeObjectURL); };
+  }, [fotos]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
