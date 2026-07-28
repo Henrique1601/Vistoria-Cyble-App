@@ -145,12 +145,13 @@ export async function salvarFoto(rec: Omit<FotoRecord, 'id'>) {
 export async function fotosDoApartamento(bloco: string, apartamento: string) {
   const db = await getDb();
   const all = await db.getAll('fotos');
+  const normA = normApto(apartamento);
   const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
   const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
   return all.filter((f) => {
     const fLetter = f.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
     const blocoMatch = isSingleLetter ? fLetter === letter : f.bloco === bloco;
-    return blocoMatch && f.apartamento === apartamento;
+    return blocoMatch && normApto(f.apartamento) === normA;
   });
 }
 
@@ -226,7 +227,7 @@ export async function statusDeTodosApartamentos(
     if (letter.length === 1 && /^[A-H]$/i.test(letter)) {
       blocoKey = letterToFull.get(letter.toUpperCase()) || blocoKey;
     }
-    const key = `${blocoKey}__${f.apartamento}`;
+    const key = `${blocoKey}__${normApto(f.apartamento)}`;
     const arr = fotosMap.get(key) || [];
     arr.push(f);
     fotosMap.set(key, arr);
@@ -236,7 +237,7 @@ export async function statusDeTodosApartamentos(
   for (const bloco of Object.keys(lista)) {
     const concluidosBloco = new Set(concluidos[bloco] || []);
     for (const apto of lista[bloco]) {
-      const key = `${bloco}__${apto}`;
+      const key = `${bloco}__${normApto(apto)}`;
       const fotos = fotosMap.get(key) || [];
       const isConcluido = concluidosBloco.has(apto);
       const notas = fotos.map((f) => f.nota).filter((n): n is string => !!n && n.trim().length > 0);
@@ -852,9 +853,15 @@ export async function importarConfigXLSX(file: File): Promise<{ blocos: number; 
 // --- Notas por Apartamento ---
 export async function salvarNotaApto(bloco: string, apartamento: string, texto: string): Promise<void> {
   const db = await getDb();
-  const all = await db.getAllFromIndex('notas', 'by-bloco-apto', [bloco, apartamento]);
-  if (all.length > 0 && all[0].id) {
-    await db.put('notas', { ...all[0], texto, atualizadoEm: Date.now() });
+  const all = await db.getAll('notas');
+  const match = all.find((n) => {
+    const nLetter = n.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? nLetter === letter : n.bloco === bloco;
+    return blocoMatch && normApto(n.apartamento) === normApto(apartamento);
+  });
+  if (match?.id) {
+    await db.put('notas', { ...match, texto, atualizadoEm: Date.now() });
   } else {
     await db.add('notas', { bloco, apartamento, texto, atualizadoEm: Date.now() });
   }
@@ -862,14 +869,26 @@ export async function salvarNotaApto(bloco: string, apartamento: string, texto: 
 
 export async function obterNotaApto(bloco: string, apartamento: string): Promise<string> {
   const db = await getDb();
-  const all = await db.getAllFromIndex('notas', 'by-bloco-apto', [bloco, apartamento]);
-  return all[0]?.texto || '';
+  const all = await db.getAll('notas');
+  const match = all.find((n) => {
+    const nLetter = n.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? nLetter === letter : n.bloco === bloco;
+    return blocoMatch && normApto(n.apartamento) === normApto(apartamento);
+  });
+  return match?.texto || '';
 }
 
 export async function excluirNotaApto(bloco: string, apartamento: string): Promise<void> {
   const db = await getDb();
-  const all = await db.getAllFromIndex('notas', 'by-bloco-apto', [bloco, apartamento]);
-  if (all[0]?.id) await db.delete('notas', all[0].id);
+  const all = await db.getAll('notas');
+  const match = all.find((n) => {
+    const nLetter = n.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? nLetter === letter : n.bloco === bloco;
+    return blocoMatch && normApto(n.apartamento) === normApto(apartamento);
+  });
+  if (match?.id) await db.delete('notas', match.id);
 }
 
 // --- Comentarios por Apartamento ---
@@ -880,7 +899,13 @@ export async function adicionarComentario(bloco: string, apartamento: string, au
 
 export async function obterComentarios(bloco: string, apartamento: string): Promise<ComentarioApto[]> {
   const db = await getDb();
-  return db.getAllFromIndex('comentarios', 'by-bloco-apto', [bloco, apartamento]);
+  const all = await db.getAll('comentarios');
+  return all.filter((c) => {
+    const cLetter = c.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? cLetter === letter : c.bloco === bloco;
+    return blocoMatch && normApto(c.apartamento) === normApto(apartamento);
+  });
 }
 
 export async function excluirComentario(id: number): Promise<void> {
@@ -895,8 +920,13 @@ export async function marcarTodosDocsOK(bloco: string, apartamentos: string[]): 
   let count = 0;
   const aptoSet = new Set(apartamentos);
 
+  const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+  const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
+
   for (const f of all) {
-    if (f.bloco === bloco && aptoSet.has(normApto(f.apartamento)) && f.categoria === 'documento' && !f.synced) {
+    const fLetter = f.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = isSingleLetter ? fLetter === letter : f.bloco === bloco;
+    if (blocoMatch && aptoSet.has(normApto(f.apartamento)) && f.categoria === 'documento' && !f.synced) {
       await db.put('fotos', { ...f, synced: true });
       count++;
     }
