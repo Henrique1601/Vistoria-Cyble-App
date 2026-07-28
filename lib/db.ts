@@ -297,38 +297,48 @@ function loadImageFromBlob(file: File): Promise<HTMLImageElement> {
 function getExifOrientation(file: File): Promise<number> {
   return new Promise((resolve) => {
     const reader = new FileReader();
+    const timer = setTimeout(() => {
+      try { reader.abort(); } catch {}
+      resolve(1);
+    }, 8000);
     reader.onload = () => {
-      const view = new DataView(reader.result as ArrayBuffer);
-      if (view.getUint16(0, false) !== 0xFFD8) { resolve(1); return; }
-      let offset = 2;
-      while (offset < view.byteLength - 2) {
-        const marker = view.getUint16(offset, false);
-        offset += 2;
-        if (marker === 0xFFE1) {
-          const length = view.getUint16(offset, false);
-          if (view.getUint32(offset + 2, false) === 0x45786966) {
-            const tiffOffset = offset + 8;
-            const bigEndian = view.getUint16(tiffOffset, false) === 0x4D4D;
-            const ifdOffset = view.getUint32(tiffOffset + 4, bigEndian) + tiffOffset;
-            const numEntries = view.getUint16(ifdOffset, bigEndian);
-            for (let i = 0; i < numEntries; i++) {
-              const entryOffset = ifdOffset + 2 + i * 12;
-              if (entryOffset + 12 > view.byteLength) break;
-              if (view.getUint16(entryOffset, bigEndian) === 0x0112) {
-                resolve(view.getUint16(entryOffset + 8, bigEndian));
-                return;
+      clearTimeout(timer);
+      try {
+        const view = new DataView(reader.result as ArrayBuffer);
+        if (view.getUint16(0, false) !== 0xFFD8) { resolve(1); return; }
+        let offset = 2;
+        while (offset < view.byteLength - 2) {
+          const marker = view.getUint16(offset, false);
+          offset += 2;
+          if (marker === 0xFFE1) {
+            const length = view.getUint16(offset, false);
+            if (view.getUint32(offset + 2, false) === 0x45786966) {
+              const tiffOffset = offset + 8;
+              const bigEndian = view.getUint16(tiffOffset, false) === 0x4D4D;
+              const ifdOffset = view.getUint32(tiffOffset + 4, bigEndian) + tiffOffset;
+              const numEntries = view.getUint16(ifdOffset, bigEndian);
+              for (let i = 0; i < numEntries; i++) {
+                const entryOffset = ifdOffset + 2 + i * 12;
+                if (entryOffset + 12 > view.byteLength) break;
+                if (view.getUint16(entryOffset, bigEndian) === 0x0112) {
+                  resolve(view.getUint16(entryOffset + 8, bigEndian));
+                  return;
+                }
               }
             }
+            offset += length;
+          } else if ((marker & 0xFF00) === 0xFF00) {
+            offset += view.getUint16(offset, false);
+          } else {
+            break;
           }
-          offset += length;
-        } else if ((marker & 0xFF00) === 0xFF00) {
-          offset += view.getUint16(offset, false);
-        } else {
-          break;
         }
+        resolve(1);
+      } catch {
+        resolve(1);
       }
-      resolve(1);
     };
+    reader.onerror = () => { clearTimeout(timer); resolve(1); };
     reader.readAsArrayBuffer(file.slice(0, 65536));
   });
 }
@@ -374,7 +384,8 @@ export async function comprimirImagem(
   const rawCanvas = isOffscreen ? new OffscreenCanvas(w, h) : document.createElement('canvas');
   if (!isOffscreen) { (rawCanvas as HTMLCanvasElement).width = w; (rawCanvas as HTMLCanvasElement).height = h; }
   const canvas = rawCanvas as unknown as OffscreenCanvas;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Nao foi possivel criar canvas (getContext retornou null)');
   drawImageWithOrientation(ctx, img, orientation, w, h);
 
   if (watermark) {
@@ -408,18 +419,25 @@ export async function comprimirImagem(
   }
 
   const qualidade = QUALIDADE_MAP[getQualidadeFoto()] ?? 0.75;
+  const BLOB_TIMEOUT_MS = 15000;
   // convertToBlob only on OffscreenCanvas; toBlob on regular canvas fallback
   if (isOffscreen) {
-    return canvas.convertToBlob({ type: 'image/jpeg', quality: qualidade });
+    return Promise.race([
+      canvas.convertToBlob({ type: 'image/jpeg', quality: qualidade }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Canvas convertToBlob timeout')), BLOB_TIMEOUT_MS)),
+    ]);
   }
   // Fallback: wrap HTMLCanvasElement.toBlob in a Promise
-  return new Promise<Blob>((resolve, reject) => {
-    (rawCanvas as HTMLCanvasElement).toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('toBlob returned null'))),
-      'image/jpeg',
-      qualidade,
-    );
-  });
+  return Promise.race([
+    new Promise<Blob>((resolve, reject) => {
+      (rawCanvas as HTMLCanvasElement).toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('toBlob returned null'))),
+        'image/jpeg',
+        qualidade,
+      );
+    }),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Canvas toBlob timeout')), BLOB_TIMEOUT_MS)),
+  ]);
 }
 
 // --- Ultimas fotos (para acesso rapido) ---
