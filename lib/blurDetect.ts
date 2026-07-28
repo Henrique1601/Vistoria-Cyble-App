@@ -46,7 +46,7 @@ export async function detectBlur(file: File): Promise<BlurResult> {
   const sharpness = laplacianSum / pixelCount;
 
   const isDark = brightness < 40;
-  const isBlurry = sharpness < 8;
+  const isBlurry = sharpness < 5;
 
   let message: string | undefined;
   if (isDark && isBlurry) message = 'Foto escura e borrada';
