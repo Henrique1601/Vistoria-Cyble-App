@@ -107,9 +107,15 @@ export function getFavoritos(): Set<string> {
   } catch { return new Set(); }
 }
 
-export function toggleFavorito(apto: string): boolean {
+export function toggleFavorito(bloco: string, apto: string): boolean {
+  const key = `${bloco}__${apto}`;
   const favs = getFavoritos();
-  if (favs.has(apto)) { favs.delete(apto); } else { favs.add(apto); }
+  if (favs.has(key)) { favs.delete(key); } else { favs.add(key); }
   try { localStorage.setItem('vistoria_favoritos', JSON.stringify([...favs])); } catch {}
-  return favs.has(apto);
+  return favs.has(key);
+}
+
+export function isFavorito(bloco: string, apto: string): boolean {
+  const key = `${bloco}__${apto}`;
+  return getFavoritos().has(key);
 }

@@ -5,7 +5,7 @@ import { Camera, CalendarDots, ChatText, Star, CheckCircle, CaretRight } from '@
 import { useLongPress } from '@/components/ContextMenu';
 import { haptic } from '@/lib/haptic';
 import { normApto, emAndamento } from '@/lib/utils';
-import { toggleFavorito, getFavoritos } from '@/lib/settings';
+import { toggleFavorito, isFavorito } from '@/lib/settings';
 import StatusDot from '@/components/StatusDot';
 import type { ApartamentoStatus } from '@/lib/db';
 
@@ -28,7 +28,7 @@ interface AptoCardProps {
 }
 
 export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0 }: AptoCardProps) {
-  const [isFavorited, setIsFavorited] = useState(() => getFavoritos().has(s.apartamento));
+  const [isFavorited, setIsFavorited] = useState(() => isFavorito(s.bloco, s.apartamento));
   const [swipeX, setSwipeX] = useState(0);
   const [showSwipeAction, setShowSwipeAction] = useState<'open' | 'done' | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -75,7 +75,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
       haptic('light');
     } else if (swipeX === 0 && timeSinceLastTap < 300 && timeSinceLastTap > 0) {
       haptic('success');
-      const wasFav = toggleFavorito(s.apartamento);
+      const wasFav = toggleFavorito(s.bloco, s.apartamento);
       setIsFavorited(wasFav);
     }
 
