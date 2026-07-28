@@ -63,11 +63,12 @@ export default function ImportarFotosModal({ onFechar, onImportado }: ImportarFo
 
   function mapBloco(tower: string): string {
     const lista = listaRef.current;
-    if (!lista) return normalizeBloco(tower);
     const tUpper = tower.toUpperCase();
-    for (const blocoNome of Object.keys(lista)) {
-      const match = blocoNome.match(/([A-H])$/i);
-      if (match && match[1].toUpperCase() === tUpper) return blocoNome;
+    if (lista) {
+      for (const blocoNome of Object.keys(lista)) {
+        const letter = blocoNome.replace(/^Torre\s+/i, '').trim().toUpperCase();
+        if (letter === tUpper) return normalizeBloco(blocoNome);
+      }
     }
     return normalizeBloco(tower);
   }
