@@ -27,6 +27,7 @@ import {
   closestCorners,
   PointerSensor,
   TouchSensor,
+  useDroppable,
   useSensor,
   useSensors,
   DragStartEvent,
@@ -55,6 +56,32 @@ const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi:
   { key: 'cyble_depois', label: 'Cyble — Depois', icon: <Camera size={16} weight="duotone" />, multi: true },
   { key: 'documento', label: 'Documento do apartamento', icon: <FileText size={16} weight="duotone" />, multi: true },
 ];
+
+function DroppableCategorySection({
+  catKey,
+  children,
+  isOver,
+}: {
+  catKey: string;
+  children: React.ReactNode;
+  isOver: boolean;
+}) {
+  const { setNodeRef } = useDroppable({
+    id: `category-${catKey}`,
+    data: { type: 'category', catKey },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`bg-base-raised border rounded-2xl p-5 transition-colors ${
+        isOver ? 'border-accent border-dashed shadow-[0_0_12px_rgba(99,102,241,0.15)]' : 'border-base-border'
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
 
 function SortablePhoto({
   foto,
@@ -591,11 +618,8 @@ export default function CapturaScreen({
                 <motion.div
                   key={cat.key}
                   variants={item}
-                  className={`bg-base-raised border rounded-2xl p-5 transition-colors ${
-                    isOver ? 'border-accent border-dashed shadow-[0_0_12px_rgba(99,102,241,0.15)]' : 'border-base-border'
-                  }`}
-                  data-cat-key={cat.key}
                 >
+                  <DroppableCategorySection catKey={cat.key} isOver={isOver}>
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-content-tertiary">{cat.icon}</span>
                     <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">
@@ -688,6 +712,7 @@ export default function CapturaScreen({
                       <EmptyStatePhotos />
                     </div>
                   )}
+                  </DroppableCategorySection>
                 </motion.div>
               );
             })}

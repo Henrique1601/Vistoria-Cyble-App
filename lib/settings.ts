@@ -1,6 +1,6 @@
 const DEFAULTS = {
   tema: 'auto' as 'dark' | 'light' | 'auto',
-  qualidadeFoto: '75' as '50' | '75' | '90',
+  qualidadeFoto: '90' as '50' | '75' | '90' | '100',
   scanMode: false,
   diasAlerta: 7,
   itensPagina: 20,
@@ -36,10 +36,10 @@ export function setTema(tema: 'dark' | 'light' | 'auto') {
 }
 
 export function getQualidadeFoto() {
-  return get<'50' | '75' | '90'>('qualidade_foto', DEFAULTS.qualidadeFoto);
+  return get<'50' | '75' | '90' | '100'>('qualidade_foto', DEFAULTS.qualidadeFoto);
 }
 
-export function setQualidadeFoto(q: '50' | '75' | '90') {
+export function setQualidadeFoto(q: '50' | '75' | '90' | '100') {
   set('qualidade_foto', q);
 }
 
