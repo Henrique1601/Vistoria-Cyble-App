@@ -1,4 +1,5 @@
 import { backupDados } from './db';
+import { authFetch } from './api';
 
 const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const LAST_BACKUP_KEY = 'lastBackupTimestamp';
@@ -52,9 +53,8 @@ export async function fazerBackupManual(): Promise<{
       formData.append('file', blob, fileName);
       formData.append('timestamp', timestamp.toString());
 
-      const res = await fetch('/api/backup', {
+      const res = await authFetch('/api/backup', {
         method: 'POST',
-        headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
         body: formData,
       });
 
@@ -88,9 +88,8 @@ export async function fazerBackupAutomatico(): Promise<{
     formData.append('file', blob, fileName);
     formData.append('timestamp', timestamp.toString());
 
-    const res = await fetch('/api/backup', {
+    const res = await authFetch('/api/backup', {
       method: 'POST',
-      headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
       body: formData,
     });
 

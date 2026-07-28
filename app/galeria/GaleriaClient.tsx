@@ -28,6 +28,7 @@ import {
 import JSZip from 'jszip';
 import Link from 'next/link';
 import { normalizeBloco } from '@/lib/utils';
+import { authFetch } from '@/lib/api';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 const stagger = {
@@ -77,7 +78,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'tower'>('newest');
 
   useEffect(() => {
-    fetch('/api/fotos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } })
+    authFetch('/api/fotos')
       .then((r) => r.json())
       .then((data) => {
         setFotos(data.fotos || []);
@@ -154,9 +155,9 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
     if (!fotoToDelete) return;
     setDeleting(true);
     try {
-      const resp = await fetch('/api/fotos', {
+      const resp = await authFetch('/api/fotos', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: fotoToDelete.id }),
       });
       if (resp.ok) {
@@ -185,9 +186,9 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
     if (!fotoToEdit) return;
     setEditing(true);
     try {
-      const resp = await fetch('/api/fotos', {
+      const resp = await authFetch('/api/fotos', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           id: fotoToEdit.id, 
           bloco: editBloco, 
@@ -248,9 +249,9 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
     try {
-      const resp = await fetch('/api/fotos/bulk-delete', {
+      const resp = await authFetch('/api/fotos/bulk-delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
       if (resp.ok) {
