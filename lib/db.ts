@@ -257,8 +257,8 @@ export async function statusDeTodosApartamentos(
 }
 
 // --- Compressao de imagem ---
-const MAX_IMAGE_WIDTH = 1920;
-const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.90 };
+const MAX_IMAGE_WIDTH = 2560;
+const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.90, '100': 0.95 };
 
 function loadImageFromBlob(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {

@@ -213,8 +213,8 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh }: { onVoltar:
   }
 
   function handleQualidade(q: string) {
-    setQualidade(q as '50' | '75' | '90');
-    setQualidadeFoto(q as '50' | '75' | '90');
+    setQualidade(q as '50' | '75' | '90' | '100');
+    setQualidadeFoto(q as '50' | '75' | '90' | '100');
     toast(`Qualidade alterada para ${q}%`, 'success');
   }
 
@@ -550,6 +550,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh }: { onVoltar:
                   { label: '50%', value: '50' },
                   { label: '75%', value: '75' },
                   { label: '90%', value: '90' },
+                  { label: '100%', value: '100' },
                 ]}
               />
             </SettingRow>
