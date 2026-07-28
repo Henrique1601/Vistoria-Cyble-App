@@ -309,6 +309,7 @@ export default function CapturaScreen({
       const dataStr = new Date().toLocaleDateString('pt-BR');
       const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
       setEditingPhoto({ blob: comprimido, categoria });
+      toast('Foto capturada! Revise e salve.', 'info');
     } catch (err) {
       console.warn('Erro ao processar foto:', err);
       toast('Erro ao processar a foto. Verifique o tamanho e tente de novo.', 'error');
@@ -343,13 +344,22 @@ export default function CapturaScreen({
     const cat = editingPhoto.categoria;
     try {
       const dataStr = new Date().toLocaleDateString('pt-BR');
-      const [comprimido, gps] = await Promise.all([comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' }), { texto: dataStr, bloco, apartamento }), getGPS()]);
+      // Try to compress with watermark; if it fails, save the editor blob directly
+      let finalBlob: Blob;
+      try {
+        finalBlob = await comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' }), { texto: dataStr, bloco, apartamento });
+      } catch (compressErr) {
+        console.warn('Second compression failed, saving editor blob directly:', compressErr);
+        finalBlob = blob;
+      }
+      const gps = await getGPS();
       await salvarFoto({
-        bloco, apartamento, categoria: cat, blob: comprimido, timestamp: Date.now(), synced: false,
+        bloco, apartamento, categoria: cat, blob: finalBlob, timestamp: Date.now(), synced: false,
         gps: gps || undefined,
       });
       haptic('success');
       playScanFeedback('photo_captured');
+      toast('Foto salva com sucesso!', 'success');
       setEditingPhoto(null);
       await recarregar();
       onFotoSalva();
