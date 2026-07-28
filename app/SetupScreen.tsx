@@ -17,6 +17,7 @@ import {
 } from '@phosphor-icons/react';
 import { salvarListaApartamentos } from '@/lib/db';
 import { normApto, normalizeBloco } from '@/lib/utils';
+import { authFetch } from '@/lib/api';
 
 type Mode = 'manual' | 'importar' | 'nuvem';
 
@@ -249,7 +250,7 @@ export default function SetupScreen({
   async function handleLoadBuildings() {
     setLoadingBuildings(true);
     try {
-      const res = await fetch('/api/building-config', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
+      const res = await authFetch('/api/building-config');
       const data = await res.json();
       setBuildingConfigs(data.buildings || []);
       setSelectedBuilding(null);

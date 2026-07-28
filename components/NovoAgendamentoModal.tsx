@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { X, CalendarDots, Buildings, ListNumbers, FunnelSimple } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
+import { authFetch } from '@/lib/api';
 import { normApto } from '@/lib/utils';
 import type { ApartamentoStatus } from '@/lib/db';
 
@@ -71,9 +72,9 @@ export default function NovoAgendamentoModal({ blocos, statusList, onFechar, onS
     haptic('medium');
     setSalvando(true);
     try {
-      await fetch('/api/agendamentos', {
+      await authFetch('/api/agendamentos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bloco,
           apartamento: apto,

@@ -2,6 +2,7 @@ import type { ApartamentoStatus } from '../db';
 import { fotosDoApartamento } from '../db';
 import { normApto, shareFile } from './utils';
 import { normalizeBloco } from '../utils';
+import { authFetch } from '../api';
 
 export async function exportarZIP(
   status: ApartamentoStatus[],
@@ -13,7 +14,7 @@ export async function exportarZIP(
 
   let fotosOnline: { bloco: string; apartamento: string; foto_url: string; foto_index: number; data_leitura: string }[] = [];
   try {
-    const resp = await fetch('/api/fotos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
+    const resp = await authFetch('/api/fotos');
     const data = await resp.json();
     fotosOnline = data.fotos || [];
   } catch { /* offline */ }

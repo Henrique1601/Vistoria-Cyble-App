@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, PencilSimple } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
+import { authFetch } from '@/lib/api';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -36,9 +37,9 @@ export default function EditarAgendamentoModal({ agendamento, onFechar, onSalvo 
     haptic('medium');
     setSalvando(true);
     try {
-      await fetch('/api/agendamentos', {
+      await authFetch('/api/agendamentos', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: agendamento.id,
           data,

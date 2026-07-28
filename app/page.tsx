@@ -45,6 +45,7 @@ const ExportSection = dynamic(() => import('@/components/ExportSection').then(m 
 import { ProgressHeatmap } from '@/components/ProgressHeatmap';
 import { BottomLinks } from '@/components/BottomLinks';
 import { haptic } from '@/lib/haptic';
+import { authFetch } from '@/lib/api';
 import { spring, stagger, item } from '@/lib/motion';
 import PinGate from './PinGate';
 import SetupScreen from './SetupScreen';
@@ -1069,9 +1070,9 @@ export default function Home() {
                     fotosMap.set(key, arr);
                   }
                   const html = gerarRelatorioHTML(s, fotosMap, torresExportacao.size > 0 ? torresExportacao : undefined);
-                  const res = await fetch('/api/share-report', {
+                  const res = await authFetch('/api/share-report', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ html, filename: `vistoria-${new Date().toISOString().slice(0, 10)}.html` }),
                   });
                   const data = await res.json();

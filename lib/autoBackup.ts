@@ -1,6 +1,7 @@
 import { backupDados } from './db';
 import { getBackupIntervalo, setBackupAutomatico } from './settings';
 import { addNotification, autoDismiss } from './notifications';
+import { authFetch } from './api';
 
 let autoBackupTimer: ReturnType<typeof setInterval> | null = null;
 const LAST_AUTO_BACKUP_KEY = 'vistoria_lastAutoBackup';
@@ -31,9 +32,8 @@ export async function execAutoBackup(): Promise<boolean> {
     formData.append('file', blob, fileName);
     formData.append('timestamp', ts.toString());
 
-    const res = await fetch('/api/backup', {
+    const res = await authFetch('/api/backup', {
       method: 'POST',
-      headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
       body: formData,
     });
 

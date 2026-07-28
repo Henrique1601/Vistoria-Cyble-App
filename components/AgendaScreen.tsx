@@ -13,6 +13,7 @@ import {
   PencilSimple,
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
+import { authFetch } from '@/lib/api';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -64,7 +65,7 @@ export default function AgendaScreen({
 
   const carregar = useCallback(async () => {
     try {
-      const resp = await fetch('/api/agendamentos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
+      const resp = await authFetch('/api/agendamentos');
       const data = await resp.json();
       setAgendamentos(data.agendamentos || []);
     } catch {
@@ -86,9 +87,9 @@ export default function AgendaScreen({
       prev.map((a) => (a.id === ag.id ? { ...a, concluido: novoConcluido } : a))
     );
     try {
-      await fetch('/api/agendamentos', {
+      await authFetch('/api/agendamentos', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: ag.id, concluido: novoConcluido }),
       });
     } catch {
@@ -104,9 +105,9 @@ export default function AgendaScreen({
     const anteriores = agendamentosRef.current;
     setAgendamentos((prev) => prev.filter((a) => a.id !== id));
     try {
-      await fetch('/api/agendamentos', {
+      await authFetch('/api/agendamentos', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
     } catch {

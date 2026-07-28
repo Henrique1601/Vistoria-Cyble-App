@@ -56,6 +56,7 @@ import {
   exportarConcluidosTxt,
 } from '@/lib/db';
 import { useToast } from '@/components/Toast';
+import { authFetch } from '@/lib/api';
 import { spring } from '@/lib/motion';
 import { APP_VERSION } from '@/lib/version';
 import ImportarFotosModal from '@/components/ImportarFotosModal';
@@ -168,9 +169,9 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh }: { onVoltar:
         setSavingConfig(false);
         return;
       }
-      const res = await fetch('/api/building-config', {
+      const res = await authFetch('/api/building-config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-app-pin': localStorage.getItem('vistoria_pin') || '' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome: 'Predio AcquaPlay', config: lista }),
       });
       const data = await res.json();
@@ -190,7 +191,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh }: { onVoltar:
     setLoadingConfig(true);
     haptic('medium');
     try {
-      const res = await fetch('/api/building-config', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } });
+      const res = await authFetch('/api/building-config');
       const data = await res.json();
       if (data.buildings && data.buildings.length > 0) {
         toast(`${data.buildings.length} prédio(s) encontrado(s) na nuvem`, 'success');
