@@ -16,7 +16,7 @@ import {
   X,
 } from '@phosphor-icons/react';
 import { salvarListaApartamentos } from '@/lib/db';
-import { normApto } from '@/lib/utils';
+import { normApto, normalizeBloco } from '@/lib/utils';
 
 type Mode = 'manual' | 'importar' | 'nuvem';
 
@@ -80,23 +80,23 @@ export default function SetupScreen({
           if (obj.blocos && typeof obj.blocos === 'object' && !Array.isArray(obj.blocos)) {
             const lista: Record<string, string[]> = {};
             for (const [k, v] of Object.entries(obj.blocos)) {
-              if (Array.isArray(v)) lista[k] = normalizeAndDedup(v.map(String));
+              if (Array.isArray(v)) lista[normalizeBloco(k)] = normalizeAndDedup(v.map(String));
             }
             return Object.keys(lista).length > 0 ? lista : null;
           }
           if (obj.lista && typeof obj.lista === 'object' && !Array.isArray(obj.lista)) {
             const lista: Record<string, string[]> = {};
             for (const [k, v] of Object.entries(obj.lista)) {
-              if (Array.isArray(v)) lista[k] = normalizeAndDedup(v.map(String));
+              if (Array.isArray(v)) lista[normalizeBloco(k)] = normalizeAndDedup(v.map(String));
             }
             return Object.keys(lista).length > 0 ? lista : null;
           }
           const lista: Record<string, string[]> = {};
           for (const [key, val] of Object.entries(obj)) {
             if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'string') {
-              lista[key] = normalizeAndDedup(val.map(String));
+              lista[normalizeBloco(key)] = normalizeAndDedup(val.map(String));
             } else if (typeof val === 'string') {
-              lista[key] = normalizeAndDedup(val.split('\n'));
+              lista[normalizeBloco(key)] = normalizeAndDedup(val.split('\n'));
             }
           }
           if (Object.keys(lista).length > 0) return lista;
@@ -113,7 +113,7 @@ export default function SetupScreen({
         continue;
       }
       if (!/^\d+$/.test(l)) {
-        currentBloco = l;
+        currentBloco = normalizeBloco(l);
         if (!blocos[currentBloco]) blocos[currentBloco] = [];
       } else if (currentBloco) {
         const n = normApto(l);
@@ -141,7 +141,7 @@ export default function SetupScreen({
         const lista: Record<string, string[]> = {};
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(sep).map((c) => c.trim().replace(/"/g, ''));
-          const bloco = cols[0];
+          const bloco = normalizeBloco(cols[0]);
           const apto = cols[1];
           if (bloco && apto) {
             if (!lista[bloco]) lista[bloco] = [];
@@ -157,7 +157,7 @@ export default function SetupScreen({
     const lista: Record<string, string[]> = {};
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(sep).map((c) => c.trim().replace(/"/g, ''));
-      const bloco = cols[blocoCol];
+      const bloco = normalizeBloco(cols[blocoCol]);
       const apto = cols[aptoCol];
       if (bloco && apto) {
         if (!lista[bloco]) lista[bloco] = [];
@@ -279,7 +279,11 @@ export default function SetupScreen({
   async function salvar() {
     let lista: Record<string, string[]>;
     if ((mode === 'importar' || mode === 'nuvem') && listaImportada) {
-      lista = listaImportada;
+      // Normalize all bloco keys to "Torre X" format
+      lista = {};
+      for (const [k, v] of Object.entries(listaImportada)) {
+        lista[normalizeBloco(k)] = v;
+      }
     } else {
       lista = {};
       for (let i = 0; i < numBlocos; i++) {

@@ -272,7 +272,7 @@ function loadImageFromBlob(file: File): Promise<HTMLImageElement> {
         cleanup();
         reject(new Error('Image load timeout'));
       }
-    }, 5000);
+    }, 15000);
 
     img.onload = () => {
       if (!settled) {

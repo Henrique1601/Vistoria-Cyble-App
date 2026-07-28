@@ -311,7 +311,7 @@ export default function CapturaScreen({
       setEditingPhoto({ blob: comprimido, categoria });
     } catch (err) {
       console.warn('Erro ao processar foto:', err);
-      toast('Erro ao processar a foto. Tente de novo.', 'error');
+      toast('Erro ao processar a foto. Verifique o tamanho e tente de novo.', 'error');
       haptic('error');
     }
 
@@ -330,7 +330,7 @@ export default function CapturaScreen({
       setEditingPhoto({ blob: comprimido, categoria });
     } catch (err) {
       console.warn('Erro ao processar foto (override):', err);
-      toast('Erro ao processar a foto. Tente de novo.', 'error');
+      toast('Foto com problema de processamento. Verifique o tamanho e tente de novo.', 'error');
       haptic('error');
     }
     // Reset input value so the same file can be re-selected
@@ -359,7 +359,7 @@ export default function CapturaScreen({
       }
     } catch (err) {
       console.warn('Erro ao salvar foto:', err);
-      toast('Erro ao salvar foto. Tente de novo.', 'error');
+      toast('Foto nao foi salva. Verifique o armazenamento do celular e tente de novo.', 'error');
       haptic('error');
       setEditingPhoto(null);
     }

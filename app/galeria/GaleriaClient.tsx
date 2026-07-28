@@ -24,6 +24,7 @@ import {
 } from '@phosphor-icons/react';
 import JSZip from 'jszip';
 import Link from 'next/link';
+import { normalizeBloco } from '@/lib/utils';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 const stagger = {
@@ -81,11 +82,14 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
       .catch(() => setLoading(false));
   }, []);
 
-  const blocos = useMemo(() => [...new Set(fotos.map((f) => f.bloco))].sort(), [fotos]);
+  const blocos = useMemo(() => {
+    const normalized = new Set(fotos.map((f) => normalizeBloco(f.bloco)));
+    return [...normalized].sort();
+  }, [fotos]);
   const datas = useMemo(() => [...new Set(fotos.map((f) => f.data_leitura))].sort().reverse(), [fotos]);
 
   const filtradas = useMemo(() => fotos.filter((f) => {
-    if (filtroBloco && f.bloco !== filtroBloco) return false;
+    if (filtroBloco && normalizeBloco(f.bloco) !== filtroBloco) return false;
     if (filtroData && f.data_leitura !== filtroData) return false;
     if (busca && !f.apartamento.toLowerCase().includes(busca.replace(/^0+/, '').toLowerCase())) return false;
     return true;
@@ -93,8 +97,9 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
 
   const grupos = useMemo(() => {
     const agrupadas = filtradas.reduce((acc, f) => {
-      const key = `${f.data_leitura}__${f.bloco}__${f.apartamento}`;
-      if (!acc[key]) acc[key] = { data: f.data_leitura, bloco: f.bloco, apartamento: f.apartamento, fotos: [] };
+      const normB = normalizeBloco(f.bloco);
+      const key = `${f.data_leitura}__${normB}__${f.apartamento}`;
+      if (!acc[key]) acc[key] = { data: f.data_leitura, bloco: normB, apartamento: f.apartamento, fotos: [] };
       acc[key].fotos.push(f);
       return acc;
     }, {} as Record<string, { data: string; bloco: string; apartamento: string; fotos: Foto[] }>);
