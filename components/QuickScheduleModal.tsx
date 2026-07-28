@@ -17,6 +17,10 @@ interface QuickScheduleModalProps {
 export default function QuickScheduleModal({ bloco, apto, onFechar, onSalvo }: QuickScheduleModalProps) {
   const [aptoEdit, setAptoEdit] = useState(apto);
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [hora, setHora] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
   const [obs, setObs] = useState('');
   const [salvando, setSalvando] = useState(false);
 
@@ -32,6 +36,7 @@ export default function QuickScheduleModal({ bloco, apto, onFechar, onSalvo }: Q
           bloco,
           apartamento: aptoEdit.trim(),
           data,
+          hora: hora || null,
           concluido: false,
           observacao: obs || null,
         }),
@@ -100,6 +105,18 @@ export default function QuickScheduleModal({ bloco, apto, onFechar, onSalvo }: Q
             value={data}
             onChange={(e) => setData(e.target.value)}
             className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm text-content focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase tracking-widest text-content-tertiary mb-1.5 block">
+            Horario (opcional)
+          </label>
+          <input
+            type="time"
+            value={hora}
+            onChange={(e) => setHora(e.target.value)}
+            className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm text-content font-mono focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
 

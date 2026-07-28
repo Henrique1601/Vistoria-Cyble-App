@@ -33,14 +33,13 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const [showSwipeAction, setShowSwipeAction] = useState<'open' | 'done' | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
+  const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const swipeThreshold = 80;
 
   const longPressProps = useLongPress({
     onLongPress: () => {
       haptic('medium');
-      onAbrir();
     },
-    onClick: () => { haptic('light'); onAbrir(); },
   });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -68,21 +67,32 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
     if (swipeX < -swipeThreshold) {
       // Swipe left → open camera
+      if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
       haptic('medium');
       onAbrir();
     } else if (swipeX > swipeThreshold) {
-      // Swipe right → placeholder for "concluir" (no-op until onConcluir prop exists)
+      // Swipe right → placeholder
+      if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
       haptic('light');
     } else if (swipeX === 0 && timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+      // Double tap → favorite (cancel pending single-tap open)
+      if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
       haptic('success');
       const wasFav = toggleFavorito(s.bloco, s.apartamento);
       setIsFavorited(wasFav);
+    } else if (swipeX === 0) {
+      // Single tap → delay before opening (to allow double-tap detection)
+      if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = setTimeout(() => {
+        haptic('light');
+        onAbrir();
+      }, 320);
     }
 
     lastTapRef.current = now;
     setSwipeX(0);
     setShowSwipeAction(null);
-  }, [swipeX, showSwipeAction, s.apartamento, onAbrir]);
+  }, [swipeX, s.bloco, s.apartamento, onAbrir]);
 
   const isComplete = s.cybleAntesFeito && s.cybleDepoisFeito;
   const isInProgress = emAndamento(s);

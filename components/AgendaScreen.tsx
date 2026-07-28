@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDots,
@@ -21,6 +21,7 @@ interface Agendamento {
   bloco: string;
   apartamento: string;
   data: string;
+  hora?: string;
   concluido: boolean;
   observacao: string | null;
   criado_em: string;
@@ -35,8 +36,10 @@ function hoje(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function compararDatas(a: string, b: string): number {
-  return a.localeCompare(b);
+function compararAgendamentos(a: Agendamento, b: Agendamento): number {
+  const dataCmp = a.data.localeCompare(b.data);
+  if (dataCmp !== 0) return dataCmp;
+  return (a.hora || '99:99').localeCompare(b.hora || '99:99');
 }
 
 interface AgendaScreenProps {
@@ -56,6 +59,7 @@ export default function AgendaScreen({
   const agendamentosRef = useRef(agendamentos);
   agendamentosRef.current = agendamentos;
   const [loading, setLoading] = useState(true);
+  const [filtroTorre, setFiltroTorre] = useState('');
   const today = hoje();
 
   const carregar = useCallback(async () => {
@@ -110,10 +114,17 @@ export default function AgendaScreen({
     }
   }, []);
 
-  const atrasados = agendamentos.filter((a) => !a.concluido && a.data < today);
-  const hojeLista = agendamentos.filter((a) => !a.concluido && a.data === today);
-  const futuros = agendamentos.filter((a) => !a.concluido && a.data > today);
-  const concluidos = agendamentos.filter((a) => a.concluido);
+  const agendamentosFiltrados = useMemo(() => {
+    if (!filtroTorre) return agendamentos;
+    return agendamentos.filter((a) => a.bloco === filtroTorre);
+  }, [agendamentos, filtroTorre]);
+
+  const torres = useMemo(() => [...new Set(agendamentos.map((a) => a.bloco))].sort(), [agendamentos]);
+
+  const atrasados = agendamentosFiltrados.filter((a) => !a.concluido && a.data < today).sort(compararAgendamentos);
+  const hojeLista = agendamentosFiltrados.filter((a) => !a.concluido && a.data === today).sort(compararAgendamentos);
+  const futuros = agendamentosFiltrados.filter((a) => !a.concluido && a.data > today).sort(compararAgendamentos);
+  const concluidos = agendamentosFiltrados.filter((a) => a.concluido).sort(compararAgendamentos);
 
   function renderGrupo(titulo: string, items: Agendamento[], cor: string) {
     if (items.length === 0) return null;
@@ -155,6 +166,7 @@ export default function AgendaScreen({
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[11px] font-mono text-content-tertiary">
                     {formatarDataBR(ag.data)}
+                    {ag.hora && <span className="ml-1.5 text-accent font-semibold">{ag.hora}</span>}
                   </span>
                   {ag.observacao && (
                     <span className="text-[11px] text-content-tertiary truncate">— {ag.observacao}</span>
@@ -227,6 +239,40 @@ export default function AgendaScreen({
           <Plus size={18} weight="bold" />
         </button>
       </motion.div>
+
+      {/* Tower filter */}
+      {torres.length > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring, delay: 0.1 }}
+          className="flex gap-1.5 mb-4 overflow-x-auto pb-1"
+        >
+          <button
+            onClick={() => setFiltroTorre('')}
+            className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all whitespace-nowrap ${
+              !filtroTorre
+                ? 'bg-accent-dim border-accent text-accent'
+                : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+            }`}
+          >
+            Todas
+          </button>
+          {torres.map((t) => (
+            <button
+              key={t}
+              onClick={() => setFiltroTorre(t)}
+              className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all whitespace-nowrap ${
+                filtroTorre === t
+                  ? 'bg-accent-dim border-accent text-accent'
+                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </motion.div>
+      )}
 
       {/* Conteudo */}
       {loading ? (

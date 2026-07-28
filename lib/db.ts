@@ -46,6 +46,7 @@ export interface Agendamento {
   bloco: string;
   apartamento: string;
   data: string;
+  hora?: string;
   concluido: boolean;
   observacao?: string;
   criadoEm: number;

@@ -15,9 +15,9 @@ export async function GET(req: NextRequest) {
   try {
     const sql = getSql();
     const agendamentos = await sql`
-      SELECT id, bloco, apartamento, data, concluido, observacao, criado_em::text
+      SELECT id, bloco, apartamento, data, hora, concluido, observacao, criado_em::text
       FROM agendamentos
-      ORDER BY data ASC, criado_em DESC
+      ORDER BY data ASC, hora ASC NULLS LAST, criado_em DESC
     `;
     return NextResponse.json({ agendamentos });
   } catch (err: unknown) {
@@ -35,16 +35,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { bloco, apartamento, data, concluido, observacao } = await req.json();
+    const { bloco, apartamento, data, hora, concluido, observacao } = await req.json();
     if (!bloco || !apartamento || !data) {
       return NextResponse.json({ error: 'bloco, apartamento e data sao obrigatorios' }, { status: 400 });
     }
 
     const sql = getSql();
     const [ag] = await sql`
-      INSERT INTO agendamentos (bloco, apartamento, data, concluido, observacao)
-      VALUES (${bloco}, ${apartamento}, ${data}, ${concluido || false}, ${observacao || null})
-      RETURNING id, bloco, apartamento, data, concluido, observacao, criado_em::text
+      INSERT INTO agendamentos (bloco, apartamento, data, hora, concluido, observacao)
+      VALUES (${bloco}, ${apartamento}, ${data}, ${hora || null}, ${concluido || false}, ${observacao || null})
+      RETURNING id, bloco, apartamento, data, hora, concluido, observacao, criado_em::text
     `;
     return NextResponse.json({ ok: true, agendamento: ag });
   } catch (err: unknown) {
@@ -62,7 +62,7 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    const { id, bloco, apartamento, data, concluido, observacao } = await req.json();
+    const { id, bloco, apartamento, data, hora, concluido, observacao } = await req.json();
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
@@ -73,10 +73,11 @@ export async function PUT(req: NextRequest) {
       SET bloco = COALESCE(${bloco}, bloco),
           apartamento = COALESCE(${apartamento}, apartamento),
           data = COALESCE(${data}, data),
+          hora = ${hora},
           concluido = COALESCE(${concluido}, concluido),
           observacao = ${observacao}
       WHERE id = ${id}
-      RETURNING id, bloco, apartamento, data, concluido, observacao, criado_em::text
+      RETURNING id, bloco, apartamento, data, hora, concluido, observacao, criado_em::text
     `;
     return NextResponse.json({ ok: true, agendamento: ag });
   } catch (err: unknown) {
