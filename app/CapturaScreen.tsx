@@ -182,6 +182,7 @@ export default function CapturaScreen({
   const [keepInCamera, setKeepInCamera] = useState(false);
   const [fotoZoom, setFotoZoom] = useState<string | null>(null);
   const [blurWarning, setBlurWarning] = useState<{ message: string; file: File; categoria: Categoria } | null>(null);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
   const { toast } = useToast();
   const deletedRef = useRef<Map<number, FotoRecord>>(new Map());
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -290,53 +291,81 @@ export default function CapturaScreen({
   }, [modoEscaneamento, fotos]);
 
   async function handleFile(categoria: Categoria, file: File | null) {
-    if (!file) return;
-    haptic('medium');
-
-    // Blur detection — if it fails, skip and continue processing
-    try {
-      const blurResult = await detectBlur(file);
-      if (blurResult.isBlurry || blurResult.isDark) {
-        setBlurWarning({ message: blurResult.message || 'Foto com problema', file, categoria });
-        return;
-      }
-    } catch {
-      // detectBlur failed (e.g. canvas not supported) — continue without blur check
+    if (!file) {
+      toast('Nenhuma foto recebida. Tente de novo.', 'warning');
+      return;
     }
+    haptic('medium');
+    setProcessingPhoto(true);
 
-    // Compress and open editor
+    // Timeout wrapper — if comprimirImagem hangs, show error after 25s
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 25000)
+    );
+
     try {
+      // Blur detection — if it fails, skip and continue
+      try {
+        const blurResult = await detectBlur(file);
+        if (blurResult.isBlurry || blurResult.isDark) {
+          setBlurWarning({ message: blurResult.message || 'Foto com problema', file, categoria });
+          setProcessingPhoto(false);
+          return;
+        }
+      } catch {
+        // detectBlur failed (e.g. canvas not supported) — continue without blur check
+      }
+
+      // Compress and open editor — race against timeout
       const dataStr = new Date().toLocaleDateString('pt-BR');
-      const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
+      const comprimido = await Promise.race([
+        comprimirImagem(file, { texto: dataStr, bloco, apartamento }),
+        timeoutPromise,
+      ]);
       setEditingPhoto({ blob: comprimido, categoria });
       toast('Foto capturada! Revise e salve.', 'info');
     } catch (err) {
       console.warn('Erro ao processar foto:', err);
-      toast('Erro ao processar a foto. Verifique o tamanho e tente de novo.', 'error');
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('timeout')) {
+        toast('Foto muito grande ou celular lento. Tente de novo.', 'error');
+      } else {
+        toast('Erro ao processar a foto. Verifique o tamanho e tente de novo.', 'error');
+      }
       haptic('error');
+    } finally {
+      setProcessingPhoto(false);
+      // Reset input value so the same file can be re-selected
+      const input = inputsRef.current[categoria];
+      if (input) input.value = '';
     }
-
-    // Reset input value so the same file can be re-selected
-    const input = inputsRef.current[categoria];
-    if (input) input.value = '';
   }
 
   async function handleBlurOverride() {
     if (!blurWarning) return;
     const { file, categoria } = blurWarning;
     setBlurWarning(null);
+    setProcessingPhoto(true);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 25000)
+    );
     try {
       const dataStr = new Date().toLocaleDateString('pt-BR');
-      const comprimido = await comprimirImagem(file, { texto: dataStr, bloco, apartamento });
+      const comprimido = await Promise.race([
+        comprimirImagem(file, { texto: dataStr, bloco, apartamento }),
+        timeoutPromise,
+      ]);
       setEditingPhoto({ blob: comprimido, categoria });
+      toast('Foto capturada! Revise e salve.', 'info');
     } catch (err) {
       console.warn('Erro ao processar foto (override):', err);
       toast('Foto com problema de processamento. Verifique o tamanho e tente de novo.', 'error');
       haptic('error');
+    } finally {
+      setProcessingPhoto(false);
+      const input = inputsRef.current[categoria];
+      if (input) input.value = '';
     }
-    // Reset input value so the same file can be re-selected
-    const input = inputsRef.current[categoria];
-    if (input) input.value = '';
   }
 
   async function handleEditorSalvar(blob: Blob) {
@@ -595,11 +624,12 @@ export default function CapturaScreen({
 
                   <button
                     onClick={() => inputsRef.current[cat.key]?.click()}
+                    disabled={processingPhoto}
                     aria-label={`Tirar foto ${cat.label}`}
-                    className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
+                    className={`tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all ${processingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <Camera size={16} weight="bold" aria-hidden="true" />
-                    {doCategoria.length > 0 && !cat.multi ? 'Tirar de novo' : 'Tirar foto'}
+                    {processingPhoto ? 'Processando...' : (doCategoria.length > 0 && !cat.multi ? 'Tirar de novo' : 'Tirar foto')}
                   </button>
 
                   <AnimatePresence>
@@ -881,6 +911,23 @@ export default function CapturaScreen({
                 </button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Processing overlay */}
+      <AnimatePresence>
+        {processingPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+              <p className="text-white text-sm font-medium">Processando foto...</p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
