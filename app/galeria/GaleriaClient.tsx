@@ -13,6 +13,9 @@ import {
   ArrowsOut,
   CaretLeft,
   CaretRight,
+  SortAscending,
+  SortDescending,
+  ListNumbers,
   Trash,
   PencilSimple,
   Check,
@@ -71,6 +74,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [downloadingGrupo, setDownloadingGrupo] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'tower'>('newest');
 
   useEffect(() => {
     fetch('/api/fotos', { headers: { 'x-app-pin': localStorage.getItem('vistoria_pin') || '' } })
@@ -103,8 +107,12 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
       acc[key].fotos.push(f);
       return acc;
     }, {} as Record<string, { data: string; bloco: string; apartamento: string; fotos: Foto[] }>);
-    return Object.values(agrupadas).sort((a, b) => b.data.localeCompare(a.data));
-  }, [filtradas]);
+    const arr = Object.values(agrupadas);
+    if (sortOrder === 'newest') return arr.sort((a, b) => b.data.localeCompare(a.data) || a.bloco.localeCompare(b.bloco));
+    if (sortOrder === 'oldest') return arr.sort((a, b) => a.data.localeCompare(b.data) || a.bloco.localeCompare(b.bloco));
+    // tower: sort by bloco name, then by apartment number
+    return arr.sort((a, b) => a.bloco.localeCompare(b.bloco) || a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true }));
+  }, [filtradas, sortOrder]);
 
   const abrirLightbox = useCallback((f: Foto) => {
     previousFocusRef.current = document.activeElement as HTMLElement;
@@ -383,6 +391,33 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
               ))}
             </select>
           </div>
+        </motion.div>
+
+        {/* Sort buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring, delay: 0.15 }}
+          className="flex gap-1.5 mb-4"
+        >
+          {[
+            { key: 'newest' as const, label: 'Mais recentes', icon: <SortDescending size={12} weight="bold" /> },
+            { key: 'oldest' as const, label: 'Mais antigas', icon: <SortAscending size={12} weight="bold" /> },
+            { key: 'tower' as const, label: 'Por torre', icon: <ListNumbers size={12} weight="bold" /> },
+          ].map(({ key, label, icon }) => (
+            <button
+              key={key}
+              onClick={() => setSortOrder(key)}
+              className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all whitespace-nowrap flex items-center gap-1 ${
+                sortOrder === key
+                  ? 'bg-accent-dim border-accent text-accent'
+                  : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
         </motion.div>
 
         {/* Selection Toolbar - Only for admin */}

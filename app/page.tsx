@@ -123,6 +123,7 @@ interface Agendamento {
   bloco: string;
   apartamento: string;
   data: string;
+  hora?: string;
   concluido: boolean;
   observacao: string | null;
   criado_em: string;
@@ -1366,26 +1367,26 @@ export default function Home() {
               <button
                 onClick={() => setOrdem('original')}
                 aria-pressed={ordem === 'original'}
-                className={`tactile-press px-4 py-2 rounded-full text-xs font-medium border transition-all ${
+                className={`tactile-press px-3 py-2 rounded-full text-[11px] font-medium border transition-all whitespace-nowrap ${
                   ordem === 'original'
                     ? 'bg-accent-dim border-accent text-accent'
                     : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
                 }`}
               >
-                <SortAscending size={14} weight="bold" className="inline mr-1.5 -mt-0.5" />
-                Numerica
+                <SortAscending size={12} weight="bold" className="inline mr-1 -mt-0.5" />
+                Nº
               </button>
               <button
                 onClick={() => setOrdem('pendentes')}
                 aria-pressed={ordem === 'pendentes'}
-                className={`tactile-press px-4 py-2 rounded-full text-xs font-medium border transition-all ${
+                className={`tactile-press px-3 py-2 rounded-full text-[11px] font-medium border transition-all whitespace-nowrap ${
                   ordem === 'pendentes'
                     ? 'bg-accent-dim border-accent text-accent'
                     : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
                 }`}
               >
-                <FunnelSimple size={14} weight="bold" className="inline mr-1.5 -mt-0.5" />
-                Pendentes primeiro
+                <FunnelSimple size={12} weight="bold" className="inline mr-1 -mt-0.5" />
+                Pendentes
               </button>
               <div className="flex gap-1 ml-auto shrink-0">
                 <button
@@ -1416,7 +1417,7 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtro por status">
+            <div className="flex gap-1.5" role="group" aria-label="Filtro por status">
               {[
                 { key: 'todos', label: 'Todos' },
                 { key: 'pendente', label: 'Pendente' },
@@ -1427,7 +1428,7 @@ export default function Home() {
                   key={key}
                   onClick={() => { haptic('light'); setStatusFilter(key as typeof statusFilter); }}
                   aria-pressed={statusFilter === key}
-                  className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all ${
+                  className={`tactile-press px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all whitespace-nowrap ${
                     statusFilter === key
                       ? key === 'concluido' ? 'bg-success-dim border-success text-success'
                         : key === 'em_andamento' ? 'bg-warn-dim border-warn text-warn'
@@ -1694,7 +1695,13 @@ export default function Home() {
                 {theme === 'auto' && <><Sun size={10} weight="bold" aria-hidden="true" /><Moon size={10} weight="bold" aria-hidden="true" className="ml-[-2px]" /></>}
               </button>
                <button
-                onClick={() => setModoEscaneamento(!modoEscaneamento)}
+                onClick={() => {
+                  const next = !modoEscaneamento;
+                  setModoEscaneamento(next);
+                  haptic(next ? 'success' : 'light');
+                  if (next) toast('Modo escaneamento ativado! Toque no apto e tire a foto.', 'info');
+                  else toast('Modo escaneamento desativado.', 'info');
+                }}
                 aria-label={modoEscaneamento ? 'Desativar modo escaneamento' : 'Ativar modo escaneamento rapido'}
                 className={`tactile-press w-9 h-9 rounded-xl border flex items-center justify-center focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors ${
                   modoEscaneamento

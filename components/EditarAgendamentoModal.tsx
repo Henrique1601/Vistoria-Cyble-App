@@ -12,6 +12,7 @@ interface Agendamento {
   bloco: string;
   apartamento: string;
   data: string;
+  hora?: string;
   concluido: boolean;
   observacao: string | null;
   criado_em: string;
@@ -25,6 +26,7 @@ interface EditarAgendamentoModalProps {
 
 export default function EditarAgendamentoModal({ agendamento, onFechar, onSalvo }: EditarAgendamentoModalProps) {
   const [data, setData] = useState(agendamento.data);
+  const [hora, setHora] = useState(agendamento.hora || '');
   const [obs, setObs] = useState(agendamento.observacao || '');
   const [apto, setApto] = useState(agendamento.apartamento);
   const [salvando, setSalvando] = useState(false);
@@ -40,6 +42,7 @@ export default function EditarAgendamentoModal({ agendamento, onFechar, onSalvo 
         body: JSON.stringify({
           id: agendamento.id,
           data,
+          hora: hora || null,
           apartamento: apto.trim(),
           observacao: obs || null,
         }),
@@ -108,6 +111,18 @@ export default function EditarAgendamentoModal({ agendamento, onFechar, onSalvo 
             value={data}
             onChange={(e) => setData(e.target.value)}
             className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm text-content focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase tracking-widest text-content-tertiary mb-1.5 block">
+            Horario (opcional)
+          </label>
+          <input
+            type="time"
+            value={hora}
+            onChange={(e) => setHora(e.target.value)}
+            className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm text-content font-mono focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
 
