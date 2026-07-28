@@ -145,7 +145,13 @@ export async function salvarFoto(rec: Omit<FotoRecord, 'id'>) {
 export async function fotosDoApartamento(bloco: string, apartamento: string) {
   const db = await getDb();
   const all = await db.getAll('fotos');
-  return all.filter((f) => f.bloco === bloco && f.apartamento === apartamento);
+  const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+  const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
+  return all.filter((f) => {
+    const fLetter = f.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = isSingleLetter ? fLetter === letter : f.bloco === bloco;
+    return blocoMatch && f.apartamento === apartamento;
+  });
 }
 
 export async function fotosPendentes() {
