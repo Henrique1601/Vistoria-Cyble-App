@@ -256,8 +256,33 @@ const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.
 function loadImageFromBlob(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(img.src); resolve(img); };
-    img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('Failed to load image')); };
+    let settled = false;
+    const cleanup = () => { URL.revokeObjectURL(img.src); };
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        reject(new Error('Image load timeout'));
+      }
+    }, 5000);
+
+    img.onload = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        cleanup();
+        resolve(img);
+      }
+    };
+    img.onerror = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        cleanup();
+        reject(new Error('Failed to load image'));
+      }
+    };
     img.src = URL.createObjectURL(file);
   });
 }

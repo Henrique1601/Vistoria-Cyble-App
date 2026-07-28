@@ -6,6 +6,8 @@ export interface BlurResult {
   message?: string;
 }
 
+const IMAGE_LOAD_TIMEOUT_MS = 5000;
+
 export async function detectBlur(file: File): Promise<BlurResult> {
   const img = await loadImage(file);
   const canvas = document.createElement('canvas');
@@ -57,8 +59,33 @@ export async function detectBlur(file: File): Promise<BlurResult> {
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(img.src); resolve(img); };
-    img.onerror = reject;
+    let settled = false;
+    const cleanup = () => { URL.revokeObjectURL(img.src); };
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        reject(new Error('Image load timeout'));
+      }
+    }, IMAGE_LOAD_TIMEOUT_MS);
+
+    img.onload = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        cleanup();
+        resolve(img);
+      }
+    };
+    img.onerror = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        cleanup();
+        reject(new Error('Failed to load image'));
+      }
+    };
     img.src = URL.createObjectURL(file);
   });
 }
