@@ -1,6 +1,8 @@
 import { put, del, list } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
+import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
+import { sanitize } from '@/lib/validation';
 
 export const runtime = 'nodejs';
 
@@ -9,6 +11,15 @@ const MAX_REPORTS = 20;
 const EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`write:${ip}`, RATE_LIMITS.write);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Muitas requisicoes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const auth = requireAdmin(req);
   if (!auth.ok) return auth.error!;
 
@@ -23,7 +34,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: 'HTML muito grande (max 10MB)' }, { status: 400 });
     }
 
-    const name = filename || `relatorio-${Date.now()}.html`;
+    const name = sanitize(filename || `relatorio-${Date.now()}.html`, 200);
     const path = `${SHARE_PREFIX}${name}`;
 
     const blob = await put(path, new Blob([html], { type: 'text/html;charset=utf-8' }), {

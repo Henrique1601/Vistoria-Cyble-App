@@ -2,6 +2,7 @@ import { backupDados } from './db';
 import { getBackupIntervalo, setBackupAutomatico } from './settings';
 import { addNotification, autoDismiss } from './notifications';
 import { authFetch } from './api';
+import { notifyBackupComplete } from './notificationsPush';
 
 let autoBackupTimer: ReturnType<typeof setInterval> | null = null;
 const LAST_AUTO_BACKUP_KEY = 'vistoria_lastAutoBackup';
@@ -39,6 +40,7 @@ export async function execAutoBackup(): Promise<boolean> {
 
     if (res.ok) {
       setLastAutoBackup(ts);
+      notifyBackupComplete();
       const nId = addNotification({
         tipo: 'backup',
         titulo: 'Backup automatico',

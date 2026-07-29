@@ -2,10 +2,22 @@ import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES } from '@/lib/sql';
 import { requireAdmin } from '@/lib/auth';
+import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
+import { validateBloco, validateApartamento, validateCategoria, isValidationError } from '@/lib/validation';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  // Rate limit
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`upload:${ip}`, RATE_LIMITS.upload);
+  if (!rl.allowed) {
+    return NextResponse.json({ erro: 'Muitas requisitions. Aguarde.' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const auth = requireAdmin(req);
   if (!auth.ok) {
     return NextResponse.json({ erro: 'Acesso restrito a administradores' }, { status: 401 });
@@ -13,14 +25,22 @@ export async function POST(req: NextRequest) {
 
   const form = await req.formData();
   const file = form.get('file') as File | null;
-  const bloco = form.get('bloco') as string;
-  const apartamento = form.get('apartamento') as string;
-  const categoria = form.get('categoria') as string;
+  const blocoRaw = form.get('bloco') as string;
+  const apartamentoRaw = form.get('apartamento') as string;
+  const categoriaRaw = form.get('categoria') as string;
   const timestamp = form.get('timestamp') as string;
 
-  if (!file || !bloco || !apartamento || !categoria) {
+  if (!file || !blocoRaw || !apartamentoRaw || !categoriaRaw) {
     return NextResponse.json({ erro: 'campos faltando' }, { status: 400 });
   }
+
+  // Validate inputs
+  const bloco = validateBloco(blocoRaw);
+  const apartamento = validateApartamento(apartamentoRaw);
+  const categoria = validateCategoria(categoriaRaw);
+  if (isValidationError(bloco)) return NextResponse.json({ erro: bloco.message }, { status: 400 });
+  if (isValidationError(apartamento)) return NextResponse.json({ erro: apartamento.message }, { status: 400 });
+  if (isValidationError(categoria)) return NextResponse.json({ erro: categoria.message }, { status: 400 });
 
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
     return NextResponse.json(

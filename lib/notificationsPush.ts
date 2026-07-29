@@ -43,9 +43,19 @@ export function showBrowserNotification(titulo: string, mensagem: string, opts?:
 }
 
 export function notifySyncComplete(pendentes: number, enviados: number) {
+  if (enviados === 0) return;
   showBrowserNotification(
     'Sincronizacao concluida',
     `${enviados} foto(s) enviada(s) com sucesso${pendentes > 0 ? `. ${pendentes} pendente(s)` : ''}`
+  );
+}
+
+export function notifySyncFailed(falhou: number) {
+  if (falhou === 0) return;
+  showBrowserNotification(
+    'Falha na sincronizacao',
+    `${falhou} foto(s) nao puderam ser enviadas. Tente novamente.`,
+    { tag: 'sync-failed' }
   );
 }
 
@@ -61,6 +71,35 @@ export function notifyPrazoApto(apartamento: string, bloco: string, diasRestante
     'Apto com prazo proximo',
     `${bloco} ${apartamento} — ${diasRestantes} dia(s) restante(s)`,
     { tag: `prazo-${bloco}-${apartamento}` }
+  );
+}
+
+export function notifyOffline() {
+  addNotification({
+    tipo: 'error',
+    titulo: 'Modo offline',
+    mensagem: 'Voce esta sem conexao. As fotos serao sincronizadas quando a internet voltar.',
+  });
+}
+
+export function notifyOnline() {
+  addNotification({
+    tipo: 'success',
+    titulo: 'Conexao restaurada',
+    mensagem: 'Sincronizando dados...',
+  });
+}
+
+export function notifyAgendamentosProximos(agendamentos: { bloco: string; apartamento: string; data: string; hora?: string }[]) {
+  if (agendamentos.length === 0) return;
+  const count = agendamentos.length;
+  const texto = count === 1
+    ? `${agendamentos[0].bloco} ${agendamentos[0].apartamento} — ${agendamentos[0].data}`
+    : `${count} agendamento(s) para hoje`;
+  showBrowserNotification(
+    'Agendamentos de hoje',
+    texto,
+    { tag: 'agendamentos-hoje' }
   );
 }
 

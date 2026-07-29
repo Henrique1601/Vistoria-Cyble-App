@@ -82,6 +82,7 @@ import {
 import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto, normalizeBloco, emAndamento, fotosMapKey } from '@/lib/utils';
 import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo, getModoCompacto, setModoCompacto, getAltoContraste, setAltoContraste } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
+import { notifySyncComplete, notifySyncFailed, notifyOffline, notifyOnline } from '@/lib/notificationsPush';
 import {
   INACTIVITY_TIMEOUT_MS,
   STORAGE_WARNING_PCT,
@@ -564,8 +565,14 @@ export default function Home() {
           .catch(() => setOnline(false));
       }
     }, 500);
-    const on = () => { setOnline(true); tentarSincronizar(); };
-    const off = () => setOnline(false);
+    const on = () => {
+      setOnline(true);
+      notifyOnline();
+      // Register background sync for when connectivity returns
+      navigator.serviceWorker?.controller?.postMessage('requestSync');
+      tentarSincronizar();
+    };
+    const off = () => { setOnline(false); notifyOffline(); };
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
     const interval = setInterval(tentarSincronizar, SYNC_INTERVAL_MS);
@@ -646,11 +653,13 @@ export default function Home() {
     if (failed) {
       logAudit('sync_failed', `Falha ao sincronizar ${pendentesLista.length} foto(s)`);
       updateSyncProgress(syncId, uploadedCount, { status: 'error', errorMessage: 'Falha ao enviar. Verifique sua conexao.' });
+      notifySyncFailed(pendentesLista.length - uploadedCount);
       const nId = addNotification({ tipo: 'error', titulo: 'Erro na sincronizacao', mensagem: 'Uma ou mais fotos falharam ao enviar. Verifique sua conexao.' });
       autoDismiss(nId, 8000);
     } else if (pendentesLista.length > 0) {
       logAudit('sync_completed', `${pendentesLista.length} foto(s) sincronizada(s)`);
       updateSyncProgress(syncId, pendentesLista.length, { status: 'success' });
+      notifySyncComplete(0, pendentesLista.length);
       const nId = addNotification({ tipo: 'sync', titulo: 'Sincronizado', mensagem: `${pendentesLista.length} foto(s) enviada(s) com sucesso.` });
       autoDismiss(nId, 5000);
     }

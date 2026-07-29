@@ -101,9 +101,9 @@ export default function SyncQueueScreen({ onVoltar }: { onVoltar: () => void }) 
     return () => clearInterval(interval);
   }, [syncing, refresh]);
 
-  // Auto-retry failed items after 30 seconds
+  // Auto-retry failed items after 30 seconds (only when online)
   useEffect(() => {
-    if (!pin || syncing) return;
+    if (!pin || syncing || !online) return;
     const failedItems = items.filter((item) => item.status === 'failed');
     if (failedItems.length === 0) return;
 
@@ -114,7 +114,7 @@ export default function SyncQueueScreen({ onVoltar }: { onVoltar: () => void }) 
     }, 30_000);
 
     return () => clearTimeout(timer);
-  }, [items, pin, syncing, refresh]);
+  }, [items, pin, syncing, refresh, online]);
 
   function handleSyncAll() {
     haptic('medium');
@@ -248,6 +248,21 @@ export default function SyncQueueScreen({ onVoltar }: { onVoltar: () => void }) 
           )}
         </motion.div>
 
+        {/* Offline banner */}
+        {!online && stats.pending > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-center gap-2"
+          >
+            <WifiSlash size={16} className="text-warning shrink-0" />
+            <div className="text-xs">
+              <p className="font-medium text-warning">Sem conexao</p>
+              <p className="text-content-tertiary">{stats.pending} foto(s) aguardando envio. Serao enviadas automaticamente quando a internet voltar.</p>
+            </div>
+          </motion.div>
+        )}
+
         {/* Filters */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -273,6 +288,21 @@ export default function SyncQueueScreen({ onVoltar }: { onVoltar: () => void }) 
             );
           })}
         </motion.div>
+
+        {/* Failed items info */}
+        {stats.failed > 0 && !syncing && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-3 rounded-xl bg-danger/10 border border-danger/30 flex items-center gap-2"
+          >
+            <Warning size={16} className="text-danger shrink-0" />
+            <div className="text-xs">
+              <p className="font-medium text-danger">{stats.failed} foto(s) com falha</p>
+              <p className="text-content-tertiary">Tente novamente ou verifique sua conexao. O retry automatico tenta a cada 30 segundos.</p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Queue list */}
         <div className="space-y-2">

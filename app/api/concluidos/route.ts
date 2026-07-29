@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/sql';
 import { requireAnyPin, requireAdmin } from '@/lib/auth';
+import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`read:${ip}`, RATE_LIMITS.read);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Muitas requisicoes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const auth = requireAnyPin(req);
   if (!auth.ok) return auth.error!;
 
@@ -27,6 +37,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`write:${ip}`, RATE_LIMITS.write);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Muitas requisicoes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const auth = requireAdmin(req);
   if (!auth.ok) return auth.error!;
 

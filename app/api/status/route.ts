@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { requireAnyPin } from '@/lib/auth';
+import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
 
 function getSql() {
   return neon(process.env.DATABASE_URL!);
 }
 
 export async function GET(req: NextRequest) {
+  // Rate limit
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`status:${ip}`, RATE_LIMITS.read);
+  if (!rl.allowed) {
+    return NextResponse.json({ status: {}, lastUpdate: Date.now() }, {
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const pin = req.headers.get('x-app-pin') || req.nextUrl.searchParams.get('pin') || '';
   if (!pin) return NextResponse.json({ status: {}, lastUpdate: Date.now() });
 
@@ -58,21 +68,22 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limit
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`status-post:${ip}`, RATE_LIMITS.auth);
+  if (!rl.allowed) {
+    return NextResponse.json({ ok: false, error: 'Muitas requisicoes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
+  // Use timing-safe auth instead of plain === comparison
+  const auth = requireAnyPin(req);
+  if (!auth.ok) return auth.error!;
+
   try {
     const body = await req.json();
-    const pin = body.pin || req.headers.get('x-app-pin') || '';
-
-    if (!pin) {
-      return NextResponse.json({ ok: false, error: 'PIN obrigatorio' }, { status: 401 });
-    }
-
-    const isAdmin = (process.env.ADMIN_PIN && pin === process.env.ADMIN_PIN) || (process.env.APP_PIN && pin === process.env.APP_PIN);
-    const isViewer = process.env.VIEWER_PIN && pin === process.env.VIEWER_PIN;
-
-    if (!isAdmin && !isViewer) {
-      return NextResponse.json({ ok: false, error: 'PIN invalido' }, { status: 401 });
-    }
-
     const { bloco, apartamento, concluido } = body;
 
     if (concluido && bloco && apartamento) {
@@ -84,7 +95,7 @@ export async function POST(req: NextRequest) {
       `;
     }
 
-    return NextResponse.json({ ok: true, role: isAdmin ? 'admin' : 'viewer' });
+    return NextResponse.json({ ok: true, role: auth.role });
   } catch {
     return NextResponse.json({ ok: false, error: 'Failed' }, { status: 500 });
   }

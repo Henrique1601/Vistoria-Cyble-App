@@ -1,4 +1,4 @@
-const CACHE_SHELL = 'vistoria-shell-v4';
+const CACHE_SHELL = 'vistoria-shell-v5';
 const CACHE_API = 'vistoria-api-v1';
 const CACHE_FOTOS = 'vistoria-fotos-v1';
 const APP_VERSION = '3.4.0';
@@ -48,14 +48,14 @@ self.addEventListener('fetch', (event) => {
             if (resp.ok) cache.put(event.request, resp.clone());
             return resp;
           })
-          .catch(() => cached);
+          .catch(() => cached || new Response(offlinePage(), { headers: { 'Content-Type': 'text/html' } }));
         return cached || fetchPromise;
       })
     );
     return;
   }
 
-  // Static assets: stale-while-revalidate (sempre busca versao nova em background)
+  // Static assets: stale-while-revalidate
   event.respondWith(
     caches.open(CACHE_SHELL).then(async (cache) => {
       const cached = await cache.match(event.request);
@@ -69,6 +69,32 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Offline fallback page
+function offlinePage() {
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sem conexao - Vistoria Cyble</title>
+  <style>
+    body { font-family: system-ui; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0f172a; color: #e2e8f0; }
+    .container { text-align: center; padding: 2rem; max-width: 400px; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p { color: #94a3b8; line-height: 1.6; }
+    .icon { font-size: 4rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>Sem conexao com a internet</h1>
+    <p>Suas fotos estao salvas no celular. Quando a conexao voltar, elas serao enviadas automaticamente.</p>
+  </div>
+</body>
+</html>`;
+}
 
 // Mensagens do app
 self.addEventListener('message', (event) => {
@@ -123,4 +149,43 @@ self.addEventListener('sync', (event) => {
       })
     );
   }
+});
+
+// Push notifications
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  try {
+    const data = event.data.json();
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Vistoria Cyble', {
+        body: data.body || '',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: data.tag || 'vistoria-cyble',
+        renotify: true,
+        data: data.url || '/',
+      })
+    );
+  } catch {
+    event.waitUntil(
+      self.registration.showNotification('Vistoria Cyble', {
+        body: event.data.text(),
+        icon: '/icon-192.png',
+      })
+    );
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes('/') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(event.notification.data || '/');
+    })
+  );
 });
