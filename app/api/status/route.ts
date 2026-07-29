@@ -7,6 +7,13 @@ function getSql() {
   return neon(process.env.DATABASE_URL!);
 }
 
+/** Normalize "A" → "Torre A", "B" → "Torre B", etc. */
+function normalizeBlocoName(raw: string): string {
+  const letter = raw.trim().toUpperCase();
+  if (/^[A-Z]$/.test(letter)) return `Torre ${letter}`;
+  return raw.trim();
+}
+
 export async function GET(req: NextRequest) {
   // Rate limit
   const ip = getClientIp(req);
@@ -38,10 +45,12 @@ export async function GET(req: NextRequest) {
 
     const towerStats: Record<string, { total: number; concluidos: number; emAndamento: number; pendentes: number }> = {};
     for (const [key, cats] of Object.entries(aptoCats)) {
-      const [bloco] = key.split('||');
+      const [rawBloco] = key.split('||');
+      const bloco = normalizeBlocoName(rawBloco);
       if (!towerStats[bloco]) towerStats[bloco] = { total: 0, concluidos: 0, emAndamento: 0, pendentes: 0 };
       towerStats[bloco].total++;
-      if (cats.has('cyble_antes') && cats.has('cyble_depois') && cats.has('documento')) {
+      // Concluído = tem cyble_antes E cyble_depois (documento é opcional)
+      if (cats.has('cyble_antes') && cats.has('cyble_depois')) {
         towerStats[bloco].concluidos++;
       } else if (cats.size > 0) {
         towerStats[bloco].emAndamento++;
