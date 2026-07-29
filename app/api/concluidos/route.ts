@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/sql';
 import { requireAnyPin, requireAdmin } from '@/lib/auth';
 import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
+import { validateBloco, isValidationError } from '@/lib/validation';
 
 export const runtime = 'nodejs';
 
@@ -54,14 +55,22 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const data: Record<string, string[]> = await req.json();
-    const sql = getSql();
+    const data: unknown = await req.json();
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return NextResponse.json({ error: 'Formato invalido' }, { status: 400 });
+    }
 
+    const sql = getSql();
     await sql`DELETE FROM concluidos`;
 
-    for (const [bloco, aptos] of Object.entries(data)) {
-      if (aptos.length > 0) {
-        await sql`INSERT INTO concluidos (bloco, apartamentos) VALUES (${bloco}, ${aptos}::text[])`;
+    for (const [bloco, aptos] of Object.entries(data as Record<string, unknown>)) {
+      const b = validateBloco(bloco);
+      if (isValidationError(b)) continue; // skip invalid bloco keys
+      if (!Array.isArray(aptos) || aptos.length === 0) continue;
+      // Only keep valid string apartment IDs
+      const validAptos = aptos.filter((a): a is string => typeof a === 'string' && /^\d{1,10}$/.test(a));
+      if (validAptos.length > 0) {
+        await sql`INSERT INTO concluidos (bloco, apartamentos) VALUES (${b}, ${validAptos}::text[])`;
       }
     }
 

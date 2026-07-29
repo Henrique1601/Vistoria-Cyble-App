@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: 'HTML muito grande (max 10MB)' }, { status: 400 });
     }
 
-    const name = sanitize(filename || `relatorio-${Date.now()}.html`, 200);
+    const rawName = filename || `relatorio-${Date.now()}.html`;
+    // Strip path traversal: only use the basename, remove any directory components
+    const safeName = sanitize(rawName, 200).replace(/^.*[/\\]/, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200);
+    const name = safeName || `relatorio-${Date.now()}.html`;
     const path = `${SHARE_PREFIX}${name}`;
 
     const blob = await put(path, new Blob([html], { type: 'text/html;charset=utf-8' }), {

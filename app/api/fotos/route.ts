@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/sql';
 import { requireAnyPin, requireAdmin } from '@/lib/auth';
 import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
+import { validateId, isValidationError } from '@/lib/validation';
 
 export const runtime = 'nodejs';
 
@@ -52,12 +53,13 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const { id } = await req.json();
-    if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    const idNum = validateId(id);
+    if (isValidationError(idNum)) {
+      return NextResponse.json({ error: idNum.message }, { status: 400 });
     }
 
     const sql = getSql();
-    await sql`DELETE FROM fotos WHERE id = ${id}`;
+    await sql`DELETE FROM fotos WHERE id = ${idNum}`;
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -84,16 +86,20 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const { id, ...updates } = await req.json();
-    if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    const idNum = validateId(id);
+    if (isValidationError(idNum)) {
+      return NextResponse.json({ error: idNum.message }, { status: 400 });
     }
 
     const sql = getSql();
     
-    if (updates.bloco !== undefined || updates.apartamento !== undefined) {
-      const bloco = updates.bloco;
-      const apartamento = updates.apartamento;
-      await sql`UPDATE fotos SET bloco = ${bloco}, apartamento = ${apartamento} WHERE id = ${id}`;
+    if (updates.bloco !== undefined && updates.apartamento !== undefined) {
+      const bloco = typeof updates.bloco === 'string' ? updates.bloco.trim() : '';
+      const apartamento = typeof updates.apartamento === 'string' ? updates.apartamento.trim() : '';
+      if (!bloco || !apartamento) {
+        return NextResponse.json({ error: 'Bloco e apartamento sao obrigatorios' }, { status: 400 });
+      }
+      await sql`UPDATE fotos SET bloco = ${bloco}, apartamento = ${apartamento} WHERE id = ${idNum}`;
     }
     
     return NextResponse.json({ ok: true });

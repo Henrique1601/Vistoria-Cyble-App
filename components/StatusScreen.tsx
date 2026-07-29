@@ -53,7 +53,6 @@ export default function StatusScreen({ onVoltar, online, pendentes, userRole }: 
     setLoading(true);
     const start = Date.now();
     try {
-      const pin = localStorage.getItem('vistoria_pin');
       const res = await authFetch('/api/status');
       const data = await res.json();
       const latency = Date.now() - start;

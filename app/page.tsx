@@ -688,7 +688,7 @@ export default function Home() {
       entry.aptos.add(normApto(f.apartamento));
     });
     return map;
-  }, [fotosOnline, normalizeBloco]);
+  }, [fotosOnline]);
 
   const fotosCountMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -697,7 +697,7 @@ export default function Home() {
       map.set(key, (map.get(key) || 0) + 1);
     });
     return map;
-  }, [fotosOnline, normalizeBloco]);
+  }, [fotosOnline]);
 
   const blocos = useMemo(() => {
     const fromLista = lista ? Object.keys(lista) : [];
@@ -725,7 +725,7 @@ export default function Home() {
     if (!blocoAtual) return new Set<string>();
     const entry = fotosOnlineMap.get(normalizeBloco(blocoAtual));
     return entry?.aptos ?? new Set<string>();
-  }, [fotosOnlineMap, blocoAtual, normalizeBloco]);
+  }, [fotosOnlineMap, blocoAtual]);
 
   const aptosDoBloco = useMemo(() => {
     if (!blocoAtual) return [];
@@ -773,7 +773,7 @@ export default function Home() {
     }
 
     return statusFiltered;
-  }, [blocoAtual, lista, statusMap, busca, ordem, statusFilter, aptosOnlineDoBloco, fotosCountMap, normalizeBloco]);
+  }, [blocoAtual, lista, statusMap, busca, ordem, statusFilter, aptosOnlineDoBloco, fotosCountMap]);
 
   // Paginacao
   const totalPaginas = itensPagina === 999 ? 1 : Math.ceil(aptosDoBloco.length / itensPagina);

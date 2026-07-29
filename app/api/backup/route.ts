@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: 'Arquivo muito grande (max 50MB)' }, { status: 400 });
     }
 
-    const fileName = file.name || `backup-${Date.now()}.json`;
+    const rawName = file.name || `backup-${Date.now()}.json`;
+    // Strip path traversal: only use the basename, remove any directory components
+    const safeName = rawName.replace(/^.*[/\\]/, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200);
+    const fileName = safeName || `backup-${Date.now()}.json`;
     const path = `${BACKUP_PREFIX}${fileName}`;
 
     const blob = await put(path, file, {
