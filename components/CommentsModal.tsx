@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, PaperPlaneTilt, Trash } from '@phosphor-icons/react';
 import { adicionarComentario, obterComentarios, excluirComentario, type ComentarioApto } from '@/lib/db';
 import { spring } from '@/lib/motion';
+import { useToast } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface CommentsModalProps {
   bloco: string;
@@ -15,9 +17,11 @@ interface CommentsModalProps {
 }
 
 export default function CommentsModal({ bloco, apartamento, isOpen, onClose, adminMode }: CommentsModalProps) {
+  const { toast } = useToast();
   const [comentarios, setComentarios] = useState<ComentarioApto[]>([]);
   const [novoComentario, setNovoComentario] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) carregar();
@@ -36,11 +40,20 @@ export default function CommentsModal({ bloco, apartamento, isOpen, onClose, adm
     await adicionarComentario(bloco, apartamento, 'Usuário', novoComentario.trim());
     setNovoComentario('');
     await carregar();
+    toast('Comentario adicionado', 'success');
   }
 
   async function handleExcluir(id: number) {
+    setConfirmDeleteId(id);
+  }
+
+  async function confirmExcluir() {
+    if (confirmDeleteId === null) return;
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
     await excluirComentario(id);
     await carregar();
+    toast('Comentario excluido', 'success');
   }
 
   function formatTime(ts: number) {
@@ -124,6 +137,15 @@ export default function CommentsModal({ bloco, apartamento, isOpen, onClose, adm
               </button>
             </div>
           </motion.div>
+          <ConfirmDialog
+            open={confirmDeleteId !== null}
+            title="Excluir comentario"
+            message="Tem certeza que deseja excluir este comentario?"
+            confirmLabel="Excluir"
+            variant="danger"
+            onConfirm={confirmExcluir}
+            onCancel={() => setConfirmDeleteId(null)}
+          />
         </motion.div>
       )}
     </AnimatePresence>

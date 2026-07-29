@@ -479,7 +479,9 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-base-raised border border-base-border rounded-2xl overflow-hidden animate-pulse">
-                <div className="aspect-[4/3] bg-base-overlay" />
+                <div className="aspect-[4/3] bg-base-overlay relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                </div>
                 <div className="p-3 space-y-2">
                   <div className="h-3 bg-base-overlay rounded w-1/2" />
                   <div className="h-2 bg-base-overlay rounded w-1/3" />

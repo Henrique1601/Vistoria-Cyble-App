@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Camera, CalendarDots, ChatText, Star, CheckCircle, CaretRight } from '@phosphor-icons/react';
 import { useLongPress } from '@/components/ContextMenu';
+import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { normApto, emAndamento } from '@/lib/utils';
 import { toggleFavorito, isFavorito } from '@/lib/settings';
@@ -28,6 +29,7 @@ interface AptoCardProps {
 }
 
 export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0 }: AptoCardProps) {
+  const { toast } = useToast();
   const [isFavorited, setIsFavorited] = useState(() => isFavorito(s.bloco, s.apartamento));
   const [swipeX, setSwipeX] = useState(0);
   const [showSwipeAction, setShowSwipeAction] = useState<'open' | 'done' | null>(null);
@@ -80,6 +82,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
       haptic('success');
       const wasFav = toggleFavorito(s.bloco, s.apartamento);
       setIsFavorited(wasFav);
+      toast(wasFav ? 'Adicionado aos favoritos' : 'Removido dos favoritos', 'success');
     } else if (swipeX === 0) {
       // Single tap → delay before opening (to allow double-tap detection)
       if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
