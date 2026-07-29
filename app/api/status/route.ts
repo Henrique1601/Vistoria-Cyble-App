@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
       const bloco = normalizeBlocoName(rawBloco);
       if (!towerStats[bloco]) towerStats[bloco] = { total: 0, concluidos: 0, emAndamento: 0, pendentes: 0 };
       towerStats[bloco].total++;
-      // Concluído = tem cyble_antes E cyble_depois (documento é opcional)
-      if (cats.has('cyble_antes') && cats.has('cyble_depois')) {
+      // Concluído = tem cyble_antes, cyble_depois E documento
+      if (cats.has('cyble_antes') && cats.has('cyble_depois') && cats.has('documento')) {
         towerStats[bloco].concluidos++;
       } else if (cats.size > 0) {
         towerStats[bloco].emAndamento++;
