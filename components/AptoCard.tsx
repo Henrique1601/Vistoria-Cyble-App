@@ -37,6 +37,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const buttonTappedRef = useRef(false);
+  const lastTouchEndRef = useRef(0);
   const swipeThreshold = 80;
 
   const longPressProps = useLongPress({
@@ -119,13 +120,16 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     }
 
     lastTapRef.current = now;
+    lastTouchEndRef.current = now;
     setSwipeX(0);
     setShowSwipeAction(null);
   }, [swipeX, s.bloco, s.apartamento, onAbrir]);
 
-  /** Handle click for PC (mouse) — only fires if target is not a button */
+  /** Handle click for PC (mouse) — skip if a touch just happened (mobile) */
   const handleClick = useCallback((e: React.MouseEvent) => {
     if (isButtonTarget(e)) return;
+    // On mobile, click fires after touchend — skip to avoid double-triggering
+    if (Date.now() - lastTouchEndRef.current < 400) return;
     onAbrir();
   }, [onAbrir]);
 
