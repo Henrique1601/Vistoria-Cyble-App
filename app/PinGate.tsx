@@ -17,8 +17,8 @@ export default function PinGate({ onOk }: { onOk: (pin: string, role: string) =>
     try {
       const resp = await fetch('/api/status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin }),
+        headers: { 'Content-Type': 'application/json', 'x-app-pin': pin },
+        body: JSON.stringify({}),
       });
       const data = await resp.json();
       if (data.ok) {
