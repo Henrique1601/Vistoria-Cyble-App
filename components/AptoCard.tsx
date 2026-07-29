@@ -36,6 +36,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const buttonTappedRef = useRef(false);
   const swipeThreshold = 80;
 
   const longPressProps = useLongPress({
@@ -44,12 +45,29 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     },
   });
 
+  /** Check if event target (or ancestor inside this card) is a button */
+  function isButtonTarget(e: React.TouchEvent | React.MouseEvent): boolean {
+    let el = e.target as HTMLElement | null;
+    while (el) {
+      if (el.tagName === 'BUTTON') return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // If touch started on a button, mark it and don't record swipe
+    if (isButtonTarget(e)) {
+      buttonTappedRef.current = true;
+      return;
+    }
+    buttonTappedRef.current = false;
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (buttonTappedRef.current) return;
     if (!touchStartRef.current) return;
     const touch = e.touches[0];
     const dx = touch.clientX - touchStartRef.current.x;
@@ -64,6 +82,14 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   }, []);
 
   const handleTouchEnd = useCallback(() => {
+    // If the touch started on a button, don't do anything — the button's onClick handles it
+    if (buttonTappedRef.current) {
+      buttonTappedRef.current = false;
+      setSwipeX(0);
+      setShowSwipeAction(null);
+      return;
+    }
+
     const now = Date.now();
     const timeSinceLastTap = now - lastTapRef.current;
 
@@ -97,6 +123,12 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     setShowSwipeAction(null);
   }, [swipeX, s.bloco, s.apartamento, onAbrir]);
 
+  /** Handle click for PC (mouse) — only fires if target is not a button */
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (isButtonTarget(e)) return;
+    onAbrir();
+  }, [onAbrir]);
+
   const isComplete = s.cybleAntesFeito && s.cybleDepoisFeito;
   const isInProgress = emAndamento(s);
 
@@ -124,6 +156,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={handleClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); haptic('light'); onAbrir(); } }}
         style={{ transform: `translateX(${swipeX}px)`, transition: swipeX === 0 ? 'transform 0.2s ease' : 'none' }}
         className={`tactile-press flex items-center justify-between cursor-pointer hover:bg-base-overlay/50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors relative ${
@@ -156,7 +189,6 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           )}
           <button
             onClick={(e) => { e.stopPropagation(); haptic('light'); onAgendar(); }}
-            onTouchEnd={(e) => { e.stopPropagation(); }}
             className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors ml-1"
             aria-label={`Agendar ${s.apartamento}`}
           >
@@ -165,7 +197,6 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           {onComentario && (
             <button
               onClick={(e) => { e.stopPropagation(); haptic('light'); onComentario(); }}
-              onTouchEnd={(e) => { e.stopPropagation(); }}
               className="tactile-press relative flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors"
               aria-label={`Comentarios de ${s.apartamento}`}
             >
