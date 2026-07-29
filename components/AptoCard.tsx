@@ -156,6 +156,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           )}
           <button
             onClick={(e) => { e.stopPropagation(); haptic('light'); onAgendar(); }}
+            onTouchEnd={(e) => { e.stopPropagation(); }}
             className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors ml-1"
             aria-label={`Agendar ${s.apartamento}`}
           >
@@ -164,6 +165,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           {onComentario && (
             <button
               onClick={(e) => { e.stopPropagation(); haptic('light'); onComentario(); }}
+              onTouchEnd={(e) => { e.stopPropagation(); }}
               className="tactile-press relative flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors"
               aria-label={`Comentarios de ${s.apartamento}`}
             >
