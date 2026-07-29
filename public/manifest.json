@@ -1,19 +1,23 @@
 {
   "name": "Vistoria Cyble",
   "short_name": "Vistoria",
-  "description": "Registro fotográfico de vistorias de troca de Cyble",
+  "description": "Registro fotografico de vistorias de troca de Cyble em apartamentos. PWA offline-first com sincronizacao automatica.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0c0f14",
   "theme_color": "#0c0f14",
+  "orientation": "portrait",
+  "categories": ["business", "utilities"],
+  "lang": "pt-BR",
+  "dir": "ltr",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "shortcuts": [
     {
-      "name": "Abrir Câmera",
-      "short_name": "Câmera",
-      "description": "Abrir tela de captura rápida",
+      "name": "Abrir Camera",
+      "short_name": "Camera",
+      "description": "Abrir tela de captura rapida",
       "url": "/?action=camera",
       "icons": [
         { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }

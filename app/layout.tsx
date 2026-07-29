@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     default: 'Vistoria Cyble',
     template: '%s | Vistoria Cyble',
   },
-  description: 'Registro fotografico de vistorias de troca de Cyble em apartamentos',
+  description: 'Registro fotografico de vistorias de troca de Cyble em apartamentos. PWA offline-first com sincronizacao automatica.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -70,6 +70,24 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  openGraph: {
+    title: 'Vistoria Cyble',
+    description: 'Registro fotografico de vistorias de troca de Cyble em apartamentos',
+    siteName: 'Vistoria Cyble',
+    type: 'website',
+    locale: 'pt_BR',
+    url: 'https://vistoria-cyble-app.vercel.app',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Vistoria Cyble',
+    description: 'Registro fotografico de vistorias de troca de Cyble em apartamentos',
+  },
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
   },
 };
 
