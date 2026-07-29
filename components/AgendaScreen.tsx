@@ -14,6 +14,8 @@ import {
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
+import { useToast } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -56,11 +58,13 @@ export default function AgendaScreen({
   onNovoAgendamento,
   onEditar,
 }: AgendaScreenProps) {
+  const { toast } = useToast();
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const agendamentosRef = useRef(agendamentos);
   agendamentosRef.current = agendamentos;
   const [loading, setLoading] = useState(true);
   const [filtroTorre, setFiltroTorre] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const today = hoje();
 
   const carregar = useCallback(async () => {
@@ -102,6 +106,14 @@ export default function AgendaScreen({
 
   const handleExcluir = useCallback(async (id: number) => {
     haptic('medium');
+    setConfirmDeleteId(id);
+  }, []);
+
+  const confirmExcluir = useCallback(async () => {
+    if (confirmDeleteId === null) return;
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
+    haptic('medium');
     const anteriores = agendamentosRef.current;
     setAgendamentos((prev) => prev.filter((a) => a.id !== id));
     try {
@@ -110,10 +122,12 @@ export default function AgendaScreen({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
+      toast('Agendamento excluido', 'success');
     } catch {
       setAgendamentos(anteriores);
+      toast('Erro ao excluir agendamento', 'error');
     }
-  }, []);
+  }, [confirmDeleteId, toast]);
 
   const agendamentosFiltrados = useMemo(() => {
     if (!filtroTorre) return agendamentos;
@@ -300,6 +314,15 @@ export default function AgendaScreen({
           {renderGrupo('Concluidos', concluidos, 'text-success')}
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="Excluir agendamento"
+        message="Tem certeza que deseja excluir este agendamento? Esta acao nao pode ser desfeita."
+        confirmLabel="Excluir"
+        variant="danger"
+        onConfirm={confirmExcluir}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

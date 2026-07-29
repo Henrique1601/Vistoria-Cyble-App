@@ -125,7 +125,7 @@ function ToggleGroup({
   );
 }
 
-export default function ConfiguracoesClient({ onVoltar, onRefresh }: { onVoltar: () => void; onRefresh?: () => void }) {
+export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate }: { onVoltar: () => void; onRefresh?: () => void; onNavigate?: (view: string) => void }) {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [qualidade, setQualidade] = useState(getQualidadeFoto);
@@ -730,6 +730,16 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh }: { onVoltar:
             <SettingRow label="Versao" description={`Vistoria Cyble v${APP_VERSION}`}>
               <Info size={16} className="text-content-tertiary" />
             </SettingRow>
+            {onNavigate && (
+              <SettingRow label="Status do Sistema" description="Verificar status da conexao, banco de dados e fila de sync">
+                <button
+                  onClick={() => { haptic('light'); onNavigate('status'); }}
+                  className="tactile-press bg-accent-dim border border-accent/30 rounded-lg px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all"
+                >
+                  Ver Status
+                </button>
+              </SettingRow>
+            )}
             {espaco && (
               <SettingRow label="Armazenamento" description={`${formatBytes(espaco.usado)} de ${formatBytes(espaco.total)} (${espaco.pct}%)`}>
                 <div className="w-16 h-2 bg-base-overlay rounded-full overflow-hidden">

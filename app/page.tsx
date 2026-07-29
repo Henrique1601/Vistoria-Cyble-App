@@ -98,6 +98,7 @@ import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
 import TowerReportPanel from '@/components/TowerReportPanel';
 import SyncQueueScreen from '@/components/SyncQueueScreen';
 import AuditLogScreen from '@/components/AuditLogScreen';
+import StatusScreen from '@/components/StatusScreen';
 import AgendaScreen from '@/components/AgendaScreen';
 import NovoAgendamentoModal from '@/components/NovoAgendamentoModal';
 import QuickScheduleModal from '@/components/QuickScheduleModal';
@@ -108,7 +109,7 @@ import TowerComparison from '@/components/TowerComparison';
 import CommentsModal from '@/components/CommentsModal';
 import { useRealTimeStatus } from '@/hooks/useRealTimeStatus';
 
-type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap' | 'agenda' | 'comparativo';
+type View = 'blocos' | 'apartamentos' | 'captura' | 'configuracoes' | 'syncQueue' | 'auditLog' | 'exportar' | 'heatmap' | 'agenda' | 'comparativo' | 'status';
 
 interface FotoOnline {
   id: number;
@@ -968,7 +969,7 @@ export default function Home() {
   if (view === 'configuracoes') {
     return (
       <>
-        <ConfiguracoesClient onVoltar={() => setView('blocos')} onRefresh={() => refreshStatus()} />
+        <ConfiguracoesClient onVoltar={() => setView('blocos')} onRefresh={() => refreshStatus()} onNavigate={(v) => setView(v as View)} />
         <BottomNav
           active="config"
           onNavigate={handleNavigation}
@@ -995,6 +996,23 @@ export default function Home() {
         <AuditLogScreen onVoltar={() => setView('blocos')} />
         <BottomNav
           active="inicio"
+          onNavigate={handleNavigation}
+        />
+      </>
+    );
+  }
+
+  if (view === 'status') {
+    return (
+      <>
+        <StatusScreen
+          onVoltar={() => setView('blocos')}
+          online={online}
+          pendentes={pendentes}
+          userRole={userRole as 'admin' | 'viewer' | null}
+        />
+        <BottomNav
+          active="config"
           onNavigate={handleNavigation}
         />
       </>
