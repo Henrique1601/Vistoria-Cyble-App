@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Camera, CalendarDots, ChatText, Star, CheckCircle, CaretRight } from '@phosphor-icons/react';
+import { Camera, CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning } from '@phosphor-icons/react';
 import { useLongPress } from '@/components/ContextMenu';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
@@ -26,9 +26,11 @@ interface AptoCardProps {
   onAgendar: () => void;
   onComentario?: () => void;
   comentarioCount?: number;
+  onDesmarcar?: () => void;
+  userRole?: string | null;
 }
 
-export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0 }: AptoCardProps) {
+export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0, onDesmarcar, userRole }: AptoCardProps) {
   const { toast } = useToast();
   const [isFavorited, setIsFavorited] = useState(() => isFavorito(s.bloco, s.apartamento));
   const [swipeX, setSwipeX] = useState(0);
@@ -210,6 +212,16 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
                   {comentarioCount > 9 ? '9+' : comentarioCount}
                 </span>
               )}
+            </button>
+          )}
+          {isComplete && onDesmarcar && userRole === 'admin' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); haptic('light'); onDesmarcar(); }}
+              className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors"
+              aria-label={`Desmarcar conclusao de ${s.apartamento}`}
+              title="Desmarcar como concluido"
+            >
+              <Warning size={14} weight="bold" />
             </button>
           )}
         </div>

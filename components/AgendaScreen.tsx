@@ -16,6 +16,11 @@ import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
 import { useToast } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import {
+  listarAgendamentos,
+  toggleConcluidoAgendamento,
+  excluirAgendamento,
+} from '@/lib/db';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -28,6 +33,20 @@ interface Agendamento {
   concluido: boolean;
   observacao: string | null;
   criado_em: string;
+}
+
+/** Convert IndexedDB Agendamento (criadoEm: number) to screen Agendamento (criado_em: string) */
+function toScreenAgendamento(ag: { id?: number; bloco: string; apartamento: string; data: string; hora?: string; concluido: boolean; observacao?: string | null; criadoEm?: number; criado_em?: string }): Agendamento {
+  return {
+    id: ag.id || 0,
+    bloco: ag.bloco,
+    apartamento: ag.apartamento,
+    data: ag.data,
+    hora: ag.hora,
+    concluido: ag.concluido,
+    observacao: ag.observacao || null,
+    criado_em: ag.criado_em || (ag.criadoEm ? new Date(ag.criadoEm).toISOString() : ''),
+  };
 }
 
 function formatarDataBR(data: string): string {
@@ -69,13 +88,25 @@ export default function AgendaScreen({
 
   const carregar = useCallback(async () => {
     try {
-      const resp = await authFetch('/api/agendamentos');
-      const data = await resp.json();
-      setAgendamentos(data.agendamentos || []);
+      // 1. Load from IndexedDB first (works offline)
+      const local = await listarAgendamentos();
+      setAgendamentos(local.map(toScreenAgendamento));
     } catch {
-      // offline fallback — mantem o que ja tem
+      // IndexedDB read failed — continue
     } finally {
       setLoading(false);
+    }
+    // 2. If online, sync from server and merge
+    if (navigator.onLine) {
+      try {
+        const resp = await authFetch('/api/agendamentos');
+        const data = await resp.json();
+        if (data.agendamentos && Array.isArray(data.agendamentos)) {
+          setAgendamentos(data.agendamentos.map(toScreenAgendamento));
+        }
+      } catch {
+        // offline fallback — keep what we have from IndexedDB
+      }
     }
   }, []);
 
@@ -86,16 +117,23 @@ export default function AgendaScreen({
   const handleToggle = useCallback(async (ag: Agendamento) => {
     haptic('light');
     const novoConcluido = !ag.concluido;
-    // Optimistic update
+    // Optimistic update on screen
     setAgendamentos((prev) =>
       prev.map((a) => (a.id === ag.id ? { ...a, concluido: novoConcluido } : a))
     );
     try {
-      await authFetch('/api/agendamentos', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: ag.id, concluido: novoConcluido }),
-      });
+      // 1. Save to IndexedDB (works offline)
+      if (ag.id) {
+        await toggleConcluidoAgendamento(ag.id);
+      }
+      // 2. Sync to server if online
+      if (navigator.onLine) {
+        await authFetch('/api/agendamentos', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ag.id, concluido: novoConcluido }),
+        });
+      }
     } catch {
       // rollback
       setAgendamentos((prev) =>
@@ -117,11 +155,16 @@ export default function AgendaScreen({
     const anteriores = agendamentosRef.current;
     setAgendamentos((prev) => prev.filter((a) => a.id !== id));
     try {
-      await authFetch('/api/agendamentos', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
+      // 1. Delete from IndexedDB (works offline)
+      await excluirAgendamento(id);
+      // 2. Sync to server if online
+      if (navigator.onLine) {
+        await authFetch('/api/agendamentos', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+      }
       toast('Agendamento excluido', 'success');
     } catch {
       setAgendamentos(anteriores);

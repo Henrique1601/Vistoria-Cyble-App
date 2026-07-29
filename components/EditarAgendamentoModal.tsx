@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { X, PencilSimple } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
+import { editarAgendamento } from '@/lib/db';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -37,17 +38,27 @@ export default function EditarAgendamentoModal({ agendamento, onFechar, onSalvo 
     haptic('medium');
     setSalvando(true);
     try {
-      await authFetch('/api/agendamentos', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: agendamento.id,
-          data,
-          hora: hora || null,
-          apartamento: apto.trim(),
-          observacao: obs || null,
-        }),
+      // 1. Save to IndexedDB first (works offline)
+      await editarAgendamento(agendamento.id, {
+        data,
+        apartamento: apto.trim(),
+        observacao: obs || undefined,
+        hora: hora || undefined,
       });
+      // 2. Sync to server if online
+      if (navigator.onLine) {
+        await authFetch('/api/agendamentos', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: agendamento.id,
+            data,
+            hora: hora || null,
+            apartamento: apto.trim(),
+            observacao: obs || null,
+          }),
+        });
+      }
     } catch {
       // offline
     }

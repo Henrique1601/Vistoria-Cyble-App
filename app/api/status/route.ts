@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
-import { requireAnyPin } from '@/lib/auth';
+import { requireAnyPin, requireAdmin } from '@/lib/auth';
 import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
+import { validateBloco, validateApartamento, isValidationError } from '@/lib/validation';
 
 function getSql() {
   return neon(process.env.DATABASE_URL!);
@@ -105,6 +106,48 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true, role: auth.role });
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Failed' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  // Rate limit
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`status-del:${ip}`, RATE_LIMITS.write);
+  if (!rl.allowed) {
+    return NextResponse.json({ ok: false, error: 'Muitas requisicoes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
+  // Admin only — desmarcar conclusão é ação destrutiva
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
+  try {
+    const body = await req.json();
+    const { bloco, apartamento } = body;
+
+    const b = validateBloco(bloco);
+    const a = validateApartamento(apartamento);
+    if (isValidationError(b)) return NextResponse.json({ error: b.message }, { status: 400 });
+    if (isValidationError(a)) return NextResponse.json({ error: a.message }, { status: 400 });
+
+    const sql = getSql();
+    // Deleta todas as fotos do apartamento para desmarcar como concluido
+    const result = await sql`
+      WITH deleted AS (
+        DELETE FROM fotos
+        WHERE bloco = ${b} AND apartamento = ${a}
+        RETURNING 1
+      )
+      SELECT count(*)::int AS cnt FROM deleted
+    `;
+
+    const count = result[0]?.cnt ?? 0;
+    return NextResponse.json({ ok: true, deleted: count > 0, count });
   } catch {
     return NextResponse.json({ ok: false, error: 'Failed' }, { status: 500 });
   }

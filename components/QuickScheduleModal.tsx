@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { X, CalendarDots, PencilSimple } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
+import { criarAgendamento } from '@/lib/db';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -30,18 +31,30 @@ export default function QuickScheduleModal({ bloco, apto, onFechar, onSalvo }: Q
     haptic('medium');
     setSalvando(true);
     try {
-      await authFetch('/api/agendamentos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bloco,
-          apartamento: aptoEdit.trim(),
-          data,
-          hora: hora || null,
-          concluido: false,
-          observacao: obs || null,
-        }),
+      // 1. Save to IndexedDB first (works offline)
+      await criarAgendamento({
+        bloco,
+        apartamento: aptoEdit.trim(),
+        data,
+        hora: hora || undefined,
+        concluido: false,
+        observacao: obs || undefined,
       });
+      // 2. Sync to server if online
+      if (navigator.onLine) {
+        await authFetch('/api/agendamentos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bloco,
+            apartamento: aptoEdit.trim(),
+            data,
+            hora: hora || null,
+            concluido: false,
+            observacao: obs || null,
+          }),
+        });
+      }
     } catch {
       // offline
     }

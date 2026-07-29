@@ -491,13 +491,14 @@ export async function excluirAgendamento(id: number) {
   await db.delete('agendamentos', id);
 }
 
-export async function editarAgendamento(id: number, dados: { data?: string; observacao?: string; apartamento?: string }) {
+export async function editarAgendamento(id: number, dados: { data?: string; observacao?: string; apartamento?: string; hora?: string }) {
   const db = await getDb();
   const ag = await db.get('agendamentos', id);
   if (ag) {
     if (dados.data !== undefined) ag.data = dados.data;
     if (dados.observacao !== undefined) ag.observacao = dados.observacao;
     if (dados.apartamento !== undefined) ag.apartamento = dados.apartamento;
+    if (dados.hora !== undefined) ag.hora = dados.hora;
     await db.put('agendamentos', ag);
   }
 }
