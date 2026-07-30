@@ -202,7 +202,6 @@ export default function Home() {
   const [showCommentsModal, setShowCommentsModal] = useState<{ bloco: string; apto: string } | null>(null);
   const [comentarioCounts, setComentarioCounts] = useState<Record<string, number>>({});
   const [desmarcarConfirm, setDesmarcarConfirm] = useState<{ bloco: string; apto: string } | null>(null);
-  const [desmarcarConfirm2, setDesmarcarConfirm2] = useState<{ bloco: string; apto: string } | null>(null);
   useEffect(() => {
     const saved = localStorage.getItem('vistoria_pin');
     const savedRole = localStorage.getItem('vistoria_role') || 'viewer';
@@ -467,24 +466,11 @@ export default function Home() {
     refreshCommentCounts();
   }, [refreshCommentCounts]);
 
-  // Desmarcar apartamento como concluido (2 confirmacoes)
-  const handleDesmarcarConfirm = useCallback((bloco: string, apto: string) => {
-    haptic('medium');
-    setDesmarcarConfirm({ bloco, apto });
-  }, []);
-
+  // Desmarcar apartamento como concluido — confirma unica
   const handleDesmarcarExecutar = useCallback(async () => {
     if (!desmarcarConfirm) return;
     const { bloco, apto } = desmarcarConfirm;
     setDesmarcarConfirm(null);
-    // Segunda confirmacao
-    setDesmarcarConfirm2({ bloco, apto });
-  }, [desmarcarConfirm]);
-
-  const handleDesmarcarFinal = useCallback(async () => {
-    if (!desmarcarConfirm2) return;
-    const { bloco, apto } = desmarcarConfirm2;
-    setDesmarcarConfirm2(null);
     haptic('heavy');
     try {
       const resp = await authFetch('/api/status', {
@@ -503,7 +489,7 @@ export default function Home() {
     } catch {
       toast('Erro ao desmarcar apartamento', 'error');
     }
-  }, [desmarcarConfirm2, toast, refreshCommentCounts]);
+  }, [desmarcarConfirm, toast, refreshCommentCounts]);
 
   // Pull to refresh
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -1554,7 +1540,7 @@ export default function Home() {
                 onAgendar={() => setAgendamentoRapido({ bloco: blocoAtual!, apto: s.apartamento })}
                 onComentario={() => setShowCommentsModal({ bloco: blocoAtual!, apto: s.apartamento })}
                 comentarioCount={comentarioCounts[`${blocoAtual}_${s.apartamento}`] || 0}
-                onDesmarcar={() => handleDesmarcarConfirm(blocoAtual!, s.apartamento)}
+                onDesmarcar={() => setDesmarcarConfirm({ bloco: blocoAtual!, apto: s.apartamento })}
                 userRole={userRole}
               />
             ))}
@@ -1927,27 +1913,16 @@ export default function Home() {
           adminMode={userRole === 'admin'}
         />
       )}
-      {/* Confirmacao 1: Desmarcar como concluido */}
+      {/* Desmarcar como concluido */}
       <ConfirmDialog
         open={!!desmarcarConfirm}
-        title="Desmarcar conclusao"
-        message={`Tem certeza que deseja desmarcar o apartamento ${desmarcarConfirm?.apto || ''} como concluido? Todas as fotos deste apartamento serao removidas do servidor.`}
+        title="Desmarcar como concluido"
+        message={`Tem certeza que deseja desmarcar o apartamento ${desmarcarConfirm?.apto || ''}? Todas as fotos serao removidas permanentemente.`}
         confirmLabel="Sim, desmarcar"
         cancelLabel="Cancelar"
-        variant="warning"
+        variant="danger"
         onConfirm={handleDesmarcarExecutar}
         onCancel={() => setDesmarcarConfirm(null)}
-      />
-      {/* Confirmacao 2: Ultima chance */}
-      <ConfirmDialog
-        open={!!desmarcarConfirm2}
-        title="Ultima confirmacao"
-        message={`Esta e a ultima chance de cancelar. O apartamento ${desmarcarConfirm2?.apto || ''} sera desmarcado e todas as suas fotos serao apagadas permanentemente.`}
-        confirmLabel="Confirmar exclusao"
-        cancelLabel="Cancelar"
-        variant="danger"
-        onConfirm={handleDesmarcarFinal}
-        onCancel={() => setDesmarcarConfirm2(null)}
       />
       <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
     </main>
