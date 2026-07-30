@@ -61,7 +61,8 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
-    if (isButtonElement(target)) return; // button tap — don't track swipe
+    // Check for button OR data-desmarcar attribute
+    if (isButtonElement(target) || target?.closest('[data-desmarcar]')) return; // button tap — don't track swipe
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
   }, []);
@@ -82,10 +83,10 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
-    console.error('[AptoCard] handleTouchEnd — target:', target, 'isButton:', isButtonElement(target));
+    console.error('[AptoCard] handleTouchEnd — target:', target, 'isButton:', isButtonElement(target), 'hasDesmarcar:', !!target?.closest('[data-desmarcar]'));
 
-    // If the touch ended on a button, skip all card actions — the button's own onClick handles it
-    if (isButtonElement(target)) {
+    // If the touch ended on a button or data-desmarcar, skip all card actions
+    if (isButtonElement(target) || target?.closest('[data-desmarcar]')) {
       setSwipeX(0);
       setShowSwipeAction(null);
       return;
@@ -127,8 +128,9 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
   /** Handle click for PC (mouse) — skip if a touch just happened (mobile) or target is a button */
   const handleClick = useCallback((e: React.MouseEvent) => {
-    console.error('[AptoCard] div handleClick — target:', e.target, 'isButton:', isButtonElement(e.target as HTMLElement));
-    if (isButtonElement(e.target as HTMLElement)) return;
+    const target = e.target as HTMLElement;
+    console.error('[AptoCard] div handleClick — target:', target, 'isButton:', isButtonElement(target), 'hasDesmarcar:', !!target?.closest('[data-desmarcar]'));
+    if (isButtonElement(target) || target?.closest('[data-desmarcar]')) return;
     // On mobile, click fires after touchend — skip to avoid double-triggering
     if (Date.now() - lastTouchEndRef.current < 400) return;
     onAbrir();
@@ -217,8 +219,8 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           )}
           {isComplete && onDesmarcar && userRole === 'admin' && (
             <button
-              onPointerDown={(e) => {     console.error('[AptoCard] desmarcar onPointerDown', e.target); e.stopPropagation(); }}
-              onClick={(e) => {     console.error('[AptoCard] desmarcar onClick', e.target); e.stopPropagation(); haptic('light'); onDesmarcar(); }}
+              data-desmarcar="true"
+              onPointerDown={(e) => { console.error('[AptoCard] DESMARCAR onPointerDown FIRED'); e.preventDefault(); e.stopPropagation(); haptic('light'); onDesmarcar(); }}
               className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors"
               aria-label={`Desmarcar conclusao de ${s.apartamento}`}
               title="Desmarcar como concluido"
