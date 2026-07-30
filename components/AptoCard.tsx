@@ -30,6 +30,18 @@ interface AptoCardProps {
   userRole?: string | null;
 }
 
+/**
+ * Walk up from an element checking if it or any ancestor is a <button>.
+ * Works with native DOM elements from both touch and mouse events.
+ */
+function isButtonElement(el: HTMLElement | null): boolean {
+  while (el) {
+    if (el.tagName === 'BUTTON') return true;
+    el = el.parentElement;
+  }
+  return false;
+}
+
 export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0, onDesmarcar, userRole }: AptoCardProps) {
   const { toast } = useToast();
   const [isFavorited, setIsFavorited] = useState(() => isFavorito(s.bloco, s.apartamento));
@@ -38,7 +50,6 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const buttonTappedRef = useRef(false);
   const lastTouchEndRef = useRef(0);
   const swipeThreshold = 80;
 
@@ -48,29 +59,14 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     },
   });
 
-  /** Check if event target (or ancestor inside this card) is a button */
-  function isButtonTarget(e: React.TouchEvent | React.MouseEvent): boolean {
-    let el = e.target as HTMLElement | null;
-    while (el) {
-      if (el.tagName === 'BUTTON') return true;
-      el = el.parentElement;
-    }
-    return false;
-  }
-
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // If touch started on a button, mark it and don't record swipe
-    if (isButtonTarget(e)) {
-      buttonTappedRef.current = true;
-      return;
-    }
-    buttonTappedRef.current = false;
+    const target = e.target as HTMLElement | null;
+    if (isButtonElement(target)) return; // button tap — don't track swipe
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (buttonTappedRef.current) return;
     if (!touchStartRef.current) return;
     const touch = e.touches[0];
     const dx = touch.clientX - touchStartRef.current.x;
@@ -84,10 +80,11 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     else setShowSwipeAction(null);
   }, []);
 
-  const handleTouchEnd = useCallback(() => {
-    // If the touch started on a button, don't do anything — the button's onClick handles it
-    if (buttonTappedRef.current) {
-      buttonTappedRef.current = false;
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const target = e.target as HTMLElement | null;
+
+    // If the touch ended on a button, skip all card actions — the button's own onClick handles it
+    if (isButtonElement(target)) {
       setSwipeX(0);
       setShowSwipeAction(null);
       return;
@@ -127,9 +124,9 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     setShowSwipeAction(null);
   }, [swipeX, s.bloco, s.apartamento, onAbrir]);
 
-  /** Handle click for PC (mouse) — skip if a touch just happened (mobile) */
+  /** Handle click for PC (mouse) — skip if a touch just happened (mobile) or target is a button */
   const handleClick = useCallback((e: React.MouseEvent) => {
-    if (isButtonTarget(e)) return;
+    if (isButtonElement(e.target as HTMLElement)) return;
     // On mobile, click fires after touchend — skip to avoid double-triggering
     if (Date.now() - lastTouchEndRef.current < 400) return;
     onAbrir();
@@ -194,8 +191,6 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
             </span>
           )}
           <button
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); haptic('light'); onAgendar(); }}
             className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors ml-1"
             aria-label={`Agendar ${s.apartamento}`}
@@ -204,8 +199,6 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           </button>
           {onComentario && (
             <button
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); haptic('light'); onComentario(); }}
               className="tactile-press relative flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors"
               aria-label={`Comentarios de ${s.apartamento}`}
@@ -220,8 +213,6 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           )}
           {isComplete && onDesmarcar && userRole === 'admin' && (
             <button
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); haptic('light'); onDesmarcar(); }}
               className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors"
               aria-label={`Desmarcar conclusao de ${s.apartamento}`}
