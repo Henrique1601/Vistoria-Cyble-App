@@ -104,7 +104,15 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const target = e.target as HTMLElement | null;
+    // Use elementFromPoint with changedTouches for reliable target detection on mobile.
+    // React's e.target on onTouchEnd can be unreliable when the handler is on a parent div.
+    const touch = e.changedTouches?.[0];
+    let target: HTMLElement | null;
+    if (touch) {
+      target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+    } else {
+      target = e.target as HTMLElement | null;
+    }
 
     // If touch ended on an action button → dispatch action
     const action = getDataAction(target);
