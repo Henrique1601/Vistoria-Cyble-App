@@ -148,6 +148,9 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   // DEBUG: always log conditions so we can see why button is hidden
   console.error(`[AptoCard] ${s.apartamento} — isComplete:${isComplete} onDesmarcar:${!!onDesmarcar} userRole:${userRole} cybleAntes:${s.cybleAntesFeito} cybleDepois:${s.cybleDepoisFeito}`);
 
+  // DEBUG: longPressProps removed from div to stop it from intercepting button pointerdown
+  // onLongPress is moved to a manual pointerdown check on the div
+
   return (
     <div className="relative overflow-hidden">
       {/* Swipe background — left action (open camera) */}
@@ -166,7 +169,6 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
       )}
 
       <div
-        {...longPressProps}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
