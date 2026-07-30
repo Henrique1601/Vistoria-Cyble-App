@@ -25,6 +25,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  console.warn(`[ConfirmDialog] open:${open} title:"${title}"`);
   return (
     <AnimatePresence>
       {open && (

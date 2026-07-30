@@ -137,6 +137,9 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const isComplete = s.cybleAntesFeito && s.cybleDepoisFeito;
   const isInProgress = emAndamento(s);
 
+  // DEBUG: always log conditions so we can see why button is hidden
+  console.warn(`[AptoCard] ${s.apartamento} — isComplete:${isComplete} onDesmarcar:${!!onDesmarcar} userRole:${userRole} cybleAntes:${s.cybleAntesFeito} cybleDepois:${s.cybleDepoisFeito}`);
+
   return (
     <div className="relative overflow-hidden">
       {/* Swipe background — left action (open camera) */}
