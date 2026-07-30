@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning } from '@phosphor-icons/react';
 import { useLongPress } from '@/components/ContextMenu';
 import { useToast } from '@/components/Toast';
@@ -52,6 +52,24 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastTouchEndRef = useRef(0);
   const swipeThreshold = 80;
+  const desmarcarRef = useRef<HTMLButtonElement>(null);
+
+  // NATIVE event listener — bypasses React's event system entirely
+  useEffect(() => {
+    const btn = desmarcarRef.current;
+    if (!btn || !onDesmarcar) return;
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.error('[AptoCard] NATIVE click on desmarcar button!');
+      haptic('light');
+      onDesmarcar();
+    };
+
+    btn.addEventListener('click', handler, { capture: true });
+    return () => btn.removeEventListener('click', handler, { capture: true });
+  }, [onDesmarcar]);
 
   const longPressProps = useLongPress({
     onLongPress: () => {
@@ -227,8 +245,9 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           )}
           {isComplete && onDesmarcar && userRole === 'admin' && (
             <button
+              ref={desmarcarRef}
               data-desmarcar="true"
-              onPointerDown={(e) => { console.error('[AptoCard] DESMARCAR onPointerDown FIRED'); e.preventDefault(); e.stopPropagation(); haptic('light'); onDesmarcar(); }}
+              onClick={(e) => { e.stopPropagation(); haptic('light'); onDesmarcar(); }}
               className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors"
               aria-label={`Desmarcar conclusao de ${s.apartamento}`}
               title="Desmarcar como concluido"
