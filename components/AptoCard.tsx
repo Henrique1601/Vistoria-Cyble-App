@@ -51,6 +51,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastTouchEndRef = useRef(0);
+  const didScrollRef = useRef(false);
   const swipeThreshold = 80;
 
   const isComplete = s.cybleAntesFeito && s.cybleDepoisFeito;
@@ -81,6 +82,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     if (getDataAction(target)) return;
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    didScrollRef.current = false;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -88,7 +90,12 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     const touch = e.touches[0];
     const dx = touch.clientX - touchStartRef.current.x;
     const dy = Math.abs(touch.clientY - touchStartRef.current.y);
-    if (dy > 40 || dy > Math.abs(dx)) { setSwipeX(0); setShowSwipeAction(null); return; }
+    if (dy > 40 || dy > Math.abs(dx)) {
+      didScrollRef.current = true;
+      setSwipeX(0);
+      setShowSwipeAction(null);
+      return;
+    }
     const clamped = Math.max(-120, Math.min(120, dx));
     setSwipeX(clamped);
     if (dx > swipeThreshold) setShowSwipeAction('done');
@@ -112,6 +119,14 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
     const now = Date.now();
     const timeSinceLastTap = now - lastTapRef.current;
+
+    // If user was scrolling → skip all tap actions
+    if (didScrollRef.current) {
+      setSwipeX(0);
+      setShowSwipeAction(null);
+      lastTouchEndRef.current = now;
+      return;
+    }
 
     if (swipeX < -swipeThreshold) {
       // Swipe left → open camera
