@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
+import { hoje } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import {
@@ -52,10 +53,6 @@ function toScreenAgendamento(ag: { id?: number; bloco: string; apartamento: stri
 function formatarDataBR(data: string): string {
   const [y, m, d] = data.split('-');
   return `${d}/${m}/${y}`;
-}
-
-function hoje(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function compararAgendamentos(a: Agendamento, b: Agendamento): number {

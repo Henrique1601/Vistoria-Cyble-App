@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { X, CalendarDots, PencilSimple } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
+import { hoje } from '@/lib/utils';
 import { criarAgendamento } from '@/lib/db';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
@@ -18,7 +19,7 @@ interface QuickScheduleModalProps {
 
 export default function QuickScheduleModal({ bloco, apto, onFechar, onSalvo }: QuickScheduleModalProps) {
   const [aptoEdit, setAptoEdit] = useState(apto);
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(hoje());
   const [hora, setHora] = useState(() => {
     const now = new Date();
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;

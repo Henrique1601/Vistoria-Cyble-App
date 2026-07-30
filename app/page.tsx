@@ -2153,7 +2153,7 @@ function EstatisticasPeriodo({ fotosOnline }: { fotosOnline: FotoOnline[] }) {
     for (let i = 13; i >= 0; i--) {
       const d = new Date(agora);
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       dias.push({ data: key, label, total: 0, porBloco: {} });
     }

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { X, CalendarDots, Buildings, ListNumbers, FunnelSimple } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
-import { normApto } from '@/lib/utils';
+import { normApto, hoje } from '@/lib/utils';
 import { criarAgendamento } from '@/lib/db';
 import type { ApartamentoStatus } from '@/lib/db';
 
@@ -21,7 +21,7 @@ interface NovoAgendamentoModalProps {
 export default function NovoAgendamentoModal({ blocos, statusList, onFechar, onSalvo }: NovoAgendamentoModalProps) {
   const [bloco, setBloco] = useState('');
   const [apto, setApto] = useState('');
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(hoje());
   const [hora, setHora] = useState(() => {
     const now = new Date();
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;

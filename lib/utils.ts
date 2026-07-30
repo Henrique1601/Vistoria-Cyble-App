@@ -2,6 +2,11 @@ export function normApto(a: string): string {
   return a.replace(/^0+/, '') || '0';
 }
 
+/** Return today's date as YYYY-MM-DD using local time (not UTC). */
+export function hoje(): string {
+  return formatarDataParaInput(new Date());
+}
+
 export function formatarDataParaInput(data: Date): string {
   const ano = data.getFullYear();
   const mes = (data.getMonth() + 1).toString().padStart(2, '0');
