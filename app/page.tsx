@@ -202,8 +202,6 @@ export default function Home() {
   const [showCommentsModal, setShowCommentsModal] = useState<{ bloco: string; apto: string } | null>(null);
   const [comentarioCounts, setComentarioCounts] = useState<Record<string, number>>({});
   const [desmarcarConfirm, setDesmarcarConfirm] = useState<{ bloco: string; apto: string } | null>(null);
-  // DEBUG: log desmarcarConfirm changes
-  console.error(`[page] desmarcarConfirm state:`, desmarcarConfirm);
   useEffect(() => {
     const saved = localStorage.getItem('vistoria_pin');
     const savedRole = localStorage.getItem('vistoria_role') || 'viewer';

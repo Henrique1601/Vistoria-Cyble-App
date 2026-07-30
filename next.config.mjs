@@ -10,7 +10,7 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 7,
   },
   compiler: {
-    removeConsole: false, // TEMP: disabled for debugging — re-enable after fix
+    removeConsole: process.env.NODE_ENV === 'production',
   },
   async headers() {
     return [

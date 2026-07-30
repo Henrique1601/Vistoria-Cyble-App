@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Camera, CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning } from '@phosphor-icons/react';
 import { useLongPress } from '@/components/ContextMenu';
 import { useToast } from '@/components/Toast';
@@ -52,24 +52,6 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastTouchEndRef = useRef(0);
   const swipeThreshold = 80;
-  const desmarcarRef = useRef<HTMLButtonElement>(null);
-
-  // NATIVE event listener — bypasses React's event system entirely
-  useEffect(() => {
-    const btn = desmarcarRef.current;
-    if (!btn || !onDesmarcar) return;
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.error('[AptoCard] NATIVE click on desmarcar button!');
-      haptic('light');
-      onDesmarcar();
-    };
-
-    btn.addEventListener('click', handler, { capture: true });
-    return () => btn.removeEventListener('click', handler, { capture: true });
-  }, [onDesmarcar]);
 
   const longPressProps = useLongPress({
     onLongPress: () => {
@@ -79,14 +61,8 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
-    // DEBUG: log ALL touch targets to find what's intercepting
-    const tag = target?.tagName;
-    const cls = target?.className?.toString?.().slice(0, 80) || '';
-    const parent = target?.parentElement?.tagName;
-    const grandparent = target?.parentElement?.parentElement?.tagName;
-    console.error(`[AptoCard] handleTouchStart — tag:${tag} cls:"${cls}" parent:${parent} grandparent:${grandparent}`);
-    // Check for button OR data-desmarcar attribute
-    if (isButtonElement(target) || target?.closest('[data-desmarcar]')) return; // button tap — don't track swipe
+    // Skip swipe tracking if touch is on a button or desmarcar area
+    if (isButtonElement(target) || isDesmarcarTarget(target)) return;
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
   }, []);
@@ -107,10 +83,20 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
-    console.error('[AptoCard] handleTouchEnd — target:', target, 'isButton:', isButtonElement(target), 'hasDesmarcar:', !!target?.closest('[data-desmarcar]'));
 
-    // If the touch ended on a button or data-desmarcar, skip all card actions
-    if (isButtonElement(target) || target?.closest('[data-desmarcar]')) {
+    // If touch ended on desmarcar button → call onDesmarcar directly
+    if (isDesmarcarTarget(target)) {
+      if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
+      haptic('light');
+      onDesmarcar?.();
+      setSwipeX(0);
+      setShowSwipeAction(null);
+      lastTouchEndRef.current = Date.now();
+      return;
+    }
+
+    // If touch ended on another button → skip all card actions
+    if (isButtonElement(target)) {
       setSwipeX(0);
       setShowSwipeAction(null);
       return;
@@ -150,24 +136,28 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     setShowSwipeAction(null);
   }, [swipeX, s.bloco, s.apartamento, onAbrir]);
 
-  /** Handle click for PC (mouse) — skip if a touch just happened (mobile) or target is a button */
+  /** Check if target or ancestor is the desmarcar button */
+  const isDesmarcarTarget = (el: HTMLElement | null): boolean =>
+    !!el?.closest('[data-desmarcar]');
+
+  /** Handle click for PC (mouse) — detect desmarcar button clicks directly */
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    console.error('[AptoCard] div handleClick — target:', target, 'isButton:', isButtonElement(target), 'hasDesmarcar:', !!target?.closest('[data-desmarcar]'));
-    if (isButtonElement(target) || target?.closest('[data-desmarcar]')) return;
+    // If clicked on desmarcar button area → call onDesmarcar directly
+    if (isDesmarcarTarget(target)) {
+      haptic('light');
+      onDesmarcar?.();
+      return;
+    }
+    // If clicked on another button → skip
+    if (isButtonElement(target)) return;
     // On mobile, click fires after touchend — skip to avoid double-triggering
     if (Date.now() - lastTouchEndRef.current < 400) return;
     onAbrir();
-  }, [onAbrir]);
+  }, [onAbrir, onDesmarcar]);
 
   const isComplete = s.cybleAntesFeito && s.cybleDepoisFeito;
   const isInProgress = emAndamento(s);
-
-  // DEBUG: always log conditions so we can see why button is hidden
-  console.error(`[AptoCard] ${s.apartamento} — isComplete:${isComplete} onDesmarcar:${!!onDesmarcar} userRole:${userRole} cybleAntes:${s.cybleAntesFeito} cybleDepois:${s.cybleDepoisFeito}`);
-
-  // DEBUG: longPressProps removed from div to stop it from intercepting button pointerdown
-  // onLongPress is moved to a manual pointerdown check on the div
 
   return (
     <div className="relative overflow-hidden">
@@ -245,9 +235,8 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           )}
           {isComplete && onDesmarcar && userRole === 'admin' && (
             <button
-              ref={desmarcarRef}
               data-desmarcar="true"
-              onClick={(e) => { e.stopPropagation(); haptic('light'); onDesmarcar(); }}
+              onClick={(e) => { e.stopPropagation(); }}
               className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors"
               aria-label={`Desmarcar conclusao de ${s.apartamento}`}
               title="Desmarcar como concluido"
