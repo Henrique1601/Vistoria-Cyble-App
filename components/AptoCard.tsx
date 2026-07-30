@@ -61,6 +61,12 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
+    // DEBUG: log ALL touch targets to find what's intercepting
+    const tag = target?.tagName;
+    const cls = target?.className?.toString?.().slice(0, 80) || '';
+    const parent = target?.parentElement?.tagName;
+    const grandparent = target?.parentElement?.parentElement?.tagName;
+    console.error(`[AptoCard] handleTouchStart — tag:${tag} cls:"${cls}" parent:${parent} grandparent:${grandparent}`);
     // Check for button OR data-desmarcar attribute
     if (isButtonElement(target) || target?.closest('[data-desmarcar]')) return; // button tap — don't track swipe
     const touch = e.touches[0];
