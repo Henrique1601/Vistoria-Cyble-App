@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Camera, CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning } from '@phosphor-icons/react';
+import { CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { normApto, emAndamento } from '@/lib/utils';
@@ -30,21 +30,16 @@ interface AptoCardProps {
 }
 
 /**
- * Walk up from an element checking if it or any ancestor is a <button>.
+ * Walk up from an element checking if it or any ancestor has a data-action attribute.
+ * Returns the action string if found, null otherwise.
  */
-function isButtonElement(el: HTMLElement | null): boolean {
+function getDataAction(el: HTMLElement | null): string | null {
   while (el) {
-    if (el.tagName === 'BUTTON') return true;
+    const action = el.getAttribute('data-action');
+    if (action) return action;
     el = el.parentElement;
   }
-  return false;
-}
-
-/**
- * Check if target or ancestor has data-action attribute matching a given action.
- */
-function hasDataAction(el: HTMLElement | null, action: string): boolean {
-  return !!el?.closest(`[data-action="${action}"]`);
+  return null;
 }
 
 export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0, onDesmarcar, userRole }: AptoCardProps) {
@@ -61,21 +56,32 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const isComplete = s.cybleAntesFeito && s.cybleDepoisFeito;
   const isInProgress = emAndamento(s);
 
-  /** Check if touch/click target is on any action button inside the card */
-  const isActionTarget = useCallback((el: HTMLElement | null): 'agendar' | 'comentario' | 'desmarcar' | null => {
-    if (hasDataAction(el, 'agendar')) return 'agendar';
-    if (hasDataAction(el, 'comentario')) return 'comentario';
-    if (hasDataAction(el, 'desmarcar')) return 'desmarcar';
-    return null;
-  }, []);
+  /** Dispatch action based on data-action attribute */
+  const dispatchAction = useCallback((action: string | null) => {
+    if (!action) return false;
+    haptic('light');
+    switch (action) {
+      case 'desmarcar':
+        onDesmarcar?.();
+        return true;
+      case 'agendar':
+        onAgendar();
+        return true;
+      case 'comentario':
+        onComentario?.();
+        return true;
+      default:
+        return false;
+    }
+  }, [onAgendar, onComentario, onDesmarcar]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
-    // Skip swipe tracking if touch is on any button/action
-    if (isButtonElement(target) || isActionTarget(target)) return;
+    // If touch is on an action button, don't track swipe
+    if (getDataAction(target)) return;
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
-  }, [isActionTarget]);
+  }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!touchStartRef.current) return;
@@ -93,40 +99,14 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
 
-    // Check for action buttons FIRST — handle them directly
-    const action = isActionTarget(target);
-    if (action === 'desmarcar' && onDesmarcar) {
+    // If touch ended on an action button → dispatch action
+    const action = getDataAction(target);
+    if (action) {
       if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
-      haptic('light');
-      onDesmarcar();
+      dispatchAction(action);
       setSwipeX(0);
       setShowSwipeAction(null);
       lastTouchEndRef.current = Date.now();
-      return;
-    }
-    if (action === 'agendar') {
-      if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
-      haptic('light');
-      onAgendar();
-      setSwipeX(0);
-      setShowSwipeAction(null);
-      lastTouchEndRef.current = Date.now();
-      return;
-    }
-    if (action === 'comentario' && onComentario) {
-      if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
-      haptic('light');
-      onComentario();
-      setSwipeX(0);
-      setShowSwipeAction(null);
-      lastTouchEndRef.current = Date.now();
-      return;
-    }
-
-    // If touch ended on any other button → skip
-    if (isButtonElement(target)) {
-      setSwipeX(0);
-      setShowSwipeAction(null);
       return;
     }
 
@@ -134,19 +114,23 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     const timeSinceLastTap = now - lastTapRef.current;
 
     if (swipeX < -swipeThreshold) {
+      // Swipe left → open camera
       if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
       haptic('medium');
       onAbrir();
     } else if (swipeX > swipeThreshold) {
+      // Swipe right → placeholder
       if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
       haptic('light');
     } else if (swipeX === 0 && timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+      // Double tap → favorite
       if (singleTapTimerRef.current) { clearTimeout(singleTapTimerRef.current); singleTapTimerRef.current = null; }
       haptic('success');
       const wasFav = toggleFavorito(s.bloco, s.apartamento);
       setIsFavorited(wasFav);
       toast(wasFav ? 'Adicionado aos favoritos' : 'Removido dos favoritos', 'success');
     } else if (swipeX === 0) {
+      // Single tap → delay before opening
       if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
       singleTapTimerRef.current = setTimeout(() => {
         haptic('light');
@@ -158,31 +142,21 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     lastTouchEndRef.current = now;
     setSwipeX(0);
     setShowSwipeAction(null);
-  }, [swipeX, s.bloco, s.apartamento, onAbrir, onAgendar, onComentario, onDesmarcar, isActionTarget]);
+  }, [swipeX, s.bloco, s.apartamento, onAbrir, dispatchAction]);
 
   /** Handle click for PC (mouse) */
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    const action = isActionTarget(target);
-    if (action === 'desmarcar' && onDesmarcar) {
-      haptic('light');
-      onDesmarcar();
+    // If clicked on an action → dispatch
+    const action = getDataAction(target);
+    if (action) {
+      dispatchAction(action);
       return;
     }
-    if (action === 'agendar') {
-      haptic('light');
-      onAgendar();
-      return;
-    }
-    if (action === 'comentario' && onComentario) {
-      haptic('light');
-      onComentario();
-      return;
-    }
-    if (isButtonElement(target)) return;
+    // On mobile, click fires after touchend — skip to avoid double-triggering
     if (Date.now() - lastTouchEndRef.current < 400) return;
     onAbrir();
-  }, [onAbrir, onAgendar, onComentario, onDesmarcar, isActionTarget]);
+  }, [onAbrir, dispatchAction]);
 
   return (
     <div className="relative overflow-hidden">
@@ -235,21 +209,19 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
               {s.notas.length}
             </span>
           )}
-          {/* Agendar button */}
+          {/* Agendar */}
           <div
             data-action="agendar"
-            onClick={(e) => e.stopPropagation()}
             className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors ml-1 cursor-pointer"
             role="button"
             aria-label={`Agendar ${s.apartamento}`}
           >
             <CalendarDots size={14} weight="bold" />
           </div>
-          {/* Comentario button */}
+          {/* Comentario */}
           {onComentario && (
             <div
               data-action="comentario"
-              onClick={(e) => e.stopPropagation()}
               className="tactile-press relative flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors cursor-pointer"
               role="button"
               aria-label={`Comentarios de ${s.apartamento}`}
@@ -262,11 +234,10 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
               )}
             </div>
           )}
-          {/* Desmarcar button — ONLY visible for admin on completed apartments */}
+          {/* Desmarcar — admin only, completed only */}
           {isComplete && onDesmarcar && userRole === 'admin' && (
             <div
               data-action="desmarcar"
-              onClick={(e) => e.stopPropagation()}
               className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors cursor-pointer"
               role="button"
               aria-label={`Desmarcar conclusao de ${s.apartamento}`}
