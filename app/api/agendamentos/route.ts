@@ -119,12 +119,12 @@ export async function PUT(req: NextRequest) {
     const sql = getSql();
     const [ag] = await sql`
       UPDATE agendamentos
-      SET bloco = COALESCE(${bloco}, bloco),
-          apartamento = COALESCE(${apartamento}, apartamento),
-          data = COALESCE(${data}, data),
-          hora = ${hora},
-          concluido = COALESCE(${concluido}, concluido),
-          observacao = ${observacao}
+      SET bloco = COALESCE(${bloco ?? null}, bloco),
+          apartamento = COALESCE(${apartamento ?? null}, apartamento),
+          data = COALESCE(${data ?? null}, data),
+          hora = ${h},
+          concluido = COALESCE(${concluido ?? null}, concluido),
+          observacao = ${obs}
       WHERE id = ${idNum}
       RETURNING id, bloco, apartamento, data, hora, concluido, observacao, criado_em::text
     `;
