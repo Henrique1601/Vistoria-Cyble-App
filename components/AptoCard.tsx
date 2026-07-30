@@ -82,7 +82,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
-    console.warn('[AptoCard] handleTouchEnd — target:', target, 'isButton:', isButtonElement(target));
+    console.error('[AptoCard] handleTouchEnd — target:', target, 'isButton:', isButtonElement(target));
 
     // If the touch ended on a button, skip all card actions — the button's own onClick handles it
     if (isButtonElement(target)) {
@@ -127,7 +127,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
 
   /** Handle click for PC (mouse) — skip if a touch just happened (mobile) or target is a button */
   const handleClick = useCallback((e: React.MouseEvent) => {
-    console.warn('[AptoCard] div handleClick — target:', e.target, 'isButton:', isButtonElement(e.target as HTMLElement));
+    console.error('[AptoCard] div handleClick — target:', e.target, 'isButton:', isButtonElement(e.target as HTMLElement));
     if (isButtonElement(e.target as HTMLElement)) return;
     // On mobile, click fires after touchend — skip to avoid double-triggering
     if (Date.now() - lastTouchEndRef.current < 400) return;
@@ -138,7 +138,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const isInProgress = emAndamento(s);
 
   // DEBUG: always log conditions so we can see why button is hidden
-  console.warn(`[AptoCard] ${s.apartamento} — isComplete:${isComplete} onDesmarcar:${!!onDesmarcar} userRole:${userRole} cybleAntes:${s.cybleAntesFeito} cybleDepois:${s.cybleDepoisFeito}`);
+  console.error(`[AptoCard] ${s.apartamento} — isComplete:${isComplete} onDesmarcar:${!!onDesmarcar} userRole:${userRole} cybleAntes:${s.cybleAntesFeito} cybleDepois:${s.cybleDepoisFeito}`);
 
   return (
     <div className="relative overflow-hidden">
@@ -217,8 +217,8 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           )}
           {isComplete && onDesmarcar && userRole === 'admin' && (
             <button
-              onPointerDown={(e) => { console.warn('[AptoCard] desmarcar onPointerDown', e.target); e.stopPropagation(); }}
-              onClick={(e) => { console.warn('[AptoCard] desmarcar onClick', e.target); e.stopPropagation(); haptic('light'); onDesmarcar(); }}
+              onPointerDown={(e) => {     console.error('[AptoCard] desmarcar onPointerDown', e.target); e.stopPropagation(); }}
+              onClick={(e) => {     console.error('[AptoCard] desmarcar onClick', e.target); e.stopPropagation(); haptic('light'); onDesmarcar(); }}
               className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors"
               aria-label={`Desmarcar conclusao de ${s.apartamento}`}
               title="Desmarcar como concluido"
