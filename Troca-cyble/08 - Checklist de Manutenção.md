@@ -14,8 +14,11 @@
 - [ ] Verificar se o Service Worker atualiza no celular
 - [ ] Testar ProgressToast durante sync
 - [ ] Testar agendamentos (criar, editar, excluir)
-- [ ] Testar exportação (CSV, PDF, XLSX)
+- [ ] Testar exportação (CSV, PDF, XLSX, JSON)
 - [ ] Testar busca global com status dots
+- [ ] Testar StatusScreen (Config > Sobre > Ver Status)
+- [ ] Testar CommentsModal (abrir, adicionar, excluir comentário)
+- [ ] Testar ConfirmDialog (excluir agendamento, excluir comentário)
 
 ## Variáveis de Ambiente (Vercel)
 - [ ] `ADMIN_PIN` configurado
@@ -32,14 +35,20 @@
 - [ ] Verificar que upload rejeita Viewer PIN
 - [ ] Verificar que `lib/auth.ts` valida corretamente
 
+## SEO
+- [ ] Verificar OpenGraph tags no source da página
+- [ ] Verificar `public/robots.txt` (noindex/nofollow)
+- [ ] Verificar `public/manifest.json` (orientation, categories, lang)
+
 ## Limitações Conhecidas
 - Trocar celular antes de sincronizar tudo = perda de fotos (usar Backup/Restore)
 - Cada dispositivo tem IndexedDB independente (sem sync entre aparelhos)
 - Sem paginação na lista (~180 aptos por bloco funciona bem)
 - Vercel Blob: 1GB free tier
 - Viewer PIN não pode excluir fotos nem acessar configurações
+- Foto captura com falhas em alguns dispositivos mobile (canvas SecurityError/QuotaExceeded)
 
 ## Versão Atual
-- **App:** 3.2.0
-- **SW:** 3.2.0 (deve ser igual ao app)
-- **IndexedDB:** v3 (agendamentos store adicionado)
+- **App:** 3.4.1
+- **SW:** 3.4.1 (deve ser igual ao app)
+- **IndexedDB:** v4 (stores: notas + comentarios adicionados)

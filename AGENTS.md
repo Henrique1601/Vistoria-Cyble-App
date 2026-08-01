@@ -14,7 +14,8 @@ PWA para celular que registra fotos da troca de Cyble em apartamentos, organizad
 - **Ícones:** @phosphor-icons/react
 - **Drag-and-drop:** @dnd-kit/core + @dnd-kit/sortable
 - **Exportação:** jspdf, xlsx, jszip
-- **Versão atual:** 3.3.0
+- **Virtualização:** @tanstack/react-virtual
+- **Versão atual:** 3.4.1
 
 ## Estrutura de Diretórios
 

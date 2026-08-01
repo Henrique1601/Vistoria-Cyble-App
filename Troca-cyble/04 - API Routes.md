@@ -142,7 +142,7 @@ Gera link público do relatório HTML. **Any PIN.**
 ## GET `/api/version`
 Retorna versão do app.
 
-**Response:** `{ "version": "3.2.0" }`
+**Response:** `{ "version": "3.4.1" }`
 
 ---
 

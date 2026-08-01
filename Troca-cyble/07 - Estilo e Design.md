@@ -38,8 +38,8 @@
 
 | Fonte           | Uso               | Pesos              |
 |-----------------|-------------------|--------------------|
-| Space Grotesk   | Títulos (display) | 500, 700           |
-| IBM Plex Mono   | Códigos/números   | 400, 600           |
+| Geist Display   | Títulos (display) | 500, 700           |
+| Geist Mono      | Códigos/números   | 400, 600           |
 | Inter           | Texto geral       | 400, 500, 600      |
 
 ## Componentes
@@ -49,10 +49,11 @@
 - Padding: 28px top, 16px sides, 100px bottom (espaço pro BottomNav)
 
 ### BottomNav
-- 5 abas: Inicio / Camera / Galeria / Agenda / Config
+- 6 abas: Inicio / Camera / Galeria / Agenda / Exportar / Config
 - **Touch targets: 44px mínimo** (WCAG 2.2 AA)
 - Ícones: @phosphor-icons/react
 - Haptic feedback ao tocar
+- **Glassmorphism:** `glass-subtle` (bg-raised/50 + backdrop-blur)
 
 ### Header (CapturaScreen)
 - Botões de ação: **44px mínimo** (w-11 h-11)
@@ -75,6 +76,11 @@
 - Localização: bottom-20, centralizado
 - Animação: spring (stiffness 400, damping 30)
 
+### ConfirmDialog
+- Modal de confirmação reutilizável (danger/warning variants)
+- `onConfirm` / `onCancel` callbacks
+- Usado em: AgendaScreen (delete), CommentsModal (delete)
+
 ### SyncBanner
 - Fixed bottom, full-width
 - Verde se sincronizando, vermelho se offline
@@ -86,6 +92,16 @@
 - Mensagem descritiva + ação sugerida
 - Tipos: search, photos, agenda, backup
 
+### StatusScreen (NOVO)
+- Tela de status do sistema com métricas em tempo real
+- API latency, storage estimate, sync stats, tower progress
+- Acessível via Configuracoes > Sobre > "Ver Status"
+
+### CommentsModal (NOVO)
+- Modal de comentários por apartamento
+- CRUD: adicionar, listar, excluir (com ConfirmDialog)
+- Admin mode: exclusão habilitada
+
 ### ProgressHeatmap
 - Grid colorido por torre
 - Verde (concluído), amarelo (em andamento), vermelho (pendente)
@@ -96,11 +112,21 @@
 - Throttled via requestAnimationFrame
 - Anotações salvas como `AcaoDesenho[]` no FotoRecord
 
+### OnboardingTour
+- Tour guiado de 7 passos
+- Progress dots, skip/próximo, animações spring
+- Persistido em localStorage (`vistoria_tutorial_v2`)
+
 ## Animações (Framer Motion)
 - **Spring:** stiffness 400, damping 30 (padrão)
 - **Stagger:** children animados em sequência
 - **Exit animations:** AnimatePresence com scale/opacity
-- **Shimmer:** CSS keyframes para ProgressToast
+- **Shimmer:** CSS keyframes para ProgressToast e skeleton loading
+
+### Shimmer Skeleton (NOVO)
+- `.skeleton` — shimmer animation 1.8s com CSS vars `--skeleton-bg` e `--skeleton-shimmer`
+- `.skeleton-resolve` — clip-path animation top-to-bottom 2s (ease-out)
+- Usado em: BlocosGrid, GaleriaClient skeleton cards, lista de aptos
 
 ## Acessibilidade
 - **Touch targets:** 44px mínimo (WCAG 2.2 AA)
@@ -108,3 +134,4 @@
 - **Screen reader:** labels em botões e inputs
 - **Keyboard navigation:** tab order lógico
 - **Haptic feedback:** vibração em ações importantes
+- **Global Error Boundary:** `app/global-error.tsx` com tema hardcoded (retry + reload)

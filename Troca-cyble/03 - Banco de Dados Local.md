@@ -1,6 +1,6 @@
 # Banco de Dados Local (IndexedDB)
 
-## Nome do Banco: `vistoria-cyble` (versão 3)
+## Nome do Banco: `vistoria-cyble` (versão 4)
 
 ## Stores
 
@@ -67,6 +67,34 @@ Agendamentos de vistoria.
 | `observacao`  | string? | Observação                   |
 | `criado_em`   | string  | Data de criação              |
 
+### Store: `notas` (v4 — NOVO)
+Notas por foto, indexadas por bloco+apartamento.
+
+| Campo         | Tipo    | Descrição                    |
+|---------------|---------|------------------------------|
+| `id`          | number  | Auto-increment key           |
+| `bloco`       | string  | Bloco                        |
+| `apartamento` | string  | Apartamento                  |
+| `fotoId`      | number  | Referência ao id da foto     |
+| `nota`        | string  | Texto da nota                |
+| `criado_em`   | string  | Data de criação              |
+
+**Index:** `by-bloco-apto` (compound: bloco + apartamento) — lookups rápidos por apto
+
+### Store: `comentarios` (v4 — NOVO)
+Comentários por apartamento, indexados por bloco+apartamento.
+
+| Campo         | Tipo    | Descrição                    |
+|---------------|---------|------------------------------|
+| `id`          | number  | Auto-increment key           |
+| `bloco`       | string  | Bloco                        |
+| `apartamento` | string  | Apartamento                  |
+| `texto`       | string  | Texto do comentário          |
+| `autor`       | string? | Quem escreveu (opcional)     |
+| `criado_em`   | string  | Data de criação              |
+
+**Index:** `by-bloco-apto` (compound: bloco + apartamento) — lookups rápidos por apto
+
 ## Funções da API (`lib/db.ts`)
 
 ```typescript
@@ -84,6 +112,7 @@ marcarSincronizada(id, url)       // Marca foto como sincronizada
 excluirFoto(id)                   // Remove foto do IndexedDB
 atualizarNota(id, nota)           // Atualiza nota da foto
 atualizarAnotacoes(id, anotacoes) // Atualiza anotações/desenhos
+obterTodasFotos()                 // Retorna todas as fotos (para exportação)
 
 // Status
 statusDeTodosApartamentos(lista)  // Status de progresso de todos os aptos
@@ -94,6 +123,7 @@ salvarConcluidos(lista)           // Salva locally
 carregarConcluidos()              // Carrega locally
 limparConcluidos()                // Limpa local
 syncConcluidosToAPI(pin)          // Sincroniza com Neon (com lock mutex)
+marcarTodosDocsOK(bloco, aptos)   // Marca docs de todos aptos como OK
 
 // Sync
 registrarSync(log)                // Registra sync no syncLog store

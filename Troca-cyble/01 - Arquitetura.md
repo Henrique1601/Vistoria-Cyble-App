@@ -77,12 +77,14 @@
 - **SuccessAnimation** — Confetti e check animado
 
 ### 3. Persistência Local
-- **lib/db.ts** — Abstração sobre IndexedDB (v3)
+- **lib/db.ts** — Abstração sobre IndexedDB (v4)
   - Store `fotos` — fotos capturadas (blob + metadados: `anotacoes`, `gps`, `nota`)
   - Store `config` — lista de blocos/apartamentos e PIN
   - Store `syncLog` — log de sincronizações
   - Store `auditLog` — registro de ações
   - Store `agendamentos` — agendamentos de vistoria
+  - Store `notas` — notas por foto (v4)
+  - Store `comentarios` — comentários por apartamento (v4)
 
 ### 4. API (Server-side)
 - **POST /api/status** — Valida PIN
