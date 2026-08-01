@@ -822,3 +822,63 @@
 - Widget 2x2: "Aptos pendentes hoje"
 - Widget 4x2: "Progresso por bloco"
 - Atalho rápido pra câmera
+
+
+🟡 Médias (30-60 min cada)
+#	Melhoria	Arquivo	O que muda
+14	window.location.reload()	app/configuracoes/ConfiguracoesClient.tsx	Recarregar só dados afetados, não a página inteira
+15	Confirmação exclusão de foto	app/CapturaScreen.tsx	2 toques para deletar (primeiro highlight, segundo confirma)
+16	Swipe conflita com scroll	components/AptoCard.tsx	Aumentar threshold para 30-40px, detecção por velocidade
+17	Sem Background Sync	public/sw.js	Implementar self.registration.sync para sync em background
+18	Indicador offline no CapturaScreen	app/CapturaScreen.tsx	Badge sutil no header mostrando status online/offline
+19	Undo em operações bulk	app/page.tsx	Snapshot antes de "marcar todos docs OK" para rollback
+20	Pull-to-refresh em todas as views	app/page.tsx	Extrair para componente/hook reutilizável
+21	window.confirm() nativo	app/configuracoes/ConfiguracoesClient.tsx	Modal customizado com glass design
+22	JSON.parse sem validação	lib/db.ts	Schema validation com zod no restore
+23	carregarConcluidos mistura layers	lib/db.ts	Usar authFetch em vez de fetch manual
+24	EstatisticasPorTorre O(n*m)	app/page.tsx	Pré-build Map para O(1) lookups
+🔴 Grandes (1-3h cada)
+#	Melhoria	Arquivo	O que muda
+25	page.tsx monolítico	app/page.tsx	Extrair views para componentes separados ou rotas
+26	~67 useState → useReducer	app/page.tsx	Agrupar estado relacionado (export, filter, modal)
+27	Bibliotecas pesadas lazy	app/page.tsx, lib/export/	next/dynamic para jspdf, xlsx, jszip
+28	IndexedDB indexes	lib/db.ts	Compound indexes by-bloco-apto, by-synced
+29	CSRF protection	API routes	Token CSRF ou validação Origin/Referer
+30	CSP headers	next.config.mjs	Content-Security-Policy para XSS protection
+31	Session tokens	lib/auth.ts, API routes	JWT/session em vez de PIN plaintext
+32	Error monitoring	Projeto inteiro	Sentry/LogRocket para tracking de erros
+33	Testes	Projeto inteiro	Vitest + React Testing Librar
+🟢 Baixa Prioridade (21 melhorias)
+Infrastructure
+- Sem testes — Zero arquivos de teste no projeto
+- Sem error monitoring (Sentry, LogRocket)
+- Sem analytics — Não sabe quais features são mais usadas
+- Sem migrações formais no IndexedDB
+UX
+- Sem <meta> theme-color dinâmico — iOS status bar não muda com tema
+- Sem not-found.tsx — 404 genérico do Next.js
+- Sem loading.tsx — Sem skeleton em transições
+- ARIA labels ausentes — Botões de filtro e paginação sem acessibilidade
+- Manifest icons incompletos — Pode falhar install prompt
+Code Quality
+- EstatisticasPeriodo e EstatisticasPorTorre inline — ~140 linhas recriadas a cada render
+- window.confirm() no ConfiguracoesClient — Diálogo nativo, não estilizado
+- dangerouslySetInnerHTML no layout — Para tema inline (mover para arquivo)
+- 8 arquivos de fonte carregados — 900 weight pode não ser usado
+-🟢 Baixa Prioridade (21 melhorias)
+Infrastructure
+- Sem testes — Zero arquivos de teste no projeto
+- Sem error monitoring (Sentry, LogRocket)
+- Sem analytics — Não sabe quais features são mais usadas
+- Sem migrações formais no IndexedDB
+UX
+- Sem <meta> theme-color dinâmico — iOS status bar não muda com tema
+- Sem not-found.tsx — 404 genérico do Next.js
+- Sem loading.tsx — Sem skeleton em transições
+- ARIA labels ausentes — Botões de filtro e paginação sem acessibilidade
+- Manifest icons incompletos — Pode falhar install prompt
+Code Quality
+- EstatisticasPeriodo e EstatisticasPorTorre inline — ~140 linhas recriadas a cada render
+- window.confirm() no ConfiguracoesClient — Diálogo nativo, não estilizado
+- dangerouslySetInnerHTML no layout — Para tema inline (mover para arquivo)
+- 8 arquivos de fonte carregados — 900 weight pode não ser usado/

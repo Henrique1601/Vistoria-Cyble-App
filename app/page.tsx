@@ -97,6 +97,8 @@ import { startAutoBackup, stopAutoBackup } from '@/lib/autoBackup';
 import { OnboardingTour, shouldShowTutorial, markTutorialDone } from '@/components/OnboardingTour';
 import NotificationCenter from '@/components/NotificationCenter';
 import ConfiguracoesClient from '@/app/configuracoes/ConfiguracoesClient';
+import { useKeyboardShortcuts, buildMainShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import TowerReportPanel from '@/components/TowerReportPanel';
 import SyncQueueScreen from '@/components/SyncQueueScreen';
 import AuditLogScreen from '@/components/AuditLogScreen';
@@ -747,6 +749,54 @@ export default function Home() {
     return result.sort();
   }, [lista, fotosOnlineMap]);
 
+  // Keyboard shortcuts: / = search, Escape = back, 1-8 = switch bloco
+  const blocoKeys = useMemo(() => {
+    return blocos.map((b) => b.replace(/^Torre\s+/i, '').trim().toUpperCase()).sort();
+  }, [blocos]);
+
+  const handleKeyboardBack = useCallback(() => {
+    if (view === 'captura') {
+      setView('apartamentos');
+      refreshStatus();
+      setModoEscaneamento(false);
+    } else if (view === 'apartamentos') {
+      setView('blocos');
+      setBlocoAtual(null);
+    } else if (view !== 'blocos') {
+      setView('blocos');
+      setBlocoAtual(null);
+    }
+  }, [view, refreshStatus]);
+
+  const handleKeyboardSearch = useCallback(() => {
+    if (view !== 'blocos') {
+      setView('blocos');
+      setBlocoAtual(null);
+    }
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>('[aria-label="Buscar apartamento em todos os blocos"]');
+      el?.focus();
+    }, 50);
+  }, [view]);
+
+  const handleKeyboardBloco = useCallback((idx: number) => {
+    if (view !== 'blocos' || blocoAtual) return;
+    const key = blocoKeys[idx];
+    if (!key) return;
+    const full = blocos.find((b) => b.replace(/^Torre\s+/i, '').trim().toUpperCase() === key);
+    if (full) {
+      haptic('light');
+      setBlocoAtual(full);
+      setView('apartamentos');
+    }
+  }, [view, blocoAtual, blocoKeys, blocos]);
+
+  useKeyboardShortcuts(buildMainShortcuts({
+    onSearch: handleKeyboardSearch,
+    onBack: handleKeyboardBack,
+    onBloco: handleKeyboardBloco,
+  }), !!pin);
+
   const aptosOnlineDoBloco = useMemo(() => {
     if (!blocoAtual) return new Set<string>();
     const entry = fotosOnlineMap.get(normalizeBloco(blocoAtual));
@@ -808,6 +858,15 @@ export default function Home() {
     const start = (paginaAtual - 1) * itensPagina;
     return aptosDoBloco.slice(start, start + itensPagina);
   }, [aptosDoBloco, paginaAtual, itensPagina]);
+
+  // Virtualizer for apartment list (improves perf with large lists)
+  const listParentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: aptosPaginados.length,
+    getScrollElement: () => listParentRef.current,
+    estimateSize: () => 64, // ~64px per AptoCard
+    overscan: 5,
+  });
 
   useEffect(() => { setPaginaAtual(1); }, [blocoAtual, busca, ordem]);
 
@@ -1498,11 +1557,10 @@ export default function Home() {
           </motion.div>
           </div>
 
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-            className="bg-base-raised border border-base-border rounded-2xl overflow-hidden divide-y divide-base-border"
+          <div
+            ref={listParentRef}
+            className="bg-base-raised border border-base-border rounded-2xl overflow-auto divide-y divide-base-border"
+            style={{ maxHeight: 'calc(100dvh - 280px)' }}
           >
             {aptosDoBloco.length === 0 && (
               <div className="px-6 py-12">
@@ -1528,23 +1586,48 @@ export default function Home() {
                 <div className="skeleton-resolve w-8 h-8 rounded-lg shrink-0" />
               </div>
             ))}
-            {aptosPaginados.map((s) => (
-              <AptoCard
-                key={s.apartamento}
-                s={s}
-                aptosOnlineDoBloco={aptosOnlineDoBloco}
-                modoCompacto={modoCompacto}
-                modoEscaneamento={modoEscaneamento}
-                blocoAtual={blocoAtual}
-                onAbrir={() => { setAptoAtual(s.apartamento); setView('captura'); }}
-                onAgendar={() => setAgendamentoRapido({ bloco: blocoAtual!, apto: s.apartamento })}
-                onComentario={() => setShowCommentsModal({ bloco: blocoAtual!, apto: s.apartamento })}
-                comentarioCount={comentarioCounts[`${blocoAtual}_${s.apartamento}`] || 0}
-                onDesmarcar={() => setDesmarcarConfirm({ bloco: blocoAtual!, apto: s.apartamento })}
-                userRole={userRole}
-              />
-            ))}
-          </motion.div>
+            {aptosPaginados.length > 0 && (
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: '100%',
+                  position: 'relative',
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const s = aptosPaginados[virtualRow.index];
+                  return (
+                    <div
+                      key={s.apartamento}
+                      data-index={virtualRow.index}
+                      ref={virtualizer.measureElement}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <AptoCard
+                        s={s}
+                        aptosOnlineDoBloco={aptosOnlineDoBloco}
+                        modoCompacto={modoCompacto}
+                        modoEscaneamento={modoEscaneamento}
+                        blocoAtual={blocoAtual}
+                        onAbrir={() => { setAptoAtual(s.apartamento); setView('captura'); }}
+                        onAgendar={() => setAgendamentoRapido({ bloco: blocoAtual!, apto: s.apartamento })}
+                        onComentario={() => setShowCommentsModal({ bloco: blocoAtual!, apto: s.apartamento })}
+                        comentarioCount={comentarioCounts[`${blocoAtual}_${s.apartamento}`] || 0}
+                        onDesmarcar={() => setDesmarcarConfirm({ bloco: blocoAtual!, apto: s.apartamento })}
+                        userRole={userRole}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {aptosDoBloco.length > 10 && (
             <motion.div
