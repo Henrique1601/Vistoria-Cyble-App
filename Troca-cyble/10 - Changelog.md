@@ -1,5 +1,27 @@
 # Changelog — Vistoria Cyble
 
+## v3.5.0 (02/08/2026)
+
+### Google Drive Backup
+- **`lib/googleDrive.ts`** — Integração completa com Google Drive API
+  - `initGoogleDrive()` — inicializa gapi + OAuth2 token client
+  - `requestGoogleDriveAccess()` — solicita acesso ao Drive via popup
+  - `backupToGoogleDrive(blob, fileName)` — upload de backup JSON
+  - `listGoogleDriveBackups()` — lista backups existentes no Drive
+  - Client ID real configurado, descoberta automática de API
+- **`ConfiguracoesClient.tsx`** — Seção "Google Drive" no painel de configurações
+  - Botão "Conectar ao Google Drive" com OAuth flow
+  - Indicador de conexão (bolinha verde)
+  - Botão "Backup no Google Drive" — envia backup completo
+  - Botão "Listar backups no Drive" — mostra quantidade de backups
+
+### Documentação
+- **`AGENTS.md`** — Regras de sincronização Obsidian/README obrigatórias
+- **`00-Visão Geral.md`** — Google Drive Backup adicionado às funcionalidades
+- **`10-Changelog.md`** — Esta entrada
+- **`09-Roadmap.md`** — Google Drive marcado como concluído
+- **`README.md`** — Seção Google Drive adicionada
+
 ## v3.4.1 (31/07/2026)
 
 ### Keyboard Shortcuts

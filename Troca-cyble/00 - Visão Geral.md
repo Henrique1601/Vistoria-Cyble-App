@@ -15,14 +15,14 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **Virtualização:** @tanstack/react-virtual (disponível)
 - **Fonts:** Geist (display + mono)
 - **Deploy:** Vercel (auto-deploy do GitHub)
-- **Versão atual:** 3.4.1
+- **Versão atual:** 3.5.0
 
 ## Sistema de PIN
 - **`ADMIN_PIN`** — Acesso total: editar, excluir fotos, selecionar múltiplas, agendar, configurar
 - **`VIEWER_PIN`** — Apenas visualizar fotos, sem editar nem excluir (read-only)
 - **`APP_PIN`** — Legado, funciona como admin para compatibilidade
 
-## Funcionalidades (95+ implementadas)
+## Funcionalidades (100+ implementadas)
 
 ### Core
 1. **PIN de acesso** — autenticação dual (Admin/Viewer) via variáveis de ambiente
@@ -96,6 +96,10 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 56. **Auto-retry falhas** — retry automático de itens pendentes após 30s offline
 57. **Comparativo de torres** — painel lado a lado com stats detalhadas
 58. **Relatório por período** — filtro temporal com exportação
+
+### Google Drive (v3.5.0)
+59. **Google Drive Backup** — backup completo para o Google Drive via OAuth2
+60. **Listar backups Drive** — visualizar backups existentes no Drive
 
 ### Segurança
 37. **Security Hardening** — `lib/auth.ts` (server-side) + `lib/api.ts` (client-side)

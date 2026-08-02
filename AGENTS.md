@@ -15,7 +15,7 @@ PWA para celular que registra fotos da troca de Cyble em apartamentos, organizad
 - **Drag-and-drop:** @dnd-kit/core + @dnd-kit/sortable
 - **Exportação:** jspdf, xlsx, jszip
 - **Virtualização:** @tanstack/react-virtual
-- **Versão atual:** 3.4.1
+- **Versão atual:** 3.5.0
 
 ## Estrutura de Diretórios
 
@@ -73,8 +73,38 @@ npm run format   # Formatar código
 3. Implementar seguindo convenções
 4. Rodar `npm run build` para verificar erros de tipo
 5. Verificar lint
-6. Commitar com mensagem descritiva (conventional commits)
-7. Push para GitHub (Vercel faz auto-deploy)
+6. **Atualizar documentação** (Obsidian vault + README.md — obrigatório antes de commitar)
+7. Commitar com mensagem descritiva (conventional commits)
+8. Push para GitHub (Vercel faz auto-deploy)
+
+## ⚠️ OBRIGATÓRIO — Sincronização de Documentação
+
+**TODA alteração no código DEVE ser acompanhada de atualização no Obsidian vault e no README.md.**
+
+### Regras de Sincronização
+
+| Alteração no código | Obsidian (`Troca-cyble/`) | README.md |
+|---------------------|---------------------------|-----------|
+| Nova funcionalidade | `00-Visão Geral.md` (feature list) + `10-Changelog.md` + `09-Roadmap.md` | Seção "Funcionalidades" |
+| Alteração de stack/dependência | `00-Visão Geral.md` (Stack) | Seção "Stack" |
+| Novo componente | `02-Estrutura de Arquivos.md` + `07-Estilo e Design.md` | — |
+| Alteração no banco de dados | `03-Banco de Dados Local.md` | — |
+| Nova API route | `04-API Routes.md` | — |
+| Alteração de deploy/config | `05-Deploy e Configuração.md` | Seção "Deploy" |
+| Bug fix | `10-Changelog.md` | — |
+| Nova versão | `00-Visão Geral.md` + `10-Changelog.md` | `package.json` + README |
+| Componente novo | `02-Estrutura.md` + `07-Estilo.md` | — |
+| Atalho/UX | `07-Estilo e Design.md` | — |
+
+### Checklist Pré-Commit
+
+- [ ] Código buildou sem erros (`npm run build`)
+- [ ] Obsidian vault atualizado (arquivos relevantes)
+- [ ] README.md atualizado (se aplicável)
+- [ ] `10-Changelog.md` tem entrada para a mudança
+- [ ] `APP_VERSION` em `lib/version.ts` e `sw.js` atualizado (se nova versão)
+- [ ] `package.json` version atualizado (se nova versão)
+- [ ] Commit com mensagem descritiva (conventional commits)
 
 ## Sistema de PIN
 

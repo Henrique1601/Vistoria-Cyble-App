@@ -17,7 +17,7 @@ vistoria-cyble-app/
 │   │   ├── page.tsx            # Rota /galeria
 │   │   └── GaleriaClient.tsx   # Visualização de fotos online (~897 linhas)
 │   ├── configuracoes/
-│   │   └── ConfiguracoesClient.tsx  # Tela de configurações (~767 linhas)
+│   │   └── ConfiguracoesClient.tsx  # Tela de configurações (~830 linhas, com Google Drive)
 │   └── api/
 │       ├── status/route.ts     # GET/POST — status de conclusão + validação PIN
 │       ├── upload/route.ts     # POST — upload de foto (admin only)
@@ -81,7 +81,7 @@ vistoria-cyble-app/
 │   ├── motion.ts               # Constantes de animação (spring, stagger, item)
 │   ├── utils.ts                # normApto(), normalizeBloco(), formatarDataParaInput(), etc.
 │   ├── constants.ts            # Constantes centralizadas (SYNC_INTERVAL_MS, etc.)
-│   ├── version.ts              # APP_VERSION = '3.4.1'
+│   ├── version.ts              # APP_VERSION = '3.5.0'
 │   ├── blurDetect.ts           # Detecção de blur/brilho em fotos (Laplacian)
 │   ├── googleDrive.ts          # Integração Google Drive (gapi + OAuth2)
 │   ├── validation.ts           # Validação de input para API routes
@@ -102,7 +102,7 @@ vistoria-cyble-app/
 │   ├── robots.txt              # SEO (noindex/nofollow para PWA)
 │   └── icon.svg                # Ícone do app
 ├── Troca-cyble/                # Obsidian vault — documentação
-├── package.json                # v3.4.0
+├── package.json                # v3.5.0
 ├── tsconfig.json
 ├── next.config.mjs
 └── README.md
@@ -144,7 +144,7 @@ vistoria-cyble-app/
 ### `hooks/useKeyboardShortcuts.ts` (~40 linhas)
 - `useKeyboardShortcut(keys, handler)` — hook genérico
 - `buildMainShortcuts()` — `/` busca, `Escape` voltar, `1-8` trocar torre
-- **Ainda não integrado no page.tsx** (disponível para uso futuro)
+- **Integrado no page.tsx** — `blocoKeys` computado, callbacks de navegação
 
 ### `components/CommentsModal.tsx` (~140 linhas)
 - Modal de comentários por apartamento

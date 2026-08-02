@@ -62,3 +62,15 @@ só precisa fazer uma vez (ou quando quiser corrigir a lista, tem o botão
   de só IndexedDB local) — é uma evolução natural do projeto, é só pedir.
 - Sem paginação na lista de apartamentos — com ~180 por bloco funciona bem;
   se algum bloco tiver muito mais que isso, pode valer otimizar depois.
+
+## Google Drive Backup
+
+O app permite fazer backup completo dos dados no Google Drive:
+
+1. Vá em **Configurações > Backup**.
+2. Clique em **"Conectar ao Google Drive"**.
+3. Faça login e autorize o acesso.
+4. Após conectar, clique em **"Backup no Google Drive"** para enviar.
+5. Use **"Listar backups no Drive"** para verificar backups existentes.
+
+> Os backups ficam salvos como `vistoria-backup-YYYY-MM-DD.json` na pasta "Meu Drive".

@@ -7,6 +7,21 @@
 
 ---
 
+## v3.5.0 (02/08/2026)
+
+### ✅ Google Drive Backup
+- Integração completa com Google Drive API (gapi + OAuth2)
+- Botão "Conectar ao Google Drive" no painel de configurações
+- Upload de backup JSON para o Drive
+- Listagem de backups existentes
+- Client ID real configurado
+
+### ✅ Documentação Sincronizada
+- Regras de sincronização Obsidian/README no AGENTS.md
+- Todos os docs atualizados
+
+---
+
 ## v3.4.1 (31/07/2026)
 
 ### ✅ Bug Fixes
