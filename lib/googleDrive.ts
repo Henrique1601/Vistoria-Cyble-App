@@ -16,7 +16,7 @@ export async function initGoogleDrive(): Promise<boolean> {
     await (window as any).gapi.client.init({ apiKey: GAPI_KEY, discoveryDocs: [DISCOVERY_DOC] });
 
     tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-      client_id: 'YOUR_CLIENT_ID.apps.googleusercontent.com',
+      client_id: '825105422982-7f3o43sd86jiiujbj4pc5drlib59pj46.apps.googleusercontent.com',
       scope: SCOPES,
       callback: () => {},
     });

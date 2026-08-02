@@ -25,6 +25,7 @@ import {
   FileText,
   FileCsv,
   FileXls,
+  Folder,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
 import { haptic } from '@/lib/haptic';
@@ -56,6 +57,7 @@ import {
   exportarConcluidosTxt,
 } from '@/lib/db';
 import { useToast } from '@/components/Toast';
+import { initGoogleDrive, requestGoogleDriveAccess, backupToGoogleDrive, listGoogleDriveBackups } from '@/lib/googleDrive';
 import { authFetch } from '@/lib/api';
 import { spring } from '@/lib/motion';
 import { APP_VERSION } from '@/lib/version';
@@ -147,6 +149,8 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate }:
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [showImportFotos, setShowImportFotos] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [gdriveConnected, setGdriveConnected] = useState(false);
+  const [gdriveLoading, setGdriveLoading] = useState(false);
 
   // Load storage info on mount
   useEffect(() => {
@@ -451,6 +455,64 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate }:
     });
   }
 
+  // Google Drive
+  async function handleGoogleDriveConnect() {
+    setGdriveLoading(true);
+    haptic('medium');
+    try {
+      const inited = await initGoogleDrive();
+      if (!inited) {
+        toast('Erro ao inicializar Google Drive', 'error');
+        setGdriveLoading(false);
+        return;
+      }
+      const ok = await requestGoogleDriveAccess();
+      if (ok) {
+        setGdriveConnected(true);
+        toast('Conectado ao Google Drive', 'success');
+      } else {
+        toast('Acesso negado ao Google Drive', 'error');
+      }
+    } catch {
+      toast('Erro ao conectar ao Google Drive', 'error');
+    }
+    setGdriveLoading(false);
+  }
+
+  async function handleGoogleDriveBackup() {
+    setGdriveLoading(true);
+    haptic('medium');
+    try {
+      const blob = await backupDados();
+      const fileName = `vistoria-backup-${dateStr()}.json`;
+      const ok = await backupToGoogleDrive(blob, fileName);
+      if (ok) {
+        toast('Backup enviado ao Google Drive', 'success');
+      } else {
+        toast('Erro ao enviar backup', 'error');
+      }
+    } catch {
+      toast('Erro ao enviar backup para Google Drive', 'error');
+    }
+    setGdriveLoading(false);
+  }
+
+  async function handleGoogleDriveList() {
+    setGdriveLoading(true);
+    haptic('medium');
+    try {
+      const files = await listGoogleDriveBackups();
+      if (files.length === 0) {
+        toast('Nenhum backup encontrado no Drive', 'info');
+      } else {
+        toast(`${files.length} backup(s) encontrado(s) no Drive`, 'success');
+      }
+    } catch {
+      toast('Erro ao listar backups', 'error');
+    }
+    setGdriveLoading(false);
+  }
+
   function formatBytes(bytes: number) {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -695,6 +757,47 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate }:
                 Exportar concluidos (.txt)
               </button>
             </div>
+
+            {/* Google Drive */}
+            <div className="px-4 py-2">
+              <p className="text-xs text-content-tertiary font-medium uppercase tracking-wider">Google Drive</p>
+            </div>
+            <div className="px-4 py-3.5">
+              {!gdriveConnected ? (
+                <button
+                  onClick={handleGoogleDriveConnect}
+                  disabled={gdriveLoading}
+                  className="tactile-press w-full flex items-center justify-center gap-2 bg-accent/10 border border-accent/30 rounded-xl px-4 py-3 text-sm font-medium text-accent hover:bg-accent/20 disabled:opacity-40 transition-all"
+                >
+                  <Cloud size={16} weight="bold" />
+                  {gdriveLoading ? 'Conectando...' : 'Conectar ao Google Drive'}
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/30 rounded-xl">
+                    <div className="w-2 h-2 rounded-full bg-success" />
+                    <span className="text-xs font-medium text-success">Conectado ao Google Drive</span>
+                  </div>
+                  <button
+                    onClick={handleGoogleDriveBackup}
+                    disabled={gdriveLoading}
+                    className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 disabled:opacity-40 transition-all"
+                  >
+                    <ArrowDown size={16} weight="bold" />
+                    {gdriveLoading ? 'Enviando...' : 'Backup no Google Drive'}
+                  </button>
+                  <button
+                    onClick={handleGoogleDriveList}
+                    disabled={gdriveLoading}
+                    className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 disabled:opacity-40 transition-all"
+                  >
+                    <Folder size={16} weight="bold" />
+                    {gdriveLoading ? 'Listando...' : 'Listar backups no Drive'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="px-4 py-3.5">
               <button
                 onClick={handleLimparConcluidos}
