@@ -22,9 +22,9 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // unsafe-inline: Next.js inline styles + next/script; unsafe-eval: Next.js dev HMR
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' https://*.blob.vercel-storage.com data: blob:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://fonts.gstatic.com",
               "connect-src 'self' https://*.blob.vercel-storage.com https://*.neon.tech wss:",
               "media-src 'self' blob:",
               "object-src 'none'",

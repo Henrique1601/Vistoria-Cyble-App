@@ -38,6 +38,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip non-http(s) requests (chrome-extension://, etc)
+  if (!event.request.url.startsWith('http')) {
+    return;
+  }
+
   // Navigation (app shell): stale-while-revalidate
   if (event.request.mode === 'navigate') {
     event.respondWith(
@@ -61,7 +66,7 @@ self.addEventListener('fetch', (event) => {
       const cached = await cache.match(event.request);
       const fetchPromise = fetch(event.request)
         .then((resp) => {
-          if (resp.ok) cache.put(event.request, resp.clone());
+          if (resp.ok && event.request.url.startsWith('http')) cache.put(event.request, resp.clone());
           return resp;
         })
         .catch(() => cached);
