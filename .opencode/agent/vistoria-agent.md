@@ -190,6 +190,37 @@ npm run format   # Formatar código
 6. Commitar com mensagem descritiva (conventional commits)
 7. Push para GitHub (Vercel faz auto-deploy)
 
+## ⚠️ CRÍTICO — Backup Antes de Qualquer Alteração
+
+**ANTES de qualquer mudança no código (bug fix, feature, refactor, update de dependência), o agent DEVE:**
+
+1. **Alertar o usuário** sobre a necessidade de backup
+2. **Confirmar que o backup foi feito** antes de prosseguir
+3. **Registrar quais apartamentos já foram vistoriados** (via IndexedDB local)
+
+### Por quê?
+- O app está **em uso em campo** — dados reais de vistorias estão no IndexedDB do celular
+- Fotos e status de apartamentos podem ser perdidos se o deploy quebrar algo
+- O progresso de cada apartamento (Cyble Antes/Depois/Documento) é local
+
+### O que perguntar ao usuário antes de mudanças:
+```
+⚠️ ATENÇÃO: App em uso em campo!
+
+Antes de prosseguir com esta alteração, confirme:
+
+1. Você já fez backup dos dados? (Configurações > Backup completo)
+2. Quais apartamentos já foram vistoriados? (para verificar após deploy)
+3. Tem fotos pendentes de sincronização? (verificar indicador "pendentes")
+
+Confirma que posso prosseguir com a alteração?
+```
+
+### Após o deploy:
+- Verificar com o usuário se tudo continua funcionando
+- Confirmar que os dados antigos ainda estão presentes
+- Se houver perda de dados, orientar a restaurar do backup
+
 ## Quando Usar Este Agent
 
 - Implementar novas funcionalidades
