@@ -258,8 +258,9 @@ export async function statusDeTodosApartamentos(
 }
 
 // --- Compressao de imagem ---
-const MAX_IMAGE_WIDTH = 2560;
-const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.90, '100': 0.95 };
+const MAX_IMAGE_WIDTH_DEFAULT = 2560;
+const MAX_IMAGE_WIDTH_FULL = 4096;
+const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.90, '100': 1.0 };
 
 function loadImageFromBlob(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -377,7 +378,9 @@ export async function comprimirImagem(
   const isRotated = orientation >= 5;
   const realW = isRotated ? srcH : srcW;
   const realH = isRotated ? srcW : srcH;
-  const escala = Math.min(1, MAX_IMAGE_WIDTH / Math.max(realW, realH));
+  const qualidade = QUALIDADE_MAP[getQualidadeFoto()] ?? 0.75;
+  const maxWidth = qualidade >= 1.0 ? MAX_IMAGE_WIDTH_FULL : MAX_IMAGE_WIDTH_DEFAULT;
+  const escala = Math.min(1, maxWidth / Math.max(realW, realH));
   const w = Math.round(realW * escala);
   const h = Math.round(realH * escala);
   // OffscreenCanvas fallback: use regular canvas on older browsers/iOS
@@ -419,7 +422,6 @@ export async function comprimirImagem(
     });
   }
 
-  const qualidade = QUALIDADE_MAP[getQualidadeFoto()] ?? 0.75;
   const BLOB_TIMEOUT_MS = 15000;
   // convertToBlob only on OffscreenCanvas; toBlob on regular canvas fallback
   if (isOffscreen) {

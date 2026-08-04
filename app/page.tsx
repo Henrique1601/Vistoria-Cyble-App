@@ -258,7 +258,8 @@ export default function Home() {
         setVersaoNova(event.data.latestVersion);
         if (event.data.hasUpdate) {
           navigator.serviceWorker?.controller?.postMessage('skipWaiting');
-          window.location.reload();
+          // Soft refresh: just notify, don't reload
+          setUpdateDisponivel(true);
         }
       }
       if (event.data?.type === 'syncTriggered') {
@@ -272,8 +273,18 @@ export default function Home() {
       reg.active?.postMessage('checkVersion');
     }).catch(() => {});
 
+    // Soft refresh handler: re-fetch data without full page reload
+    const handleSwUpdated = () => {
+      // Reload status, pendentes, and other data
+      if (pin) {
+        carregarListaApartamentos().then((l) => setLista(Object.keys(l).length ? l : null));
+      }
+    };
+    window.addEventListener('sw-updated', handleSwUpdated);
+
     return () => {
       navigator.serviceWorker.removeEventListener('message', handler);
+      window.removeEventListener('sw-updated', handleSwUpdated);
     };
   }, [pin]);
 
@@ -1063,7 +1074,7 @@ export default function Home() {
   if (view === 'configuracoes') {
     return (
       <>
-        <ConfiguracoesClient onVoltar={() => setView('blocos')} onRefresh={() => refreshStatus()} onNavigate={(v) => setView(v as View)} />
+        <ConfiguracoesClient onVoltar={() => setView('blocos')} onRefresh={() => refreshStatus()} onNavigate={(v) => setView(v as View)} pin={pin ?? undefined} />
         <BottomNav
           active="config"
           onNavigate={handleNavigation}
@@ -1950,7 +1961,12 @@ export default function Home() {
           onBackup={handleBackup}
           onRestore={handleRestore}
           onLogout={() => { localStorage.removeItem('vistoria_pin'); setPin(null); }}
-          onUpdate={() => { setUpdateDisponivel(false); navigator.serviceWorker?.controller?.postMessage('skipWaiting'); window.location.reload(); }}
+          onUpdate={() => {
+            setUpdateDisponivel(false);
+            navigator.serviceWorker?.controller?.postMessage('skipWaiting');
+            // Soft refresh: re-fetch data without full page reload
+            window.dispatchEvent(new Event('sw-updated'));
+          }}
           onEditLista={() => { setListaAnterior(lista); setLista(null); }}
           ultimoBackup={ultimoBackup}
         />

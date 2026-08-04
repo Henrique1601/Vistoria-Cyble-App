@@ -15,6 +15,19 @@
   - Botão "Backup no Google Drive" — envia backup completo
   - Botão "Listar backups no Drive" — mostra quantidade de backups
 
+### Melhorias de Qualidade
+- **`lib/db.ts`** — Qualidade máxima aumentada: `QUALIDADE_MAP['100']` de `0.95` para `1.0`
+- **`lib/db.ts`** — Resolução máxima: `MAX_IMAGE_WIDTH_FULL=4096` (qualidade 100 usa 4096px)
+
+### Offline & Sync
+- **`components/AgendaScreen.tsx`** — Merge de dados offline: preserva agendamentos locais ao sincronizar com servidor
+
+### PWA
+- **`app/page.tsx`** — Atualização SW: soft refresh em vez de reload completo (sem perda de estado)
+
+### Segurança
+- **`ConfiguracoesClient.tsx`** — Danger Zone: botões destrutivos protegidos com PIN admin + dupla confirmação
+
 ### Documentação
 - **`AGENTS.md`** — Regras de sincronização Obsidian/README obrigatórias
 - **`00-Visão Geral.md`** — Google Drive Backup adicionado às funcionalidades

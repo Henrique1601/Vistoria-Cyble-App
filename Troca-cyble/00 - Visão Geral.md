@@ -107,6 +107,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 39. **Rate limiting** — 4 tiers (auth: 10/min, upload: 30/min, read: 120/min, write: 40/min)
 40. **Input validation** — regex-based para bloco, apto, data, hora, texto
 41. **File size limits** — 15MB imagens, 50MB backups, 10MB relatórios
+61. **Danger Zone** — botões destrutivos protegidos com PIN admin + dupla confirmação
 
 ### Acessibilidade
 42. **Touch targets 44px** — BottomNav e botões do header com tamanho mínimo acessível

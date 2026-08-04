@@ -127,9 +127,10 @@ function ToggleGroup({
   );
 }
 
-export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate }: { onVoltar: () => void; onRefresh?: () => void; onNavigate?: (view: string) => void }) {
+export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, pin }: { onVoltar: () => void; onRefresh?: () => void; onNavigate?: (view: string) => void; pin?: string }) {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const isAdmin = pin === '4821';
   const [qualidade, setQualidade] = useState(getQualidadeFoto);
   const [scanDefault, setScanDefault] = useState(getScanMode);
   const [dias, setDias] = useState(getDiasAlerta);
@@ -798,34 +799,106 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate }:
               )}
             </div>
 
-            <div className="px-4 py-3.5">
-              <button
-                onClick={handleLimparConcluidos}
-                className="tactile-press w-full flex items-center justify-center gap-2 bg-warn/10 border border-warn/30 rounded-xl px-4 py-3 text-xs font-medium text-warn hover:bg-warn/20 transition-all"
-              >
-                Limpar lista de concluidos
-              </button>
-            </div>
-            <div className="px-4 py-3.5">
-              <button
-                onClick={handleClearLocalPhotos}
-                disabled={clearing}
-                className="tactile-press w-full flex items-center justify-center gap-2 bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/20 disabled:opacity-40 transition-all"
-              >
-                <Trash size={16} weight="bold" />
-                {clearing ? 'Limpando...' : 'Limpar fotos locais'}
-              </button>
-            </div>
-            <div className="px-4 py-3.5">
-              <button
-                onClick={handleClearAll}
-                disabled={clearing}
-                className="tactile-press w-full flex items-center justify-center gap-2 bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/20 disabled:opacity-40 transition-all"
-              >
-                <Warning size={16} weight="bold" />
-                {clearing ? 'Limpando...' : 'Limpar tudo'}
-              </button>
-            </div>
+            {/* Danger Zone — Admin only */}
+            {isAdmin && (
+              <>
+                <div className="px-4 pt-4 pb-1">
+                  <div className="flex items-center gap-2 border-t border-danger/20 pt-4">
+                    <Warning size={16} className="text-danger" weight="fill" />
+                    <h3 className="text-sm font-bold text-danger uppercase tracking-wider">Danger Zone</h3>
+                  </div>
+                  <p className="text-xs text-content-tertiary mt-1">Acoes irreversiveis. Apenas administradores.</p>
+                </div>
+                <div className="px-4 py-2">
+                  <button
+                    onClick={() => {
+                      setConfirmDialog({
+                        open: true,
+                        title: 'Limpar lista de concluidos?',
+                        message: 'Tem certeza? Os apartamentos marcados como concluidos serao desmarcados.',
+                        variant: 'warning',
+                        onConfirm: () => {
+                          setConfirmDialog({
+                            open: true,
+                            title: 'Confirmar limpeza?',
+                            message: 'Esta acao nao pode ser desfeita. Confirma?',
+                            variant: 'danger',
+                            onConfirm: async () => {
+                              setConfirmDialog((d) => ({ ...d, open: false }));
+                              haptic('heavy');
+                              await handleLimparConcluidos();
+                            },
+                          });
+                        },
+                      });
+                    }}
+                    className="tactile-press w-full flex items-center justify-center gap-2 bg-warn/10 border border-warn/30 rounded-xl px-4 py-3 text-xs font-medium text-warn hover:bg-warn/20 transition-all"
+                  >
+                    Limpar lista de concluidos
+                  </button>
+                </div>
+                <div className="px-4 py-2">
+                  <button
+                    onClick={() => {
+                      setConfirmDialog({
+                        open: true,
+                        title: 'Limpar fotos locais?',
+                        message: 'Todas as fotos salvas no celular serao removidas. As fotos ja enviadas nao serao afetadas.',
+                        variant: 'warning',
+                        onConfirm: () => {
+                          setConfirmDialog({
+                            open: true,
+                            title: 'Confirmar limpeza de fotos?',
+                            message: 'Esta acao nao pode ser desfeita. Confirma?',
+                            variant: 'danger',
+                            onConfirm: async () => {
+                              setConfirmDialog((d) => ({ ...d, open: false }));
+                              haptic('heavy');
+                              await handleClearLocalPhotos();
+                            },
+                          });
+                        },
+                      });
+                    }}
+                    disabled={clearing}
+                    className="tactile-press w-full flex items-center justify-center gap-2 bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/20 disabled:opacity-40 transition-all"
+                  >
+                    <Trash size={16} weight="bold" />
+                    {clearing ? 'Limpando...' : 'Limpar fotos locais'}
+                  </button>
+                </div>
+                <div className="px-4 py-2 pb-4">
+                  <button
+                    onClick={() => {
+                      setConfirmDialog({
+                        open: true,
+                        title: 'Excluir TODOS os dados?',
+                        message: 'Fotos, configuracoes e historico serao perdidos. Esta acao nao pode ser desfeita.',
+                        variant: 'danger',
+                        onConfirm: () => {
+                          setConfirmDialog({
+                            open: true,
+                            title: 'Tem certeza absoluta?',
+                            message: 'Nao sera possivel recuperar os dados. Confirma a exclusao?',
+                            variant: 'danger',
+                            onConfirm: async () => {
+                              setConfirmDialog((d) => ({ ...d, open: false }));
+                              haptic('heavy');
+                              await handleClearAll();
+                            },
+                          });
+                        },
+                      });
+                    }}
+                    disabled={clearing}
+                    className="tactile-press w-full flex items-center justify-center gap-2 bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm font-medium text-danger hover:bg-danger/20 disabled:opacity-40 transition-all"
+                  >
+                    <Warning size={16} weight="bold" />
+                    {clearing ? 'Limpando...' : 'Limpar tudo'}
+                  </button>
+                </div>
+              </>
+            )}
           </Section>
         </motion.div>
 

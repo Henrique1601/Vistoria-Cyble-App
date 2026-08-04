@@ -93,13 +93,22 @@ export default function AgendaScreen({
     } finally {
       setLoading(false);
     }
-    // 2. If online, sync from server and merge
+    // 2. If online, sync from server and MERGE (don't overwrite local)
     if (navigator.onLine) {
       try {
         const resp = await authFetch('/api/agendamentos');
         const data = await resp.json();
         if (data.agendamentos && Array.isArray(data.agendamentos)) {
-          setAgendamentos(data.agendamentos.map(toScreenAgendamento));
+          const serverList = data.agendamentos.map(toScreenAgendamento);
+          setAgendamentos((prev) => {
+            // Merge: keep local items not on server, add server items not local
+            const localIds = new Set(prev.map((a: Agendamento) => a.id));
+            const serverIds = new Set(serverList.map((a: Agendamento) => a.id));
+            const localOnly = prev.filter((a: Agendamento) => !serverIds.has(a.id));
+            const serverOnly = serverList.filter((a: Agendamento) => !localIds.has(a.id));
+            const both = serverList.filter((a: Agendamento) => localIds.has(a.id));
+            return [...localOnly, ...serverOnly, ...both].sort(compararAgendamentos);
+          });
         }
       } catch {
         // offline fallback — keep what we have from IndexedDB
