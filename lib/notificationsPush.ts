@@ -103,6 +103,26 @@ export function notifyAgendamentosProximos(agendamentos: { bloco: string; aparta
   );
 }
 
+export function notifyLembreteAgendamento(agendamento: { bloco: string; apartamento: string; data: string; hora?: string }) {
+  const horaTexto = agendamento.hora ? ` as ${agendamento.hora}` : '';
+  showBrowserNotification(
+    'Lembrete de vistoria',
+    `${agendamento.bloco} — Apto ${agendamento.apartamento}${horaTexto}`,
+    { tag: `lembrete-${agendamento.bloco}-${agendamento.apartamento}` }
+  );
+}
+
+export function verificarLembretes(agendamentos: { bloco: string; apartamento: string; data: string; hora?: string; concluido: boolean }[]) {
+  const today = new Date().toISOString().slice(0, 10);
+  const pendentesHoje = agendamentos.filter(
+    (a) => !a.concluido && a.data === today,
+  );
+
+  if (pendentesHoje.length > 0) {
+    notifyAgendamentosProximos(pendentesHoje);
+  }
+}
+
 export function isNotificationSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window;
 }

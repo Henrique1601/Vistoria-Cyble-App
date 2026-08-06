@@ -9,9 +9,36 @@
   - Copiar para área de transferência (clipboard)
   - Compartilhar via Web Share API (WhatsApp, email, etc.)
 - **`components/AgendaScreen.tsx`** — Botão de compartilhar no header
-  - Ícone de share ao lado do botão "+"
-  - Abre modal com filtros de período
-  - Haptic feedback ao compartilhar
+
+### Exportação PDF da Agenda
+- **`lib/export/agendaPdf.ts`** — Nova função `exportarAgendaPDF()`
+  - Tabela formatada com seções: Atrasados, Pendentes, Concluídos
+  - Header com título, data de geração e resumo
+  - Cores por seção (vermelho, laranja, verde)
+  - Compartilhamento via Web Share API
+
+### Busca na Agenda
+- **`components/AgendaScreen.tsx`** — Campo de busca
+  - Filtra por torre, apartamento ou observação
+  - Botão X para limpar busca
+  - Busca em tempo real
+
+### Google Calendar
+- **`lib/googleCalendar.ts`** — Integração com Google Calendar
+  - `gerarUrlGoogleCalendar()` — gera link direto para adicionar evento
+  - `abrirGoogleCalendar()` — abre em nova aba
+  - `gerarICS()` — gera arquivo .ics para importação em lote
+  - `compartilharICS()` — compartilha .ics via Web Share API
+  - `downloadICS()` — faz download do arquivo .ics
+- **`components/AgendaScreen.tsx`** — Botões de Google Calendar
+  - Botão Google Calendar no header (exporta .ics)
+  - Botão Google Calendar em cada agendamento (abre link direto)
+
+### Notificações de Lembrete
+- **`lib/notificationsPush.ts`** — Novas funções
+  - `notifyLembreteAgendamento()` — notifica sobre agendamento específico
+  - `verificarLembretes()` — verifica agendamentos do dia e envia lembretes
+- **`components/AgendaScreen.tsx`** — Verificação automática ao abrir agenda
 
 ## v3.5.0 (02/08/2026)
 

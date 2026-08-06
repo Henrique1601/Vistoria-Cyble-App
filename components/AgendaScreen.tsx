@@ -12,6 +12,10 @@ import {
   Warning,
   PencilSimple,
   Share,
+  FilePdf,
+  MagnifyingGlass,
+  X,
+  GoogleLogo,
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
@@ -19,6 +23,9 @@ import { hoje } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ShareAgendaModal from '@/components/ShareAgendaModal';
+import { exportarAgendaPDF } from '@/lib/export/agendaPdf';
+import { verificarLembretes, requestNotificationPermission } from '@/lib/notificationsPush';
+import { compartilharICS, abrirGoogleCalendar } from '@/lib/googleCalendar';
 import {
   listarAgendamentos,
   toggleConcluidoAgendamento,
@@ -84,6 +91,8 @@ export default function AgendaScreen({
   const [filtroTorre, setFiltroTorre] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [exportandoPdf, setExportandoPdf] = useState(false);
   const today = hoje();
 
   const carregar = useCallback(async () => {
@@ -91,6 +100,10 @@ export default function AgendaScreen({
       // 1. Load from IndexedDB first (works offline)
       const local = await listarAgendamentos();
       setAgendamentos(local.map(toScreenAgendamento));
+      // Check for reminders
+      requestNotificationPermission().then(() => {
+        verificarLembretes(local);
+      });
     } catch {
       // IndexedDB read failed — continue
     } finally {
@@ -182,9 +195,49 @@ export default function AgendaScreen({
   }, [confirmDeleteId, toast]);
 
   const agendamentosFiltrados = useMemo(() => {
-    if (!filtroTorre) return agendamentos;
-    return agendamentos.filter((a) => a.bloco === filtroTorre);
-  }, [agendamentos, filtroTorre]);
+    let filtered = agendamentos;
+
+    // Filter by tower
+    if (filtroTorre) {
+      filtered = filtered.filter((a) => a.bloco === filtroTorre);
+    }
+
+    // Filter by search text
+    if (busca.trim()) {
+      const termo = busca.toLowerCase().trim();
+      filtered = filtered.filter(
+        (a) =>
+          a.bloco.toLowerCase().includes(termo) ||
+          a.apartamento.toLowerCase().includes(termo) ||
+          (a.observacao && a.observacao.toLowerCase().includes(termo)),
+      );
+    }
+
+    return filtered;
+  }, [agendamentos, filtroTorre, busca]);
+
+  const handleExportPdf = useCallback(async () => {
+    haptic('light');
+    setExportandoPdf(true);
+    try {
+      await exportarAgendaPDF(agendamentosFiltrados, 'Agenda de Vistorias');
+      toast('PDF gerado com sucesso', 'success');
+    } catch {
+      toast('Erro ao gerar PDF', 'error');
+    } finally {
+      setExportandoPdf(false);
+    }
+  }, [agendamentosFiltrados, toast]);
+
+  const handleExportIcs = useCallback(async () => {
+    haptic('light');
+    try {
+      await compartilharICS(agendamentosFiltrados);
+      toast('Calendario exportado', 'success');
+    } catch {
+      toast('Erro ao exportar calendario', 'error');
+    }
+  }, [agendamentosFiltrados, toast]);
 
   const torres = useMemo(() => [...new Set(agendamentos.map((a) => a.bloco))].sort(), [agendamentos]);
 
@@ -243,6 +296,16 @@ export default function AgendaScreen({
 
               <div className="flex items-center gap-1 shrink-0">
                 <button
+                  onClick={() => {
+                    haptic('light');
+                    abrirGoogleCalendar(ag);
+                  }}
+                  className="tactile-press flex items-center justify-center w-9 h-9 rounded-lg text-content-tertiary hover:text-[#4285F4] hover:bg-[#4285F4]/10 transition-colors"
+                  aria-label="Abrir no Google Calendar"
+                >
+                  <GoogleLogo size={14} weight="bold" />
+                </button>
+                <button
                   onClick={() => onNavegarPara(ag.bloco, ag.apartamento)}
                   className="tactile-press flex items-center justify-center w-9 h-9 rounded-lg bg-accent-dim text-accent hover:bg-accent/20 transition-colors"
                   aria-label={`Ir para ${ag.bloco} ${ag.apartamento}`}
@@ -300,16 +363,37 @@ export default function AgendaScreen({
         </div>
         <div className="flex items-center gap-2">
           {agendamentos.length > 0 && (
-            <button
-              onClick={() => {
-                haptic('light');
-                setShowShareModal(true);
-              }}
-              className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-base-raised border border-base-border text-content-secondary hover:text-accent hover:border-accent transition-colors"
-              aria-label="Compartilhar agenda"
-            >
-              <Share size={16} weight="bold" />
-            </button>
+            <>
+              <button
+                onClick={handleExportPdf}
+                disabled={exportandoPdf}
+                className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-base-raised border border-base-border text-content-secondary hover:text-danger hover:border-danger transition-colors disabled:opacity-50"
+                aria-label="Exportar agenda como PDF"
+              >
+                {exportandoPdf ? (
+                  <div className="w-4 h-4 border-2 border-danger border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <FilePdf size={16} weight="bold" />
+                )}
+              </button>
+              <button
+                onClick={handleExportIcs}
+                className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-base-raised border border-base-border text-content-secondary hover:text-[#4285F4] hover:border-[#4285F4] transition-colors"
+                aria-label="Exportar para Google Calendar"
+              >
+                <GoogleLogo size={16} weight="bold" />
+              </button>
+              <button
+                onClick={() => {
+                  haptic('light');
+                  setShowShareModal(true);
+                }}
+                className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-base-raised border border-base-border text-content-secondary hover:text-accent hover:border-accent transition-colors"
+                aria-label="Compartilhar agenda"
+              >
+                <Share size={16} weight="bold" />
+              </button>
+            </>
           )}
           <button
             onClick={onNovoAgendamento}
@@ -352,6 +436,33 @@ export default function AgendaScreen({
               {t}
             </button>
           ))}
+        </motion.div>
+      )}
+
+      {/* Search */}
+      {agendamentos.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring, delay: 0.15 }}
+          className="relative mb-4"
+        >
+          <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" />
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por torre, apto ou observacao..."
+            className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-base-raised border border-base-border text-sm text-content placeholder:text-content-tertiary focus:outline-none focus:border-accent transition-colors"
+          />
+          {busca && (
+            <button
+              onClick={() => setBusca('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-content-tertiary hover:text-content"
+            >
+              <X size={14} weight="bold" />
+            </button>
+          )}
         </motion.div>
       )}
 

@@ -84,6 +84,10 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 35. **Audit Log** — registro de todas as ações do usuário
 36. **Comentários** — modal de comentários por apartamento com contagem no card
 37. **Compartilhar Agenda** — compartilhar agenda por período (hoje/semana/7/15/30 dias/todos) via Web Share API ou clipboard
+38. **Exportar Agenda PDF** — tabela formatada com seções (atrasados/pendentes/concluídos)
+39. **Busca na Agenda** — filtrar agendamentos por torre, apartamento ou observação
+40. **Google Calendar** — adicionar agendamentos no calendário (link direto ou arquivo .ics)
+41. **Lembretes** — notificações push para agendamentos do dia
 
 ### Exportação Avançada (v3.3.0+)
 50. **PDF personalizado** — logo, cores de destaque, rodapé customizável via `PDFTemplate`
