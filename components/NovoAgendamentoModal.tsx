@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { X, CalendarDots, Buildings, ListNumbers, FunnelSimple } from '@phosphor-icons/react';
+import { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, CalendarDots, Buildings, ListNumbers, FunnelSimple, Warning } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
 import { normApto, hoje } from '@/lib/utils';
-import { criarAgendamento } from '@/lib/db';
+import { criarAgendamento, listarAgendamentos } from '@/lib/db';
 import type { ApartamentoStatus } from '@/lib/db';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
+
+interface AgendamentoExistente {
+  id?: number;
+  bloco: string;
+  apartamento: string;
+  data: string;
+  hora?: string;
+  concluido: boolean;
+}
 
 interface NovoAgendamentoModalProps {
   blocos: Record<string, string[]>;
@@ -29,6 +38,25 @@ export default function NovoAgendamentoModal({ blocos, statusList, onFechar, onS
   const [obs, setObs] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [apenasPendentes, setApenasPendentes] = useState(false);
+  const [agendamentosExistentes, setAgendamentosExistentes] = useState<AgendamentoExistente[]>([]);
+
+  // Load existing agendamentos for duplicate check
+  useEffect(() => {
+    listarAgendamentos().then(setAgendamentosExistentes).catch(() => {});
+  }, []);
+
+  // Check for duplicate: same bloco + apto + data (not concluded)
+  const duplicata = useMemo(() => {
+    if (!bloco || !apto || !data) return null;
+    const normAptoBusca = normApto(apto);
+    return agendamentosExistentes.find(
+      (a) =>
+        a.bloco === bloco &&
+        normApto(a.apartamento) === normAptoBusca &&
+        a.data === data &&
+        !a.concluido,
+    );
+  }, [bloco, apto, data, agendamentosExistentes]);
 
   const blocosNomes = Object.keys(blocos);
 
@@ -246,14 +274,41 @@ export default function NovoAgendamentoModal({ blocos, statusList, onFechar, onS
               className="w-full bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm text-content placeholder:text-content-tertiary/50 focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
+
+          {/* Duplicate warning */}
+          <AnimatePresence>
+            {duplicata && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-warn-dim border border-warn/30">
+                  <Warning size={16} weight="fill" className="text-warn shrink-0 mt-0.5" />
+                  <div className="text-xs text-warn">
+                    <p className="font-semibold">Agendamento duplicado!</p>
+                    <p className="mt-0.5">
+                      {duplicata.bloco} — Apto {duplicata.apartamento} ja esta agendado para {duplicata.data}
+                      {duplicata.hora && ` as ${duplicata.hora}`}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <button
           onClick={handleSalvar}
           disabled={!bloco || !apto || !data || salvando}
-          className="tactile-press w-full bg-accent text-base font-semibold text-sm rounded-xl px-6 py-3 hover:bg-accent-hover transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          className={`tactile-press w-full font-semibold text-sm rounded-xl px-6 py-3 transition-colors disabled:opacity-30 disabled:pointer-events-none ${
+            duplicata
+              ? 'bg-warn text-base hover:bg-warn-hover'
+              : 'bg-accent text-base hover:bg-accent-hover'
+          }`}
         >
-          {salvando ? 'Salvando...' : 'Agendar'}
+          {salvando ? 'Salvando...' : duplicata ? 'Agendar Mesmo Assim' : 'Agendar'}
         </button>
       </motion.div>
     </motion.div>

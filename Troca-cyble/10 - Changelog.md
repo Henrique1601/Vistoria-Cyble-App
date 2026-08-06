@@ -40,6 +40,13 @@
   - `verificarLembretes()` — verifica agendamentos do dia e envia lembretes
 - **`components/AgendaScreen.tsx`** — Verificação automática ao abrir agenda
 
+### Verificação de Duplicata
+- **`components/NovoAgendamentoModal.tsx`** — Alerta de agendamento duplicado
+  - Verifica automaticamente se apartamento já tem agendamento para a data
+  - Aviso visual com ícone de warning quando detecta duplicata
+  - Botão muda para "Agendar Mesmo Assim" (cor warning)
+  - Permite salvar mesmo com duplicata (caso o usuário queira)
+
 ## v3.5.0 (02/08/2026)
 
 ### Google Drive Backup
