@@ -152,10 +152,14 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [gdriveConnected, setGdriveConnected] = useState(false);
   const [gdriveLoading, setGdriveLoading] = useState(false);
+  const [fotosPendentes, setFotosPendentes] = useState(0);
 
-  // Load storage info on mount
+  // Load storage info and pending photos on mount
   useEffect(() => {
     checarEspacoStorage().then(setEspaco);
+    import('@/lib/db').then(({ fotosPendentes: count }) => {
+      count().then((fotos) => setFotosPendentes(fotos.length));
+    });
   }, []);
 
   async function handleSaveConfig() {
@@ -665,7 +669,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                 ]}
               />
             </SettingRow>
-            <SettingRow label="Backup automatico" description="Realiza backup periodicamente em background">
+            <SettingRow label="Sincronizacao automatica" description="Envia fotos para a nuvem quando online">
               <ToggleGroup
                 value={String(backupAuto)}
                 onChange={handleBackupAuto}
@@ -675,6 +679,16 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                 ]}
               />
             </SettingRow>
+            {!backupAuto && fotosPendentes > 0 && (
+              <div className="mx-4 mb-3 p-3 rounded-xl bg-warn-dim border border-warn/30">
+                <p className="text-xs text-warn font-medium">
+                  {fotosPendentes} foto(s) pendente(s) de sincronizacao
+                </p>
+                <p className="text-[11px] text-warn/70 mt-1">
+                  Ative a sincronizacao para enviar para a nuvem
+                </p>
+              </div>
+            )}
             {backupAuto && (
               <SettingRow label="Intervalo do backup" description="Frequencia do backup automatico">
                 <ToggleGroup

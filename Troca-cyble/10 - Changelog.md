@@ -47,6 +47,12 @@
   - Botão muda para "Agendar Mesmo Assim" (cor warning)
   - Permite salvar mesmo com duplicata (caso o usuário queira)
 
+### Toggle Sincronização
+- **`ConfiguracoesClient.tsx`** — Toggle "Sincronização automática"
+  - Liga/desliga envio de fotos para a nuvem
+  - Mostra quantidade de fotos pendentes quando desligado
+  - Aviso amarelo com instrução para ativar sincronização
+
 ## v3.5.0 (02/08/2026)
 
 ### Google Drive Backup
