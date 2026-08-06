@@ -11,12 +11,14 @@ import {
   Plus,
   Warning,
   PencilSimple,
+  Share,
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
 import { hoje } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import ShareAgendaModal from '@/components/ShareAgendaModal';
 import {
   listarAgendamentos,
   toggleConcluidoAgendamento,
@@ -81,6 +83,7 @@ export default function AgendaScreen({
   const [loading, setLoading] = useState(true);
   const [filtroTorre, setFiltroTorre] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const today = hoje();
 
   const carregar = useCallback(async () => {
@@ -295,13 +298,27 @@ export default function AgendaScreen({
             </p>
           </div>
         </div>
-        <button
-          onClick={onNovoAgendamento}
-          className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-accent text-base hover:bg-accent-hover transition-colors"
-          aria-label="Novo agendamento"
-        >
-          <Plus size={18} weight="bold" />
-        </button>
+        <div className="flex items-center gap-2">
+          {agendamentos.length > 0 && (
+            <button
+              onClick={() => {
+                haptic('light');
+                setShowShareModal(true);
+              }}
+              className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-base-raised border border-base-border text-content-secondary hover:text-accent hover:border-accent transition-colors"
+              aria-label="Compartilhar agenda"
+            >
+              <Share size={16} weight="bold" />
+            </button>
+          )}
+          <button
+            onClick={onNovoAgendamento}
+            className="tactile-press flex items-center justify-center w-10 h-10 rounded-xl bg-accent text-base hover:bg-accent-hover transition-colors"
+            aria-label="Novo agendamento"
+          >
+            <Plus size={18} weight="bold" />
+          </button>
+        </div>
       </motion.div>
 
       {/* Tower filter */}
@@ -371,6 +388,12 @@ export default function AgendaScreen({
         variant="danger"
         onConfirm={confirmExcluir}
         onCancel={() => setConfirmDeleteId(null)}
+      />
+      <ShareAgendaModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        agendamentos={agendamentos}
+        today={today}
       />
     </div>
   );

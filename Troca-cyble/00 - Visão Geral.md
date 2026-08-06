@@ -83,6 +83,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 34. **Timer de Escaneamento** — tempo por apto via timestamps das fotos
 35. **Audit Log** — registro de todas as ações do usuário
 36. **Comentários** — modal de comentários por apartamento com contagem no card
+37. **Compartilhar Agenda** — compartilhar agenda por período (hoje/semana/7/15/30 dias/todos) via Web Share API ou clipboard
 
 ### Exportação Avançada (v3.3.0+)
 50. **PDF personalizado** — logo, cores de destaque, rodapé customizável via `PDFTemplate`

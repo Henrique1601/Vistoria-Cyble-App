@@ -1,5 +1,18 @@
 # Changelog — Vistoria Cyble
 
+## v3.5.1 (06/08/2026)
+
+### Compartilhamento de Agenda
+- **`components/ShareAgendaModal.tsx`** — Modal de compartilhamento da agenda
+  - Filtro por período: Hoje, Semana, 7/15/30 dias, Todos
+  - Preview formatado com atrasados, pendentes e concluídos
+  - Copiar para área de transferência (clipboard)
+  - Compartilhar via Web Share API (WhatsApp, email, etc.)
+- **`components/AgendaScreen.tsx`** — Botão de compartilhar no header
+  - Ícone de share ao lado do botão "+"
+  - Abre modal com filtros de período
+  - Haptic feedback ao compartilhar
+
 ## v3.5.0 (02/08/2026)
 
 ### Google Drive Backup
