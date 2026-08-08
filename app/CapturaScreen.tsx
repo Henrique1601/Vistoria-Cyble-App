@@ -20,6 +20,7 @@ import {
   X,
   ArrowsOut,
   DotsSixVertical,
+  ArrowDown,
 } from '@phosphor-icons/react';
 import {
   DndContext,
@@ -44,6 +45,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, atualizarNota, moverFotoCategoria, reordenarFotos, FotoRecord, Categoria } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
+import { getSalvarEm } from '@/lib/settings';
 import { playScanFeedback } from '@/lib/scanPro';
 import { EmptyStatePhotos } from '@/components/EmptyState';
 import PhotoEditor from '@/components/PhotoEditor';
@@ -90,6 +92,7 @@ function SortablePhoto({
   isDragging,
   onDelete,
   onShare,
+  onDownload,
   onZoom,
   compartilhando,
   confirmDeleteId,
@@ -101,6 +104,7 @@ function SortablePhoto({
   isDragging: boolean;
   onDelete: (id: number) => void;
   onShare: (f: FotoRecord) => void;
+  onDownload: (f: FotoRecord) => void;
   onZoom: (src: string) => void;
   compartilhando: number | null;
   confirmDeleteId: number | null;
@@ -166,6 +170,13 @@ function SortablePhoto({
         className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-accent border-2 border-base-raised flex items-center justify-center text-base opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
       >
         <ShareNetwork size={9} weight="bold" aria-hidden="true" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onDownload(foto); }}
+        aria-label={`Baixar foto ${categoriaLabel}`}
+        className="absolute -top-1.5 left-3 w-5 h-5 rounded-full bg-success border-2 border-base-raised flex items-center justify-center text-base opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+      >
+        <ArrowDown size={9} weight="bold" aria-hidden="true" />
       </button>
 
       <div
@@ -288,6 +299,23 @@ export default function CapturaScreen({
       }
     } catch { /* user cancelled */ }
     setCompartilhando(null);
+  }
+
+  // Baixar foto para o dispositivo
+  async function handleDownload(f: FotoRecord) {
+    if (!f.id) return;
+    haptic('light');
+    try {
+      const blob = f.blob.size > 0 ? f.blob : await fetch(f.uploadUrl || '').then((r) => r.blob());
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${bloco}_${apartamento}_${f.categoria}_${f.id}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch { /* silent */ }
   }
 
   // GPS: obter geolocalização
@@ -413,6 +441,22 @@ export default function CapturaScreen({
         bloco, apartamento, categoria: cat, blob: finalBlob, timestamp: Date.now(), synced: false,
         gps: gps || undefined,
       });
+
+      // Auto-download to device if setting is 'dispositivo' or 'ambos'
+      const salvarEm = getSalvarEm();
+      if (salvarEm === 'dispositivo' || salvarEm === 'ambos') {
+        try {
+          const url = URL.createObjectURL(finalBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${bloco}_${apartamento}_${cat}_${Date.now()}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch { /* silent */ }
+      }
+
       haptic('success');
       playScanFeedback('photo_captured');
       toast('Foto salva com sucesso!', 'success');
@@ -680,6 +724,7 @@ export default function CapturaScreen({
                                   isDragging={activeId === f.id}
                                   onDelete={handleDeletar}
                                   onShare={handleCompartilhar}
+                                  onDownload={handleDownload}
                                   onZoom={setFotoZoom}
                                   compartilhando={compartilhando}
                                   confirmDeleteId={confirmDeleteId}
