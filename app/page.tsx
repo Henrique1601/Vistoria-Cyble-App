@@ -214,6 +214,11 @@ export default function Home() {
     setItensPagina(getItensPagina() as 10 | 20 | 50 | 999);
     setModoCompactoState(getModoCompacto());
     setAltoContrasteState(getAltoContraste());
+
+    // Start offline auto-retry
+    import('@/lib/syncQueue').then(({ startOfflineAutoRetry }) => {
+      startOfflineAutoRetry(() => localStorage.getItem('vistoria_pin'));
+    });
   }, []);
 
   const lastActivityRef = useRef(Date.now());

@@ -315,6 +315,22 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
     }
   }
 
+  async function handleExportFotosZIP() {
+    haptic('medium');
+    try {
+      const { exportarZIP } = await import('@/lib/export/zip');
+      const { statusDeTodosApartamentos, carregarListaApartamentos } = await import('@/lib/db');
+      const lista = await carregarListaApartamentos();
+      const status = await statusDeTodosApartamentos(lista);
+      await exportarZIP(status, 'Todas as fotos', {
+        onProgress: (msg) => toast(msg, 'info'),
+      });
+      toast('ZIP exportado com sucesso', 'success');
+    } catch {
+      toast('Erro ao exportar ZIP', 'error');
+    }
+  }
+
   function downloadBlob(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -634,6 +650,25 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                 ]}
               />
             </SettingRow>
+            <div className="px-4 pb-2">
+              <div className="flex items-center justify-between text-[10px] text-content-tertiary">
+                <span>
+                  {qualidade === '50' && '≈ 300-500 KB · 1280px · Compressao maxima'}
+                  {qualidade === '75' && '≈ 500-800 KB · 1920px · Boa qualidade'}
+                  {qualidade === '90' && '≈ 800KB-1.5MB · 2560px · Alta qualidade'}
+                  {qualidade === '100' && '≈ 2-5MB · 4096px · Sem compressao'}
+                </span>
+              </div>
+              <div className="mt-1.5 h-1.5 bg-base-overlay rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: qualidade === '50' ? '25%' : qualidade === '75' ? '50%' : qualidade === '90' ? '75%' : '100%',
+                    backgroundColor: qualidade === '50' ? '#f59e0b' : qualidade === '75' ? '#10b981' : qualidade === '90' ? '#3b82f6' : '#8b5cf6',
+                  }}
+                />
+              </div>
+            </div>
             <SettingRow label="Salvar fotos em" description="Onde as fotos serao armazenadas">
               <ToggleGroup
                 value={salvarEm}
@@ -757,6 +792,13 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                   Fotos JSON
                 </button>
               </div>
+              <button
+                onClick={handleExportFotosZIP}
+                className="tactile-press w-full flex items-center justify-center gap-2 bg-success/10 border border-success/30 rounded-xl px-4 py-3 text-sm font-medium text-success hover:bg-success/20 transition-all"
+              >
+                <ArrowDown size={16} weight="bold" />
+                Exportar todas as fotos (ZIP)
+              </button>
             </div>
             <div className="px-4 py-3.5">
               <button

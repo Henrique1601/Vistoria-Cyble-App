@@ -18,7 +18,7 @@ const listeners: Set<Listener> = new Set();
 let isRunning = false;
 let abortController: AbortController | null = null;
 
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 10;
 const BASE_DELAY_MS = 1000;
 
 function emit() {
@@ -221,4 +221,25 @@ export function cancelSync() {
 
 export function isSyncing() {
   return isRunning;
+}
+
+// Auto-retry when connection comes back
+let onlineListener: (() => void) | null = null;
+
+export function startOfflineAutoRetry(getPin: () => string | null) {
+  if (typeof window === 'undefined' || onlineListener) return;
+  onlineListener = () => {
+    const pin = getPin();
+    if (pin && !isRunning) {
+      setTimeout(() => syncAll(pin), 2000); // wait 2s for connection to stabilize
+    }
+  };
+  window.addEventListener('online', onlineListener);
+}
+
+export function stopOfflineAutoRetry() {
+  if (onlineListener && typeof window !== 'undefined') {
+    window.removeEventListener('online', onlineListener);
+    onlineListener = null;
+  }
 }
