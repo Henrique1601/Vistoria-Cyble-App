@@ -42,6 +42,8 @@ import {
   setBackupAutomatico,
   getBackupIntervalo,
   setBackupIntervalo,
+  getSalvarEm,
+  setSalvarEm,
 } from '@/lib/settings';
 import {
   backupDados,
@@ -132,6 +134,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
   const { toast } = useToast();
   const isAdmin = pin === '4821';
   const [qualidade, setQualidade] = useState(getQualidadeFoto);
+  const [salvarEm, setSalvarEmState] = useState(getSalvarEm);
   const [scanDefault, setScanDefault] = useState(getScanMode);
   const [dias, setDias] = useState(getDiasAlerta);
   const [itens, setItens] = useState(getItensPagina);
@@ -233,6 +236,14 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
     setScanDefault(val);
     setScanMode(val);
     toast(val ? 'Modo escaneamento ativado por padrao' : 'Modo escaneamento desativado por padrao', 'info');
+  }
+
+  function handleSalvarEm(v: string) {
+    const val = v as 'nuvem' | 'dispositivo' | 'ambos';
+    setSalvarEmState(val);
+    setSalvarEm(val);
+    const labels = { nuvem: 'Somente nuvem', dispositivo: 'Somente dispositivo', ambos: 'Nuvem + Dispositivo' };
+    toast(`Salvar fotos: ${labels[val]}`, 'success');
   }
 
   function handleDiasAlerta(d: string) {
@@ -611,7 +622,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.2 }}>
           <Section title="Captura">
-            <SettingRow label="Qualidade da foto" description="Fotos maiores = mais detalhes, mais armazenamento">
+            <SettingRow label="Qualidade da foto" description="Maior qualidade = mais nitidez, mais armazenamento">
               <ToggleGroup
                 value={qualidade}
                 onChange={handleQualidade}
@@ -620,6 +631,17 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                   { label: '75%', value: '75' },
                   { label: '90%', value: '90' },
                   { label: '100%', value: '100' },
+                ]}
+              />
+            </SettingRow>
+            <SettingRow label="Salvar fotos em" description="Onde as fotos serao armazenadas">
+              <ToggleGroup
+                value={salvarEm}
+                onChange={handleSalvarEm}
+                options={[
+                  { label: 'Nuvem', value: 'nuvem', icon: <Database size={12} /> },
+                  { label: 'Device', value: 'dispositivo', icon: <Camera size={12} /> },
+                  { label: 'Ambos', value: 'ambos' },
                 ]}
               />
             </SettingRow>
