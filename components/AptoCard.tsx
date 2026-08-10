@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
@@ -53,6 +53,13 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
   const lastTouchEndRef = useRef(0);
   const didScrollRef = useRef(false);
   const swipeThreshold = 80;
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
+    };
+  }, []);
 
   const isComplete = s.cybleAntesFeito && s.cybleDepoisFeito;
   const isInProgress = emAndamento(s);

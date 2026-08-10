@@ -222,17 +222,21 @@ export async function statusDeTodosApartamentos(
   lista: Record<string, string[]>
 ): Promise<ApartamentoStatus[]> {
   const db = await getDb();
-  const all = await db.getAll('fotos');
   const concluidos = await carregarConcluidos();
 
+  // Build letter-to-full-name map for normalization
   const letterToFull = new Map<string, string>();
   for (const blocoNome of Object.keys(lista)) {
     const match = blocoNome.match(/([A-H])$/i);
     if (match) letterToFull.set(match[1].toUpperCase(), blocoNome);
   }
 
-  const fotosMap = new Map<string, FotoRecord[]>();
-  for (const f of all) {
+  // Use cursor to avoid loading all blobs into memory
+  const fotosMap = new Map<string, { bloco: string; apartamento: string; categoria: Categoria; nota?: string; synced: boolean; uploadUrl?: string }[]>();
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    const f = cursor.value;
+    // Normalize bloco to match lista keys
     let blocoKey = f.bloco;
     const letter = blocoKey.replace(/^Torre\s+/i, '').trim();
     if (letter.length === 1 && /^[A-H]$/i.test(letter)) {
@@ -240,8 +244,9 @@ export async function statusDeTodosApartamentos(
     }
     const key = `${blocoKey}__${normApto(f.apartamento)}`;
     const arr = fotosMap.get(key) || [];
-    arr.push(f);
+    arr.push({ bloco: blocoKey, apartamento: f.apartamento, categoria: f.categoria, nota: f.nota, synced: f.synced, uploadUrl: f.uploadUrl });
     fotosMap.set(key, arr);
+    cursor = await cursor.continue();
   }
 
   const result: ApartamentoStatus[] = [];
@@ -540,6 +545,7 @@ export async function backupDados(): Promise<Blob> {
         blobBase64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => resolve('');
           reader.readAsDataURL(f.blob);
         });
       }
@@ -584,6 +590,7 @@ export async function backupFotos(): Promise<Blob> {
         blobBase64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => resolve('');
           reader.readAsDataURL(f.blob);
         });
       }
@@ -734,19 +741,33 @@ export async function salvarConcluidos(lista: Record<string, string[]>) {
 export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   const db = await getDb();
   const local = (await db.get('config', 'concluidos')) ?? {};
-  if (Object.keys(local).length > 0) return local;
-  try {
-    const { authFetch } = await import('@/lib/api');
-    const resp = await authFetch('/api/concluidos');
-    if (resp.ok) {
-      const remote = await resp.json();
-      if (Object.keys(remote).length > 0) {
-        await db.put('config', remote, 'concluidos');
-        return remote;
+
+  // When online, fetch remote and merge (remote wins for conflicts)
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const { authFetch } = await import('@/lib/api');
+      const resp = await authFetch('/api/concluidos');
+      if (resp.ok) {
+        const remote = await resp.json();
+        // Merge: remote data takes precedence, but keep local-only entries
+        const merged: Record<string, string[]> = { ...local };
+        for (const [bloco, aptos] of Object.entries(remote)) {
+          if (!merged[bloco]) {
+            merged[bloco] = aptos as string[];
+          } else {
+            // Union of both arrays
+            const set = new Set([...(merged[bloco] as string[]), ...(aptos as string[])]);
+            merged[bloco] = [...set].sort((a, b) => Number(a) - Number(b));
+          }
+        }
+        await db.put('config', merged, 'concluidos');
+        return merged;
       }
-    }
-  } catch {}
-  return {};
+    } catch {}
+  }
+
+  // Offline: return local data
+  return local;
 }
 
 let _syncConcluidosLock = false;
@@ -955,6 +976,24 @@ export async function obterComentarios(bloco: string, apartamento: string): Prom
     const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? cLetter === letter : c.bloco === bloco;
     return blocoMatch && normApto(c.apartamento) === normApto(apartamento);
   });
+}
+
+/** Batch version: returns comment counts for all aptos in a block using a single DB read */
+export async function contarComentariosBloco(bloco: string): Promise<Record<string, number>> {
+  const db = await getDb();
+  const all = await db.getAll('comentarios');
+  const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+  const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
+  const counts: Record<string, number> = {};
+  for (const c of all) {
+    const cLetter = c.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = isSingleLetter ? cLetter === letter : c.bloco === bloco;
+    if (blocoMatch) {
+      const key = `${bloco}_${c.apartamento}`;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+  }
+  return counts;
 }
 
 export async function excluirComentario(id: number): Promise<void> {

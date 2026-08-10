@@ -66,6 +66,7 @@ import {
   marcarTodosDocsOK,
   obterTodasFotos,
   obterComentarios,
+  contarComentariosBloco,
   type ApartamentoStatus,
   type FotoRecord,
 } from '@/lib/db';
@@ -199,6 +200,7 @@ export default function Home() {
   const [showPDFOptions, setShowPDFOptions] = useState(false);
   const [pdfAccentColor, setPDFAccentColor] = useState<[number, number, number]>([232, 130, 58]);
   const pullStartY = useRef(0);
+  const pullDistanceRef = useRef(0);
   const mainRef = useRef<HTMLDivElement>(null);
   const { menu: ctxMenu, openMenu: ctxOpen, closeMenu: ctxClose } = useContextMenu();
   const { status: rtStatus, lastUpdate: rtLastUpdate, online: rtOnline, refresh: rtRefresh } = useRealTimeStatus();
@@ -206,7 +208,7 @@ export default function Home() {
   const [comentarioCounts, setComentarioCounts] = useState<Record<string, number>>({});
   const [desmarcarConfirm, setDesmarcarConfirm] = useState<{ bloco: string; apto: string } | null>(null);
   useEffect(() => {
-    const saved = localStorage.getItem('vistoria_pin');
+    const saved = sessionStorage.getItem('vistoria_pin');
     const savedRole = localStorage.getItem('vistoria_role') || 'viewer';
     setPin(saved);
     setUserRole(savedRole);
@@ -218,7 +220,7 @@ export default function Home() {
 
     // Start offline auto-retry
     import('@/lib/syncQueue').then(({ startOfflineAutoRetry }) => {
-      startOfflineAutoRetry(() => localStorage.getItem('vistoria_pin'));
+      startOfflineAutoRetry(() => sessionStorage.getItem('vistoria_pin'));
     });
   }, []);
 
@@ -243,7 +245,7 @@ export default function Home() {
     events.forEach((e) => window.addEventListener(e, resetTimer));
     const check = setInterval(() => {
       if (Date.now() - lastActivityRef.current > TIMEOUT_MS) {
-        localStorage.removeItem('vistoria_pin');
+        sessionStorage.removeItem('vistoria_pin');
         setPin(null);
       }
     }, 60000);
@@ -316,6 +318,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!pin) return;
+    fetch('/api/fotos', { headers: { 'x-app-pin': pin } })
+      .then((r) => r.json())
+      .then((data) => setFotosOnline(data.fotos || []))
+      .catch(() => {});
+  }, [pin]);
+
+  const refreshFotosOnline = useCallback(() => {
     if (!pin) return;
     fetch('/api/fotos', { headers: { 'x-app-pin': pin } })
       .then((r) => r.json())
@@ -471,14 +481,9 @@ export default function Home() {
   const refreshCommentCounts = useCallback(async (bloco?: string) => {
     const b = bloco || blocoAtual;
     if (!b || !lista?.[b]) return;
-    const aptos = lista[b];
-    const entries = await Promise.all(aptos.map(async (apto) => {
-      const c = await obterComentarios(b, apto);
-      return [`${b}_${apto}`, c.length] as const;
-    }));
-    const map: Record<string, number> = {};
-    for (const [k, v] of entries) map[k] = v;
-    setComentarioCounts((prev) => ({ ...prev, ...map }));
+    // Use batch query instead of 180+ individual queries
+    const counts = await contarComentariosBloco(b);
+    setComentarioCounts((prev) => ({ ...prev, ...counts }));
   }, [blocoAtual, lista]);
 
   useEffect(() => {
@@ -508,7 +513,7 @@ export default function Home() {
     } catch {
       toast('Erro ao desmarcar apartamento', 'error');
     }
-  }, [desmarcarConfirm, toast, refreshCommentCounts]);
+  }, [desmarcarConfirm, toast, refreshCommentCounts, refreshStatus]);
 
   // Pull to refresh
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -521,22 +526,24 @@ export default function Home() {
     if (pullStartY.current === 0) return;
     const diff = e.touches[0].clientY - pullStartY.current;
     if (diff > 0 && diff < 150) {
+      pullDistanceRef.current = diff;
       setPullDistance(diff);
     }
   }, []);
 
   const handleTouchEnd = useCallback(async () => {
-    if (pullDistance > 80) {
+    if (pullDistanceRef.current > 80) {
       setIsRefreshing(true);
       await refreshStatus();
+      refreshFotosOnline();
       ultimasFotos(10).then(setFotosRecentes);
       await refreshCommentCounts();
       setIsRefreshing(false);
     }
+    pullDistanceRef.current = 0;
     setPullDistance(0);
     pullStartY.current = 0;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pullDistance]);
+  }, [refreshStatus, refreshFotosOnline, refreshCommentCounts]);
 
   // Backup
   async function handleBackup() {
@@ -584,13 +591,18 @@ export default function Home() {
     try {
       if (lista) {
         setLoadingSkeleton(true);
-        setStatus(await statusDeTodosApartamentos(lista));
+        const newStatus = await statusDeTodosApartamentos(lista);
+        setStatus(newStatus);
         setLoadingSkeleton(false);
+        setPendentes((await fotosPendentes()).length);
+        return newStatus;
       }
       setPendentes((await fotosPendentes()).length);
+      return status;
     } catch (err) {
       console.warn('refreshStatus error:', err);
       setLoadingSkeleton(false);
+      return status;
     }
   }
 
@@ -709,6 +721,7 @@ export default function Home() {
       autoDismiss(nId, 5000);
     }
     await refreshStatus();
+    refreshFotosOnline();
     } finally {
       syncLockRef.current = false;
     }
@@ -890,18 +903,28 @@ export default function Home() {
   // Global search results
   const resultadosBuscaGlobal = useMemo(() => {
     if (!buscaGlobal.trim() || buscaGlobal.length < 2) return [];
-    const q = normApto(buscaGlobal.toLowerCase());
+    const raw = buscaGlobal.toLowerCase().trim();
+    // Try to extract block letter from patterns like "torre a 77", "a 77", "a77"
+    const blockMatch = raw.match(/(?:torre\s*)?([a-h])\s*(\d+)?/i);
+    const searchBlock = blockMatch?.[1]?.toUpperCase() || '';
+    const searchNum = blockMatch?.[2] || raw.replace(/[^0-9]/g, '');
+    const q = searchNum ? normApto(searchNum) : raw;
     const results: { bloco: string; apto: string; status: ApartamentoStatus | null }[] = [];
     for (const b of blocos) {
+      // If user specified a block, skip other blocks
+      if (searchBlock) {
+        const bLetter = b.replace(/^Torre\s+/i, '').trim().toUpperCase();
+        if (bLetter !== searchBlock && b.toUpperCase() !== `TORRE ${searchBlock}`) continue;
+      }
       const codigosLocais = (lista?.[b] || []).map(normApto);
       const entry = fotosOnlineMap.get(b);
       const aptosOnline = entry?.aptos ?? new Set<string>();
       const allAptos = new Set<string>([...codigosLocais, ...aptosOnline]);
       for (const c of allAptos) {
-        if (normApto(c.toLowerCase()).includes(q)) {
-          const normalized = normApto(c);
-          const st = statusMap.get(`${b}__${normalized}`) || null;
-          results.push({ bloco: b, apto: normalized, status: st });
+        const normC = normApto(c);
+        if (normC.includes(q) || (searchNum && normC === q)) {
+          const st = statusMap.get(`${b}__${normC}`) || null;
+          results.push({ bloco: b, apto: normC, status: st });
         }
       }
     }
@@ -1059,7 +1082,7 @@ export default function Home() {
     return (
       <PinGate
         onOk={(p, role) => {
-          localStorage.setItem('vistoria_pin', p);
+          sessionStorage.setItem('vistoria_pin', p);
           localStorage.setItem('vistoria_role', role);
           setPin(p);
           setUserRole(role);
@@ -1348,7 +1371,10 @@ export default function Home() {
           }}
           onVoltar={() => setView('blocos')}
           onNovoAgendamento={() => setShowAgendamentoModal(true)}
-          onEditar={(ag) => setAgendamentoEditando(ag)}
+          onEditar={(ag) => {
+            // Use fresh copy from agenda list to avoid stale data
+            setAgendamentoEditando({ ...ag });
+          }}
         />
         <BottomNav
           active="agenda"
@@ -1386,14 +1412,15 @@ export default function Home() {
           bloco={blocoAtual}
           apartamento={aptoAtual}
           onVoltar={() => { setView('apartamentos'); refreshStatus(); setModoEscaneamento(false); }}
-          onFotoSalva={() => {
-            refreshStatus();
+          onFotoSalva={async () => {
             tentarSincronizar();
             ultimasFotos(10).then(setFotosRecentes);
+            // Await refreshStatus to get fresh status for tower completion detection
+            const freshStatus = await refreshStatus();
             // Detect tower completion for bigger confetti
-            const aptosDoBlocoAtual = status.filter((s) => s.bloco === blocoAtual);
+            const aptosDoBlocoAtual = freshStatus.filter((s) => s.bloco === blocoAtual);
             const totalAptosBloco = aptosDoBlocoAtual.length || (lista?.[blocoAtual || '']?.length ?? 0);
-            const completosBloco = aptosDoBlocoAtual.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito).length + 1;
+            const completosBloco = aptosDoBlocoAtual.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito).length;
             if (totalAptosBloco > 0 && completosBloco >= totalAptosBloco) {
               setConfettiVariant('tower');
             } else if (completosBloco > 0 && completosBloco % 10 === 0) {
@@ -1966,7 +1993,7 @@ export default function Home() {
           versaoNova={versaoNova}
           onBackup={handleBackup}
           onRestore={handleRestore}
-          onLogout={() => { localStorage.removeItem('vistoria_pin'); setPin(null); }}
+          onLogout={() => { sessionStorage.removeItem('vistoria_pin'); setPin(null); }}
           onUpdate={() => {
             setUpdateDisponivel(false);
             navigator.serviceWorker?.controller?.postMessage('skipWaiting');

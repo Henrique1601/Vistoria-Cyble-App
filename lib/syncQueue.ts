@@ -85,6 +85,12 @@ function shouldRetry(item: SyncQueueItem): boolean {
 }
 
 async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
+  // Skip if already synced (another tab may have uploaded it)
+  if (item.foto.synced && item.foto.uploadUrl) {
+    await marcarSincronizada(item.foto.id!, item.foto.uploadUrl);
+    return true;
+  }
+
   const form = new FormData();
   form.append('file', item.foto.blob, `${item.foto.categoria}.jpg`);
   form.append('bloco', item.foto.bloco);

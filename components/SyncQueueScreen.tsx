@@ -74,7 +74,7 @@ export default function SyncQueueScreen({ onVoltar }: { onVoltar: () => void }) 
   }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem('vistoria_pin');
+    const saved = sessionStorage.getItem('vistoria_pin');
     setPin(saved);
     setOnline(navigator.onLine);
 

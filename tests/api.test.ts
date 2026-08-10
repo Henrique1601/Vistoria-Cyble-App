@@ -3,6 +3,7 @@ import { getAuthHeaders } from '@/lib/api';
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 describe('getAuthHeaders', () => {
@@ -11,12 +12,12 @@ describe('getAuthHeaders', () => {
   });
 
   it('retorna header com PIN quando salvo', () => {
-    localStorage.setItem('vistoria_pin', '4821');
+    sessionStorage.setItem('vistoria_pin', '4821');
     expect(getAuthHeaders()).toEqual({ 'x-app-pin': '4821' });
   });
 
   it('retorna header com PIN do viewer', () => {
-    localStorage.setItem('vistoria_pin', '1234');
+    sessionStorage.setItem('vistoria_pin', '1234');
     expect(getAuthHeaders()).toEqual({ 'x-app-pin': '1234' });
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -249,6 +249,28 @@ export default function CapturaScreen({
     return () => { urls.forEach(URL.revokeObjectURL); };
   }, [fotos]);
 
+  // Stable blob URL mapping - revokes old URLs when fotos change
+  const fotoUrls = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const f of fotos) {
+      if (f.synced && f.uploadUrl) {
+        map.set(f.id!, f.uploadUrl);
+      } else if (f.blob.size > 0) {
+        map.set(f.id!, URL.createObjectURL(f.blob));
+      }
+    }
+    return map;
+  }, [fotos]);
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      fotoUrls.forEach((url) => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
+    };
+  }, [fotoUrls]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: TOUCH_SENSOR_DELAY, tolerance: TOUCH_SENSOR_TOLERANCE } })
@@ -427,11 +449,11 @@ export default function CapturaScreen({
     if (!editingPhoto) return;
     const cat = editingPhoto.categoria;
     try {
-      const dataStr = new Date().toLocaleDateString('pt-BR');
-      // Try to compress with watermark; if it fails, save the editor blob directly
+      // Try to compress after editor; if it fails, save the editor blob directly
+      // Note: watermark was already applied in first compression, so skip here
       let finalBlob: Blob;
       try {
-        finalBlob = await comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' }), { texto: dataStr, bloco, apartamento });
+        finalBlob = await comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' }));
       } catch (compressErr) {
         console.warn('Second compression failed, saving editor blob directly:', compressErr);
         finalBlob = blob;
@@ -714,7 +736,7 @@ export default function CapturaScreen({
                         >
                           <div className="flex flex-wrap gap-2">
                             {doCategoria.map((f) => {
-                              const src = f.synced && f.uploadUrl ? f.uploadUrl : (f.blob.size > 0 ? URL.createObjectURL(f.blob) : '');
+                              const src = fotoUrls.get(f.id!) || '';
                               return (
                                 <SortablePhoto
                                   key={f.id}
@@ -765,7 +787,7 @@ export default function CapturaScreen({
               {activePhoto ? (
                 <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-accent shadow-lg opacity-90 rotate-3">
                   <img
-                    src={activePhoto.synced && activePhoto.uploadUrl ? activePhoto.uploadUrl : (activePhoto.blob.size > 0 ? URL.createObjectURL(activePhoto.blob) : '')}
+                    src={fotoUrls.get(activePhoto.id!) || ''}
                     alt=""
                     className="w-full h-full object-cover"
                   />
@@ -881,7 +903,7 @@ export default function CapturaScreen({
                 <div className="grid grid-cols-2 gap-3">
                   {(['cyble_antes', 'cyble_depois'] as const).map((cat) => {
                     const foto = fotos.find((f) => f.categoria === cat);
-                    const src = foto?.synced && foto?.uploadUrl ? foto.uploadUrl : (foto?.blob.size ? URL.createObjectURL(foto.blob) : '');
+                    const src = foto ? (fotoUrls.get(foto.id!) || '') : '';
                     return (
                       <div key={cat} className="text-center">
                         <span className="text-[10px] font-semibold uppercase text-content-tertiary mb-2 block">

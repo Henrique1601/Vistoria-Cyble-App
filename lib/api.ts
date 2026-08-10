@@ -1,6 +1,6 @@
 export function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {};
-  const pin = localStorage.getItem('vistoria_pin');
+  const pin = sessionStorage.getItem('vistoria_pin');
   return pin ? { 'x-app-pin': pin } : {};
 }
 

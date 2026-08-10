@@ -247,14 +247,26 @@ export default function SetupScreen({
     e.target.value = '';
   }
 
+  const [offlineMode, setOfflineMode] = useState(false);
+
   async function handleLoadBuildings() {
     setLoadingBuildings(true);
+    setOfflineMode(false);
     try {
+      if (!navigator.onLine) {
+        setOfflineMode(true);
+        setBuildingConfigs([]);
+        setLoadingBuildings(false);
+        return;
+      }
       const res = await authFetch('/api/building-config');
       const data = await res.json();
       setBuildingConfigs(data.buildings || []);
       setSelectedBuilding(null);
     } catch {
+      if (!navigator.onLine) {
+        setOfflineMode(true);
+      }
       setBuildingConfigs([]);
     }
     setLoadingBuildings(false);
@@ -544,10 +556,21 @@ export default function SetupScreen({
                 ) : buildingConfigs.length === 0 ? (
                   <div className="text-center py-8">
                     <Cloud size={32} weight="duotone" className="mx-auto mb-2 text-content-tertiary/50" />
-                    <p className="text-sm text-content-tertiary">Nenhum predio salvo na nuvem</p>
-                    <p className="text-xs text-content-tertiary mt-1">
-                      Salve primeiro em Configuracoes &gt; Aparencia
-                    </p>
+                    {offlineMode ? (
+                      <>
+                        <p className="text-sm text-content-tertiary">Voce esta offline</p>
+                        <p className="text-xs text-content-tertiary mt-1">
+                          Conecte-se a internet para carregar predios da nuvem
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-content-tertiary">Nenhum predio salvo na nuvem</p>
+                        <p className="text-xs text-content-tertiary mt-1">
+                          Salve primeiro em Configuracoes &gt; Aparencia
+                        </p>
+                      </>
+                    )}
                     <button
                       onClick={handleLoadBuildings}
                       className="tactile-press mt-4 flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 transition-all mx-auto"

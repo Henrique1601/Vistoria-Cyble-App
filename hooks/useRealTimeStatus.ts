@@ -12,7 +12,7 @@ interface TowerStatus {
 
 function getPin(): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('vistoria_pin') || '';
+  return sessionStorage.getItem('vistoria_pin') || '';
 }
 
 export function useRealTimeStatus(intervalMs = 30000) {

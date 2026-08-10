@@ -5,6 +5,7 @@ import { authFetch } from './api';
 import { notifyBackupComplete } from './notificationsPush';
 
 let autoBackupTimer: ReturnType<typeof setInterval> | null = null;
+let initialDelayTimer: ReturnType<typeof setTimeout> | null = null;
 const LAST_AUTO_BACKUP_KEY = 'vistoria_lastAutoBackup';
 
 function getIntervalMs(): number {
@@ -55,9 +56,19 @@ export async function execAutoBackup(): Promise<boolean> {
   }
 }
 
-export function startAutoBackup() {
+function startInterval() {
   if (autoBackupTimer) return;
-  if (getSalvarEm() === 'dispositivo') return; // Skip if device-only mode
+  const interval = getIntervalMs();
+  autoBackupTimer = setInterval(() => {
+    if (navigator.onLine) {
+      execAutoBackup();
+    }
+  }, interval);
+}
+
+export function startAutoBackup() {
+  if (autoBackupTimer || initialDelayTimer) return;
+  if (getSalvarEm() === 'dispositivo') return;
 
   const interval = getIntervalMs();
 
@@ -65,23 +76,20 @@ export function startAutoBackup() {
   const last = getLastAutoBackup();
   const now = Date.now();
   if (last && now - last < interval) {
-    // Schedule next backup
+    // Schedule first backup after remaining time
     const nextIn = interval - (now - last);
-    autoBackupTimer = setTimeout(() => {
-      if (autoBackupTimer) clearTimeout(autoBackupTimer);
-      autoBackupTimer = null;
-      execAutoBackup();
-      startAutoBackup();
-    }, nextIn) as ReturnType<typeof setInterval>;
+    initialDelayTimer = setTimeout(() => {
+      initialDelayTimer = null;
+      if (navigator.onLine) {
+        execAutoBackup();
+      }
+      startInterval();
+    }, nextIn);
     return;
   }
 
   // Start immediate interval
-  autoBackupTimer = setInterval(() => {
-    if (navigator.onLine) {
-      execAutoBackup();
-    }
-  }, interval);
+  startInterval();
 
   // Execute first backup if online
   if (navigator.onLine) {
@@ -90,20 +98,23 @@ export function startAutoBackup() {
 }
 
 export function stopAutoBackup() {
+  if (initialDelayTimer) {
+    clearTimeout(initialDelayTimer);
+    initialDelayTimer = null;
+  }
   if (autoBackupTimer) {
-    clearTimeout(autoBackupTimer as unknown as number);
-    clearInterval(autoBackupTimer as unknown as number);
+    clearInterval(autoBackupTimer);
     autoBackupTimer = null;
   }
 }
 
 export function isAutoBackupRunning(): boolean {
-  return autoBackupTimer !== null;
+  return autoBackupTimer !== null || initialDelayTimer !== null;
 }
 
 export function getAutoBackupInfo(): { running: boolean; lastBackup: number | null; interval: number } {
   return {
-    running: autoBackupTimer !== null,
+    running: autoBackupTimer !== null || initialDelayTimer !== null,
     lastBackup: getLastAutoBackup(),
     interval: getBackupIntervalo(),
   };
