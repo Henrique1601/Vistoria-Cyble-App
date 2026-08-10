@@ -626,6 +626,7 @@ export default function Home() {
 
   async function tentarSincronizar() {
     if (!navigator.onLine || !pin) return;
+    if (!getBackupAutomatico()) return; // Skip if backup is disabled
     if (syncLockRef.current) return;
     syncLockRef.current = true;
     try {

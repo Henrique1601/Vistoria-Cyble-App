@@ -1,4 +1,5 @@
 import { FotoRecord, fotosPendentes, marcarSincronizada, registrarSync } from './db';
+import { getBackupAutomatico } from './settings';
 
 export type SyncStatus = 'pending' | 'uploading' | 'success' | 'failed';
 
@@ -126,6 +127,7 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
 
 export async function syncAll(pin: string, onDone?: () => void) {
   if (isRunning || !navigator.onLine || !pin) return;
+  if (!getBackupAutomatico()) return; // Skip if backup is disabled
   isRunning = true;
   abortController = new AbortController();
 

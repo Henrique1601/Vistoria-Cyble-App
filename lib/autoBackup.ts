@@ -1,5 +1,5 @@
 import { backupDados } from './db';
-import { getBackupIntervalo, setBackupAutomatico } from './settings';
+import { getBackupIntervalo, setBackupAutomatico, getBackupAutomatico } from './settings';
 import { addNotification, autoDismiss } from './notifications';
 import { authFetch } from './api';
 import { notifyBackupComplete } from './notificationsPush';
@@ -57,6 +57,7 @@ export async function execAutoBackup(): Promise<boolean> {
 
 export function startAutoBackup() {
   if (autoBackupTimer) return;
+  if (!getBackupAutomatico()) return; // Skip if backup is disabled
 
   const interval = getIntervalMs();
 
