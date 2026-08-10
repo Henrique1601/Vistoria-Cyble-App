@@ -1,4 +1,4 @@
-export type Ferramenta = 'caneta' | 'seta' | 'texto';
+export type Ferramenta = 'caneta' | 'seta' | 'texto' | 'borracha' | 'marcador' | 'retangulo' | 'circulo';
 
 export interface Ponto {
   x: number;
@@ -12,10 +12,33 @@ export interface AcaoCaneta {
   espessura: number;
 }
 
+export interface AcaoMarcador {
+  tipo: 'marcador';
+  pontos: Ponto[];
+  cor: string;
+  espessura: number;
+}
+
 export interface AcaoSeta {
   tipo: 'seta';
   inicio: Ponto;
   fim: Ponto;
+  cor: string;
+  espessura: number;
+}
+
+export interface AcaoRetangulo {
+  tipo: 'retangulo';
+  inicio: Ponto;
+  fim: Ponto;
+  cor: string;
+  espessura: number;
+}
+
+export interface AcaoCirculo {
+  tipo: 'circulo';
+  centro: Ponto;
+  raio: number;
   cor: string;
   espessura: number;
 }
@@ -28,7 +51,7 @@ export interface AcaoTexto {
   tamanho: number;
 }
 
-export type AcaoDesenho = AcaoCaneta | AcaoSeta | AcaoTexto;
+export type AcaoDesenho = AcaoCaneta | AcaoMarcador | AcaoSeta | AcaoRetangulo | AcaoCirculo | AcaoTexto;
 
 export interface EstadoEditor {
   imagem: HTMLImageElement | null;
@@ -37,11 +60,13 @@ export interface EstadoEditor {
   ferramenta: Ferramenta;
   cor: string;
   espessura: number;
+  tamanhoTexto: number;
   desenhando: boolean;
   pontoAtual: Ponto | null;
   textoPendente: { posicao: Ponto; texto: string } | null;
   offset: Ponto;
   escala: number;
+  zoom: number;
 }
 
 export function criarEstadoInicial(): EstadoEditor {
@@ -52,11 +77,13 @@ export function criarEstadoInicial(): EstadoEditor {
     ferramenta: 'caneta',
     cor: '#FF0000',
     espessura: 3,
+    tamanhoTexto: 32,
     desenhando: false,
     pontoAtual: null,
     textoPendente: null,
     offset: { x: 0, y: 0 },
     escala: 1,
+    zoom: 1,
   };
 }
 
@@ -75,6 +102,26 @@ export function desenharCaneta(
     ctx.lineTo(acao.pontos[i].x, acao.pontos[i].y);
   }
   ctx.stroke();
+}
+
+export function desenharMarcador(
+  ctx: CanvasRenderingContext2D,
+  acao: AcaoMarcador
+) {
+  if (acao.pontos.length < 2) return;
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.beginPath();
+  ctx.strokeStyle = acao.cor;
+  ctx.lineWidth = acao.espessura * 4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.moveTo(acao.pontos[0].x, acao.pontos[0].y);
+  for (let i = 1; i < acao.pontos.length; i++) {
+    ctx.lineTo(acao.pontos[i].x, acao.pontos[i].y);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
 export function desenharSeta(
@@ -107,6 +154,34 @@ export function desenharSeta(
   );
   ctx.closePath();
   ctx.fill();
+}
+
+export function desenharRetangulo(
+  ctx: CanvasRenderingContext2D,
+  acao: AcaoRetangulo
+) {
+  const x = Math.min(acao.inicio.x, acao.fim.x);
+  const y = Math.min(acao.inicio.y, acao.fim.y);
+  const w = Math.abs(acao.fim.x - acao.inicio.x);
+  const h = Math.abs(acao.fim.y - acao.inicio.y);
+
+  ctx.beginPath();
+  ctx.strokeStyle = acao.cor;
+  ctx.lineWidth = acao.espessura;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeRect(x, y, w, h);
+}
+
+export function desenharCirculo(
+  ctx: CanvasRenderingContext2D,
+  acao: AcaoCirculo
+) {
+  ctx.beginPath();
+  ctx.strokeStyle = acao.cor;
+  ctx.lineWidth = acao.espessura;
+  ctx.arc(acao.centro.x, acao.centro.y, acao.raio, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 export function desenharTexto(
@@ -144,7 +219,7 @@ export function renderizarCanvas(
 
   ctx.save();
   ctx.translate(estado.offset.x, estado.offset.y);
-  ctx.scale(estado.escala, estado.escala);
+  ctx.scale(estado.escala * estado.zoom, estado.escala * estado.zoom);
 
   if (estado.imagem) {
     ctx.drawImage(estado.imagem, 0, 0);
@@ -155,8 +230,17 @@ export function renderizarCanvas(
       case 'caneta':
         desenharCaneta(ctx, acao);
         break;
+      case 'marcador':
+        desenharMarcador(ctx, acao);
+        break;
       case 'seta':
         desenharSeta(ctx, acao);
+        break;
+      case 'retangulo':
+        desenharRetangulo(ctx, acao);
+        break;
+      case 'circulo':
+        desenharCirculo(ctx, acao);
         break;
       case 'texto':
         desenharTexto(ctx, acao);
@@ -174,8 +258,8 @@ export function obterPontoCanvas(
   clientY: number
 ): Ponto {
   const rect = canvas.getBoundingClientRect();
-  const x = (clientX - rect.left - estado.offset.x) / estado.escala;
-  const y = (clientY - rect.top - estado.offset.y) / estado.escala;
+  const x = (clientX - rect.left - estado.offset.x) / (estado.escala * estado.zoom);
+  const y = (clientY - rect.top - estado.offset.y) / (estado.escala * estado.zoom);
   return { x, y };
 }
 
@@ -190,4 +274,38 @@ export function paraBlob(canvas: HTMLCanvasElement): Promise<Blob> {
       0.85
     );
   });
+}
+
+/** Find the topmost annotation near a point (for eraser) */
+export function encontrarAcaoProxima(
+  acoes: AcaoDesenho[],
+  ponto: Ponto,
+  raio: number = 20
+): number {
+  for (let i = acoes.length - 1; i >= 0; i--) {
+    const acao = acoes[i];
+    switch (acao.tipo) {
+      case 'caneta':
+      case 'marcador':
+        for (const p of acao.pontos) {
+          if (distancia(p, ponto) < raio) return i;
+        }
+        break;
+      case 'seta':
+      case 'retangulo':
+        if (distancia(acao.inicio, ponto) < raio || distancia(acao.fim, ponto) < raio) return i;
+        break;
+      case 'circulo':
+        if (distancia(acao.centro, ponto) < raio) return i;
+        break;
+      case 'texto':
+        if (distancia(acao.posicao, ponto) < raio * 2) return i;
+        break;
+    }
+  }
+  return -1;
+}
+
+function distancia(a: Ponto, b: Ponto): number {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }

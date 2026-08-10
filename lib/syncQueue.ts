@@ -1,5 +1,9 @@
 import { FotoRecord, fotosPendentes, marcarSincronizada, registrarSync } from './db';
+<<<<<<< HEAD
 import { getBackupAutomatico } from './settings';
+=======
+import { getSalvarEm } from './settings';
+>>>>>>> 71d8da1658440502c91a717c8321fd05dbaf62e6
 
 export type SyncStatus = 'pending' | 'uploading' | 'success' | 'failed';
 
@@ -18,7 +22,7 @@ const listeners: Set<Listener> = new Set();
 let isRunning = false;
 let abortController: AbortController | null = null;
 
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 10;
 const BASE_DELAY_MS = 1000;
 
 function emit() {
@@ -127,7 +131,11 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
 
 export async function syncAll(pin: string, onDone?: () => void) {
   if (isRunning || !navigator.onLine || !pin) return;
+<<<<<<< HEAD
   if (!getBackupAutomatico()) return; // Skip if backup is disabled
+=======
+  if (getSalvarEm() === 'dispositivo') return; // skip sync if device-only mode
+>>>>>>> 71d8da1658440502c91a717c8321fd05dbaf62e6
   isRunning = true;
   abortController = new AbortController();
 
@@ -221,4 +229,25 @@ export function cancelSync() {
 
 export function isSyncing() {
   return isRunning;
+}
+
+// Auto-retry when connection comes back
+let onlineListener: (() => void) | null = null;
+
+export function startOfflineAutoRetry(getPin: () => string | null) {
+  if (typeof window === 'undefined' || onlineListener) return;
+  onlineListener = () => {
+    const pin = getPin();
+    if (pin && !isRunning) {
+      setTimeout(() => syncAll(pin), 2000); // wait 2s for connection to stabilize
+    }
+  };
+  window.addEventListener('online', onlineListener);
+}
+
+export function stopOfflineAutoRetry() {
+  if (onlineListener && typeof window !== 'undefined') {
+    window.removeEventListener('online', onlineListener);
+    onlineListener = null;
+  }
 }

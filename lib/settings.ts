@@ -1,6 +1,7 @@
 const DEFAULTS = {
   tema: 'auto' as 'dark' | 'light' | 'auto',
   qualidadeFoto: '90' as '50' | '75' | '90' | '100',
+  salvarEm: 'ambos' as 'nuvem' | 'dispositivo' | 'ambos',
   scanMode: false,
   diasAlerta: 7,
   itensPagina: 20,
@@ -41,6 +42,14 @@ export function getQualidadeFoto() {
 
 export function setQualidadeFoto(q: '50' | '75' | '90' | '100') {
   set('qualidade_foto', q);
+}
+
+export function getSalvarEm() {
+  return get<'nuvem' | 'dispositivo' | 'ambos'>('salvar_em', DEFAULTS.salvarEm);
+}
+
+export function setSalvarEm(v: 'nuvem' | 'dispositivo' | 'ambos') {
+  set('salvar_em', v);
 }
 
 export function getScanMode() {

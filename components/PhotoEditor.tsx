@@ -7,23 +7,37 @@ import {
   ArrowUpRight,
   TextAa,
   ArrowUUpLeft,
+  ArrowUUpRight,
   Check,
   X,
   Palette,
+  Eraser,
+  HighlighterCircle,
+  Square,
+  Circle,
+  Trash,
+  Minus,
+  Plus,
 } from '@phosphor-icons/react';
 import {
   criarEstadoInicial,
   renderizarCanvas,
   obterPontoCanvas,
   paraBlob,
+  encontrarAcaoProxima,
   EstadoEditor,
   Ferramenta,
   AcaoDesenho,
 } from '@/lib/drawing';
 import { haptic } from '@/lib/haptic';
 
-const CORES = ['#FF0000', '#00FF00', '#0066FF', '#FFFF00', '#FF00FF', '#FFFFFF'];
-const ESCALAS = [1, 2, 3];
+const CORES = [
+  '#FF0000', '#FF6B35', '#FFAA00', '#FFFF00',
+  '#00FF00', '#00CC88', '#0066FF', '#3399FF',
+  '#FF00FF', '#CC33FF', '#FFFFFF', '#000000',
+];
+const ESPESSES = [2, 4, 6, 10];
+const TAMANHOS_TEXTO = [20, 28, 36, 48, 64];
 
 export default function PhotoEditor({
   imagemBlob,
@@ -38,9 +52,14 @@ export default function PhotoEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const [estado, setEstado] = useState<EstadoEditor>(criarEstadoInicial);
   const [showCores, setShowCores] = useState(false);
+  const [showOpcoes, setShowOpcoes] = useState(false);
   const [textoInput, setTextoInput] = useState('');
   const estadoRef = useRef(estado);
   estadoRef.current = estado;
+
+  // Pinch zoom state
+  const lastTouchDistance = useRef<number>(0);
+  const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const img = new Image();
@@ -102,17 +121,30 @@ export default function PhotoEditor({
       return;
     }
 
+    if (estadoAtual.ferramenta === 'borracha') {
+      const idx = encontrarAcaoProxima(estadoAtual.acoes, ponto, 25);
+      if (idx >= 0) {
+        haptic('medium');
+        setEstado((prev) => ({
+          ...prev,
+          acoes: prev.acoes.filter((_, i) => i !== idx),
+          acoesDesfeitas: [],
+        }));
+      }
+      return;
+    }
+
     setEstado((prev) => ({
       ...prev,
       desenhando: true,
       pontoAtual: ponto,
       acoesDesfeitas: [],
       acoes:
-        estadoAtual.ferramenta === 'caneta'
+        estadoAtual.ferramenta === 'caneta' || estadoAtual.ferramenta === 'marcador'
           ? [
               ...prev.acoes,
               {
-                tipo: 'caneta',
+                tipo: estadoAtual.ferramenta,
                 pontos: [ponto],
                 cor: prev.cor,
                 espessura: prev.espessura,
@@ -133,17 +165,18 @@ export default function PhotoEditor({
     const estadoAtual = estadoRef.current;
     const ponto = obterPontoCanvas(canvas, estadoAtual, e.clientX, e.clientY);
 
-    if (estadoAtual.ferramenta === 'caneta') {
+    if (estadoAtual.ferramenta === 'caneta' || estadoAtual.ferramenta === 'marcador') {
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
         const p = pendingPointRef.current;
         if (!p) return;
         pendingPointRef.current = null;
+        const tipo = estadoAtual.ferramenta;
         setEstado((prev) => {
           const acoes = [...prev.acoes];
           const ultima = acoes[acoes.length - 1];
-          if (ultima?.tipo === 'caneta') {
+          if (ultima && (ultima.tipo === 'caneta' || ultima.tipo === 'marcador') && ultima.tipo === tipo) {
             acoes[acoes.length - 1] = {
               ...ultima,
               pontos: [...ultima.pontos, p],
@@ -153,7 +186,12 @@ export default function PhotoEditor({
         });
       });
       pendingPointRef.current = ponto;
-    } else if (estadoAtual.ferramenta === 'seta' && estadoAtual.pontoAtual) {
+    } else if (
+      (estadoAtual.ferramenta === 'seta' ||
+        estadoAtual.ferramenta === 'retangulo' ||
+        estadoAtual.ferramenta === 'circulo') &&
+      estadoAtual.pontoAtual
+    ) {
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
@@ -163,17 +201,48 @@ export default function PhotoEditor({
         setEstado((prev) => {
           const acoes = [...prev.acoes];
           const ultima = acoes[acoes.length - 1];
-          if (ultima?.tipo === 'seta') {
-            acoes[acoes.length - 1] = { ...ultima, fim: p };
-          } else {
-            acoes.push({
-              tipo: 'seta',
-              inicio: estadoAtual.pontoAtual!,
-              fim: p,
-              cor: prev.cor,
-              espessura: prev.espessura,
-            });
+
+          if (estadoAtual.ferramenta === 'seta') {
+            if (ultima?.tipo === 'seta') {
+              acoes[acoes.length - 1] = { ...ultima, fim: p };
+            } else {
+              acoes.push({
+                tipo: 'seta',
+                inicio: estadoAtual.pontoAtual!,
+                fim: p,
+                cor: prev.cor,
+                espessura: prev.espessura,
+              });
+            }
+          } else if (estadoAtual.ferramenta === 'retangulo') {
+            if (ultima?.tipo === 'retangulo') {
+              acoes[acoes.length - 1] = { ...ultima, fim: p };
+            } else {
+              acoes.push({
+                tipo: 'retangulo',
+                inicio: estadoAtual.pontoAtual!,
+                fim: p,
+                cor: prev.cor,
+                espessura: prev.espessura,
+              });
+            }
+          } else if (estadoAtual.ferramenta === 'circulo') {
+            const dx = p.x - estadoAtual.pontoAtual!.x;
+            const dy = p.y - estadoAtual.pontoAtual!.y;
+            const raio = Math.sqrt(dx * dx + dy * dy);
+            if (ultima?.tipo === 'circulo') {
+              acoes[acoes.length - 1] = { ...ultima, raio };
+            } else {
+              acoes.push({
+                tipo: 'circulo',
+                centro: estadoAtual.pontoAtual!,
+                raio,
+                cor: prev.cor,
+                espessura: prev.espessura,
+              });
+            }
           }
+
           return { ...prev, acoes };
         });
       });
@@ -189,6 +258,40 @@ export default function PhotoEditor({
     }));
   }, []);
 
+  // Pinch-to-zoom handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
+      lastTouchCenter.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      };
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const scale = dist / lastTouchDistance.current;
+      lastTouchDistance.current = dist;
+
+      setEstado((prev) => ({
+        ...prev,
+        zoom: Math.max(0.5, Math.min(4, prev.zoom * scale)),
+      }));
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    lastTouchDistance.current = 0;
+    lastTouchCenter.current = null;
+  }, []);
+
   const handleDesfazer = useCallback(() => {
     setEstado((prev) => {
       if (prev.acoes.length === 0) return prev;
@@ -197,6 +300,21 @@ export default function PhotoEditor({
       return { ...prev, acoes, acoesDesfeitas };
     });
     haptic('light');
+  }, []);
+
+  const handleRefazer = useCallback(() => {
+    setEstado((prev) => {
+      if (prev.acoesDesfeitas.length === 0) return prev;
+      const acoesDesfeitas = prev.acoesDesfeitas.slice(0, -1);
+      const acoes = [...prev.acoes, prev.acoesDesfeitas[prev.acoesDesfeitas.length - 1]];
+      return { ...prev, acoes, acoesDesfeitas };
+    });
+    haptic('light');
+  }, []);
+
+  const handleLimparTudo = useCallback(() => {
+    setEstado((prev) => ({ ...prev, acoes: [], acoesDesfeitas: [] }));
+    haptic('heavy');
   }, []);
 
   const handleSalvarTexto = useCallback(() => {
@@ -208,7 +326,7 @@ export default function PhotoEditor({
       posicao: estadoAtual.textoPendente.posicao,
       texto: textoInput.trim(),
       cor: estadoAtual.cor,
-      tamanho: 32,
+      tamanho: estadoAtual.tamanhoTexto,
     };
 
     setEstado((prev) => ({
@@ -228,6 +346,37 @@ export default function PhotoEditor({
     onSalvar(blob);
   }, [onSalvar]);
 
+  const handleZoomIn = useCallback(() => {
+    setEstado((prev) => ({
+      ...prev,
+      zoom: Math.min(4, prev.zoom * 1.25),
+    }));
+    haptic('light');
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setEstado((prev) => ({
+      ...prev,
+      zoom: Math.max(0.5, prev.zoom / 1.25),
+    }));
+    haptic('light');
+  }, []);
+
+  const handleZoomReset = useCallback(() => {
+    setEstado((prev) => ({ ...prev, zoom: 1 }));
+    haptic('light');
+  }, []);
+
+  const ferramentas: { id: Ferramenta; icon: React.ReactNode; label: string }[] = [
+    { id: 'caneta', icon: <Pencil size={16} weight="bold" />, label: 'Caneta' },
+    { id: 'marcador', icon: <HighlighterCircle size={16} weight="bold" />, label: 'Marcador' },
+    { id: 'seta', icon: <ArrowUpRight size={16} weight="bold" />, label: 'Seta' },
+    { id: 'retangulo', icon: <Square size={16} weight="bold" />, label: 'Retangulo' },
+    { id: 'circulo', icon: <Circle size={16} weight="bold" />, label: 'Circulo' },
+    { id: 'texto', icon: <TextAa size={16} weight="bold" />, label: 'Texto' },
+    { id: 'borracha', icon: <Eraser size={16} weight="bold" />, label: 'Borracha' },
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -235,7 +384,8 @@ export default function PhotoEditor({
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-base z-[70] flex flex-col"
     >
-      <div className="flex items-center justify-between px-3 py-2 border-b border-base-border bg-base-raised">
+      {/* Header */}
+      <div className="flex items-center justify-between px-2 py-2 border-b border-base-border bg-base-raised">
         <button
           onClick={onCancelar}
           className="tactile-press w-9 h-9 rounded-xl bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-danger transition-colors"
@@ -244,43 +394,29 @@ export default function PhotoEditor({
           <X size={16} weight="bold" />
         </button>
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setEstado((prev) => ({ ...prev, ferramenta: 'caneta' }))}
-            className={`tactile-press w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-              estado.ferramenta === 'caneta'
-                ? 'bg-accent text-base'
-                : 'bg-base-overlay border border-base-border text-content-secondary hover:text-content'
-            }`}
-            aria-label="Caneta"
-          >
-            <Pencil size={16} weight="bold" />
-          </button>
-          <button
-            onClick={() => setEstado((prev) => ({ ...prev, ferramenta: 'seta' }))}
-            className={`tactile-press w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-              estado.ferramenta === 'seta'
-                ? 'bg-accent text-base'
-                : 'bg-base-overlay border border-base-border text-content-secondary hover:text-content'
-            }`}
-            aria-label="Seta"
-          >
-            <ArrowUpRight size={16} weight="bold" />
-          </button>
-          <button
-            onClick={() => setEstado((prev) => ({ ...prev, ferramenta: 'texto' }))}
-            className={`tactile-press w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-              estado.ferramenta === 'texto'
-                ? 'bg-accent text-base'
-                : 'bg-base-overlay border border-base-border text-content-secondary hover:text-content'
-            }`}
-            aria-label="Texto"
-          >
-            <TextAa size={16} weight="bold" />
-          </button>
+        {/* Tool buttons — scrollable on mobile */}
+        <div className="flex items-center gap-0.5 overflow-x-auto px-1">
+          {ferramentas.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => {
+                setEstado((prev) => ({ ...prev, ferramenta: f.id }));
+                setShowCores(false);
+                setShowOpcoes(false);
+              }}
+              className={`tactile-press w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
+                estado.ferramenta === f.id
+                  ? 'bg-accent text-base'
+                  : 'bg-base-overlay border border-base-border text-content-secondary hover:text-content'
+              }`}
+              aria-label={f.label}
+            >
+              {f.icon}
+            </button>
+          ))}
+        </div>
 
-          <div className="w-px h-5 bg-base-border mx-1" />
-
+        <div className="flex items-center gap-0.5">
           <button
             onClick={() => setShowCores(!showCores)}
             className="tactile-press w-9 h-9 rounded-xl bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content transition-colors"
@@ -291,16 +427,31 @@ export default function PhotoEditor({
               style={{ backgroundColor: estado.cor }}
             />
           </button>
+          <button
+            onClick={() => setShowOpcoes(!showOpcoes)}
+            className="tactile-press w-9 h-9 rounded-xl bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content transition-colors"
+            aria-label="Opcoes"
+          >
+            <Palette size={16} weight="bold" />
+          </button>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={handleDesfazer}
             disabled={estado.acoes.length === 0}
-            className="tactile-press w-9 h-9 rounded-xl bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content disabled:opacity-30 transition-colors"
+            className="tactile-press w-8 h-8 rounded-lg bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content disabled:opacity-30 transition-colors"
             aria-label="Desfazer"
           >
-            <ArrowUUpLeft size={16} weight="bold" />
+            <ArrowUUpLeft size={14} weight="bold" />
+          </button>
+          <button
+            onClick={handleRefazer}
+            disabled={estado.acoesDesfeitas.length === 0}
+            className="tactile-press w-8 h-8 rounded-lg bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary hover:text-content disabled:opacity-30 transition-colors"
+            aria-label="Refazer"
+          >
+            <ArrowUUpRight size={14} weight="bold" />
           </button>
           <button
             onClick={handleSalvar}
@@ -312,48 +463,132 @@ export default function PhotoEditor({
         </div>
       </div>
 
+      {/* Color picker panel */}
       <AnimatePresence>
         {showCores && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="px-3 py-2 border-b border-base-border bg-base-raised flex items-center gap-2"
+            className="px-3 py-2 border-b border-base-border bg-base-raised overflow-hidden"
           >
-            {CORES.map((cor) => (
-              <button
-                key={cor}
-                onClick={() => {
-                  setEstado((prev) => ({ ...prev, cor }));
-                  setShowCores(false);
-                }}
-                className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                  estado.cor === cor ? 'border-accent scale-110' : 'border-base-border'
-                }`}
-                style={{ backgroundColor: cor }}
-                aria-label={`Cor ${cor}`}
-              />
-            ))}
-            <div className="ml-auto flex items-center gap-1">
-              {ESCALAS.map((e) => (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {CORES.map((cor) => (
                 <button
-                  key={e}
-                  onClick={() => setEstado((prev) => ({ ...prev, espessura: e }))}
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-mono ${
-                    estado.espessura === e
-                      ? 'bg-accent text-base'
-                      : 'bg-base-overlay border border-base-border text-content-secondary'
+                  key={cor}
+                  onClick={() => {
+                    setEstado((prev) => ({ ...prev, cor }));
+                  }}
+                  className={`w-7 h-7 rounded-full border-2 transition-transform ${
+                    estado.cor === cor ? 'border-accent scale-110' : 'border-base-border'
                   }`}
-                >
-                  {e}
-                </button>
+                  style={{ backgroundColor: cor }}
+                  aria-label={`Cor ${cor}`}
+                />
               ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div ref={containerRef} className="flex-1 relative overflow-hidden bg-black/50">
+      {/* Options panel (thickness, text size, clear) */}
+      <AnimatePresence>
+        {showOpcoes && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-3 py-2 border-b border-base-border bg-base-raised overflow-hidden"
+          >
+            <div className="flex flex-col gap-2">
+              {/* Thickness */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-content-secondary w-14">Espessura</span>
+                <div className="flex items-center gap-1">
+                  {ESPESSES.map((e) => (
+                    <button
+                      key={e}
+                      onClick={() => setEstado((prev) => ({ ...prev, espessura: e }))}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-mono ${
+                        estado.espessura === e
+                          ? 'bg-accent text-base'
+                          : 'bg-base-overlay border border-base-border text-content-secondary'
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Text size */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-content-secondary w-14">Texto</span>
+                <div className="flex items-center gap-1">
+                  {TAMANHOS_TEXTO.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setEstado((prev) => ({ ...prev, tamanhoTexto: t }))}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-mono ${
+                        estado.tamanhoTexto === t
+                          ? 'bg-accent text-base'
+                          : 'bg-base-overlay border border-base-border text-content-secondary'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Zoom controls */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-content-secondary w-14">Zoom</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleZoomOut}
+                    className="w-7 h-7 rounded-lg bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary"
+                  >
+                    <Minus size={12} />
+                  </button>
+                  <button
+                    onClick={handleZoomReset}
+                    className="px-2 h-7 rounded-lg bg-base-overlay border border-base-border text-[10px] font-mono text-content-secondary"
+                  >
+                    {Math.round(estado.zoom * 100)}%
+                  </button>
+                  <button
+                    onClick={handleZoomIn}
+                    className="w-7 h-7 rounded-lg bg-base-overlay border border-base-border flex items-center justify-center text-content-secondary"
+                  >
+                    <Plus size={12} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Clear all */}
+              {estado.acoes.length > 0 && (
+                <button
+                  onClick={handleLimparTudo}
+                  className="flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium text-danger bg-danger/10 border border-danger/20 rounded-lg"
+                >
+                  <Trash size={12} />
+                  Limpar tudo ({estado.acoes.length})
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Canvas */}
+      <div
+        ref={containerRef}
+        className="flex-1 relative overflow-hidden bg-black/50"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <canvas
           ref={canvasRef}
           className="absolute touch-none"
@@ -362,8 +597,16 @@ export default function PhotoEditor({
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
         />
+
+        {/* Zoom indicator */}
+        {estado.zoom !== 1 && (
+          <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 text-white text-[10px] rounded-lg font-mono">
+            {Math.round(estado.zoom * 100)}%
+          </div>
+        )}
       </div>
 
+      {/* Text input panel */}
       <AnimatePresence>
         {estado.textoPendente && (
           <motion.div
