@@ -10,8 +10,8 @@ import {
   setDiasAlerta,
   getItensPagina,
   setItensPagina,
-  getBackupAutomatico,
-  setBackupAutomatico,
+  getSalvarEm,
+  setSalvarEm,
   getBackupIntervalo,
   setBackupIntervalo,
   getModoCompacto,
@@ -89,13 +89,13 @@ describe('Itens por pagina', () => {
 });
 
 describe('Backup automatico', () => {
-  it('retorna true por padrao', () => {
-    expect(getBackupAutomatico()).toBe(true);
+  it('retorna ambos por padrao', () => {
+    expect(getSalvarEm()).toBe('ambos');
   });
 
-  it('salva e recupera booleano', () => {
-    setBackupAutomatico(false);
-    expect(getBackupAutomatico()).toBe(false);
+  it('salva e recupera localizacao', () => {
+    setSalvarEm('dispositivo');
+    expect(getSalvarEm()).toBe('dispositivo');
   });
 });
 

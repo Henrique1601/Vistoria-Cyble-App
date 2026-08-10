@@ -56,6 +56,7 @@ import {
   statusDeTodosApartamentos,
   fotosPendentes,
   marcarSincronizada,
+  desmarcarSincronizada,
   registrarSync,
   ultimasFotos,
   backupDados,
@@ -81,7 +82,7 @@ import {
   formatarTimestampBackup,
 } from '@/lib/backup';
 import { estaNoIntervalo, obterPeriodoAtalho, formatarDataParaInput, normApto, normalizeBloco, emAndamento, fotosMapKey } from '@/lib/utils';
-import { getDiasAlerta, getItensPagina, getBackupAutomatico, getBackupIntervalo, getModoCompacto, setModoCompacto, getAltoContraste, setAltoContraste } from '@/lib/settings';
+import { getDiasAlerta, getItensPagina, getSalvarEm, getBackupIntervalo, getModoCompacto, setModoCompacto, getAltoContraste, setAltoContraste } from '@/lib/settings';
 import { addNotification, autoDismiss } from '@/lib/notifications';
 import { notifySyncComplete, notifySyncFailed, notifyOffline, notifyOnline } from '@/lib/notificationsPush';
 import {
@@ -383,9 +384,9 @@ export default function Home() {
     });
 
     // Backup periódico em background
-    const backupAuto = getBackupAutomatico();
+    const salvarEm = getSalvarEm();
     const intervaloMs = getBackupIntervalo() * 60 * 1000;
-    const backupInterval = backupAuto ? setInterval(() => {
+    const backupInterval = salvarEm !== 'dispositivo' ? setInterval(() => {
       deveFazerBackup().then((deve) => {
         if (deve) {
           fazerBackupAutomatico().then((res) => {
@@ -441,7 +442,7 @@ export default function Home() {
 
   // Auto-backup
   useEffect(() => {
-    if (getBackupAutomatico() && pin) {
+    if (getSalvarEm() !== 'dispositivo' && pin) {
       startAutoBackup();
     }
     return () => stopAutoBackup();
@@ -631,7 +632,7 @@ export default function Home() {
 
   async function tentarSincronizar() {
     if (!navigator.onLine || !pin) return;
-    if (!getBackupAutomatico()) return; // Skip if backup is disabled
+    if (getSalvarEm() === 'dispositivo') return; // Skip if device-only mode
     if (syncLockRef.current) return;
     syncLockRef.current = true;
     try {
@@ -647,11 +648,10 @@ export default function Home() {
     );
 
     const CONCURRENCY = SYNC_CONCURRENCY;
-    let failed = false;
+    let anyFailed = false;
     let uploadedCount = 0;
 
     async function uploadOne(foto: FotoRecord) {
-      if (failed) return;
       try {
         const form = new FormData();
         form.append('file', foto.blob, `${foto.categoria}.jpg`);
@@ -674,7 +674,7 @@ export default function Home() {
           uploadedCount++;
           updateSyncProgress(syncId, uploadedCount);
         } else {
-          failed = true;
+          anyFailed = true;
           await registrarSync({
             timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
             categoria: foto.categoria, url: '', ok: false, erro: `HTTP ${resp.status}`,
@@ -682,7 +682,7 @@ export default function Home() {
         }
       } catch (e: unknown) {
         const err = e instanceof Error ? e : new Error(String(e));
-        failed = true;
+        anyFailed = true;
         await registrarSync({
           timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
           categoria: foto.categoria, url: '', ok: false, erro: err.message ?? 'offline',
@@ -690,12 +690,12 @@ export default function Home() {
       }
     }
 
+    // Process all batches - don't stop on single failure
     for (let i = 0; i < pendentesLista.length; i += CONCURRENCY) {
-      if (failed) break;
       const batch = pendentesLista.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(uploadOne));
     }
-    if (failed) {
+    if (anyFailed && uploadedCount < pendentesLista.length) {
       logAudit('sync_failed', `Falha ao sincronizar ${pendentesLista.length} foto(s)`);
       updateSyncProgress(syncId, uploadedCount, { status: 'error', errorMessage: 'Falha ao enviar. Verifique sua conexao.' });
       notifySyncFailed(pendentesLista.length - uploadedCount);
@@ -1231,7 +1231,7 @@ export default function Home() {
                   onUndo: async () => {
                     // Restore synced=false for affected photos
                     for (const doc of snapshotDocs) {
-                      if (doc.id) await marcarSincronizada(doc.id, '');
+                      if (doc.id) await desmarcarSincronizada(doc.id);
                     }
                     ultimasFotos(10).then(setFotosRecentes);
                     obterTodasFotos().then(setAllFotos);

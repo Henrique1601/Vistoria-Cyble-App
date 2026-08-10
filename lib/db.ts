@@ -208,6 +208,16 @@ export async function marcarSincronizada(id: number, url: string) {
   }
 }
 
+export async function desmarcarSincronizada(id: number) {
+  const db = await getDb();
+  const rec = await db.get('fotos', id);
+  if (rec) {
+    rec.synced = false;
+    rec.uploadUrl = undefined;
+    await db.put('fotos', rec);
+  }
+}
+
 export async function statusDeTodosApartamentos(
   lista: Record<string, string[]>
 ): Promise<ApartamentoStatus[]> {
@@ -637,6 +647,23 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
     return { fotos: 0, syncLog: 0, blocos: blocosCount };
   }
 
+  // Dry-run validation: validate ALL photos before clearing any data
+  if (backupData.fotos && backupData.fotos.length > 0) {
+    for (let i = 0; i < backupData.fotos.length; i++) {
+      const f = backupData.fotos[i];
+      if (!f.bloco || !f.apartamento || !f.categoria) {
+        throw new Error(`Foto #${i + 1} invalida: campos obrigatorios ausentes (bloco, apartamento, categoria)`);
+      }
+      if (f.blobBase64 && typeof f.blobBase64 === 'string') {
+        // Validate base64 format
+        if (!f.blobBase64.startsWith('data:image/') && !f.blobBase64.startsWith('data:application/')) {
+          throw new Error(`Foto #${i + 1}: formato blobBase64 invalido`);
+        }
+      }
+    }
+  }
+
+  // Only clear AFTER validation passes
   await db.clear('fotos');
   await db.clear('syncLog');
   await db.clear('config');

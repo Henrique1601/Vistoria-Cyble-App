@@ -38,8 +38,6 @@ import {
   setDiasAlerta,
   getItensPagina,
   setItensPagina,
-  getBackupAutomatico,
-  setBackupAutomatico,
   getBackupIntervalo,
   setBackupIntervalo,
   getSalvarEm,
@@ -138,7 +136,6 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
   const [scanDefault, setScanDefault] = useState(getScanMode);
   const [dias, setDias] = useState(getDiasAlerta);
   const [itens, setItens] = useState(getItensPagina);
-  const [backupAuto, setBackupAuto] = useState(getBackupAutomatico);
   const [backupInt, setBackupInt] = useState(getBackupIntervalo);
   const [espaco, setEspaco] = useState<{ usado: number; total: number; pct: number } | null>(null);
   const [clearing, setClearing] = useState(false);
@@ -256,12 +253,6 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
     const val = Number(v) as 10 | 20 | 50 | 999;
     setItens(val);
     setItensPagina(val);
-  }
-
-  function handleBackupAuto(v: string) {
-    const val = v === 'true';
-    setBackupAuto(val);
-    setBackupAutomatico(val);
   }
 
   function handleBackupIntervalo(v: string) {
@@ -726,27 +717,17 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                 ]}
               />
             </SettingRow>
-            <SettingRow label="Sincronizacao automatica" description="Envia fotos para a nuvem quando online">
-              <ToggleGroup
-                value={String(backupAuto)}
-                onChange={handleBackupAuto}
-                options={[
-                  { label: 'Sim', value: 'true' },
-                  { label: 'Nao', value: 'false' },
-                ]}
-              />
-            </SettingRow>
-            {!backupAuto && fotosPendentes > 0 && (
+            {salvarEm === 'dispositivo' && fotosPendentes > 0 && (
               <div className="mx-4 mb-3 p-3 rounded-xl bg-warn-dim border border-warn/30">
                 <p className="text-xs text-warn font-medium">
                   {fotosPendentes} foto(s) pendente(s) de sincronizacao
                 </p>
                 <p className="text-[11px] text-warn/70 mt-1">
-                  Ative a sincronizacao para enviar para a nuvem
+                  Mude para &quot;Nuvem&quot; ou &quot;Ambos&quot; para enviar para a nuvem
                 </p>
               </div>
             )}
-            {backupAuto && (
+            {salvarEm !== 'dispositivo' && (
               <SettingRow label="Intervalo do backup" description="Frequencia do backup automatico">
                 <ToggleGroup
                   value={String(backupInt)}
