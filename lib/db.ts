@@ -143,23 +143,73 @@ export async function salvarFoto(rec: Omit<FotoRecord, 'id'>) {
   return db.add('fotos', rec as FotoRecord);
 }
 
-export async function fotosDoApartamento(bloco: string, apartamento: string) {
+export async function atualizarGpsFoto(bloco: string, apartamento: string, categoria: string, gps: { lat: number; lng: number }) {
   const db = await getDb();
-  const all = await db.getAll('fotos');
   const normA = normApto(apartamento);
   const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
   const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
-  return all.filter((f) => {
+  // Use cursor to find most recent photo matching criteria
+  let last: FotoRecord | null = null;
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    const f = cursor.value;
     const fLetter = f.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
     const blocoMatch = isSingleLetter ? fLetter === letter : f.bloco === bloco;
-    return blocoMatch && normApto(f.apartamento) === normA;
-  });
+    if (blocoMatch && normApto(f.apartamento) === normA && f.categoria === categoria) {
+      if (!last || f.timestamp > last.timestamp) {
+        last = f;
+      }
+    }
+    cursor = await cursor.continue();
+  }
+  if (last && last.id) {
+    await db.put('fotos', { ...last, gps }, last.id);
+  }
+}
+
+export async function fotosDoApartamento(bloco: string, apartamento: string) {
+  const db = await getDb();
+  const normA = normApto(apartamento);
+  const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+  const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
+  // Use cursor to avoid loading ALL photos into memory
+  const result: FotoRecord[] = [];
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    const f = cursor.value;
+    const fLetter = f.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = isSingleLetter ? fLetter === letter : f.bloco === bloco;
+    if (blocoMatch && normApto(f.apartamento) === normA) {
+      result.push(f);
+    }
+    cursor = await cursor.continue();
+  }
+  return result;
 }
 
 export async function fotosPendentes() {
   const db = await getDb();
-  const all = await db.getAll('fotos');
-  return all.filter((f) => !f.synced);
+  // Use cursor to avoid loading ALL photo blobs into memory
+  const result: FotoRecord[] = [];
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    if (!cursor.value.synced) {
+      result.push(cursor.value);
+    }
+    cursor = await cursor.continue();
+  }
+  return result;
+}
+
+export async function fotosPendentesCount(): Promise<number> {
+  const db = await getDb();
+  let count = 0;
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    if (!cursor.value.synced) count++;
+    cursor = await cursor.continue();
+  }
+  return count;
 }
 
 export async function deletarFoto(id: number) {
@@ -461,8 +511,16 @@ export async function comprimirImagem(
 // --- Ultimas fotos (para acesso rapido) ---
 export async function ultimasFotos(limite = 10): Promise<FotoRecord[]> {
   const db = await getDb();
-  const all = await db.getAll('fotos');
-  return all.sort((a, b) => b.timestamp - a.timestamp).slice(0, limite);
+  // Use cursor to avoid loading all blobs into memory; collect all, sort, take top N
+  // Note: without a timestamp index, we must scan all records
+  const result: FotoRecord[] = [];
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    result.push(cursor.value);
+    cursor = await cursor.continue();
+  }
+  result.sort((a, b) => b.timestamp - a.timestamp);
+  return result.slice(0, limite);
 }
 
 // --- Todas as fotos (para relatorios) ---
@@ -486,12 +544,6 @@ export async function criarAgendamento(ag: Omit<Agendamento, 'id' | 'criadoEm'>)
 export async function listarAgendamentos(): Promise<Agendamento[]> {
   const db = await getDb();
   return db.getAll('agendamentos');
-}
-
-export async function agendamentosDoDia(data: string): Promise<Agendamento[]> {
-  const db = await getDb();
-  const all = await db.getAll('agendamentos');
-  return all.filter((a) => a.data === data);
 }
 
 export async function toggleConcluidoAgendamento(id: number) {
@@ -522,15 +574,26 @@ export async function editarAgendamento(id: number, dados: { data?: string; obse
 
 export async function excluirAgendamentosConcluidos(): Promise<number> {
   const db = await getDb();
-  const all = await db.getAll('agendamentos');
-  const concluidos = all.filter((a) => a.concluido);
-  for (const ag of concluidos) {
-    if (ag.id !== undefined) await db.delete('agendamentos', ag.id);
+  // Use cursor + batch delete in single transaction
+  const ids: number[] = [];
+  let cursor = await db.transaction('agendamentos', 'readonly').store.openCursor();
+  while (cursor) {
+    if (cursor.value.concluido && cursor.value.id !== undefined) {
+      ids.push(cursor.value.id);
+    }
+    cursor = await cursor.continue();
   }
-  return concluidos.length;
+  if (ids.length > 0) {
+    const tx = db.transaction('agendamentos', 'readwrite');
+    for (const id of ids) tx.store.delete(id);
+    await tx.done;
+  }
+  return ids.length;
 }
 
 // --- Backup / Restore ---
+const BACKUP_BATCH_SIZE = 50;
+
 export async function backupDados(): Promise<Blob> {
   const db = await getDb();
   const fotos = await db.getAll('fotos');
@@ -538,20 +601,26 @@ export async function backupDados(): Promise<Blob> {
   const blocos = await db.get('config', 'blocos');
   const concluidos = await db.get('config', 'concluidos');
 
-  const fotosSerializadas = await Promise.all(
-    fotos.map(async (f) => {
-      let blobBase64 = '';
-      if (f.blob && f.blob.size > 0 && !f.synced) {
-        blobBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(f.blob);
-        });
-      }
-      return { ...f, blobBase64, blob: undefined };
-    })
-  );
+  // Process photos in batches to avoid OOM on large datasets
+  const fotosSerializadas: { bloco: string; apartamento: string; categoria: string; timestamp: number; synced: boolean; uploadUrl?: string; nota?: string; gps?: { lat: number; lng: number }; blobBase64: string }[] = [];
+  for (let i = 0; i < fotos.length; i += BACKUP_BATCH_SIZE) {
+    const batch = fotos.slice(i, i + BACKUP_BATCH_SIZE);
+    const processed = await Promise.all(
+      batch.map(async (f) => {
+        let blobBase64 = '';
+        if (f.blob && f.blob.size > 0 && !f.synced) {
+          blobBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(f.blob);
+          });
+        }
+        return { bloco: f.bloco, apartamento: f.apartamento, categoria: f.categoria, timestamp: f.timestamp, synced: f.synced, uploadUrl: f.uploadUrl, nota: f.nota, gps: f.gps, blobBase64 };
+      })
+    );
+    fotosSerializadas.push(...processed);
+  }
 
   const dados = {
     versao: 3,
@@ -583,20 +652,26 @@ export async function backupFotos(): Promise<Blob> {
   const fotos = await db.getAll('fotos');
   const syncLog = await db.getAll('syncLog');
 
-  const fotosSerializadas = await Promise.all(
-    fotos.map(async (f) => {
-      let blobBase64 = '';
-      if (f.blob && f.blob.size > 0) {
-        blobBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(f.blob);
-        });
-      }
-      return { ...f, blobBase64, blob: undefined };
-    })
-  );
+  // Process in batches to avoid OOM
+  const fotosSerializadas: { bloco: string; apartamento: string; categoria: string; timestamp: number; synced: boolean; uploadUrl?: string; nota?: string; gps?: { lat: number; lng: number }; blobBase64: string }[] = [];
+  for (let i = 0; i < fotos.length; i += BACKUP_BATCH_SIZE) {
+    const batch = fotos.slice(i, i + BACKUP_BATCH_SIZE);
+    const processed = await Promise.all(
+      batch.map(async (f) => {
+        let blobBase64 = '';
+        if (f.blob && f.blob.size > 0) {
+          blobBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(f.blob);
+          });
+        }
+        return { bloco: f.bloco, apartamento: f.apartamento, categoria: f.categoria, timestamp: f.timestamp, synced: f.synced, uploadUrl: f.uploadUrl, nota: f.nota, gps: f.gps, blobBase64 };
+      })
+    );
+    fotosSerializadas.push(...processed);
+  }
 
   const dados = {
     versao: 2,
@@ -671,28 +746,33 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
   }
 
   // Only clear AFTER validation passes
-  await db.clear('fotos');
-  await db.clear('syncLog');
-  await db.clear('config');
+  // Use a single transaction for clear + restore to prevent data loss on crash
+  const tx = db.transaction(['fotos', 'syncLog', 'config'], 'readwrite');
+  
+  // Clear stores within the transaction
+  await Promise.all([
+    tx.objectStore('fotos').clear(),
+    tx.objectStore('syncLog').clear(),
+    tx.objectStore('config').clear(),
+  ]);
 
   if (backupData.blocos && typeof backupData.blocos === 'object' && !Array.isArray(backupData.blocos)) {
-    await db.put('config', backupData.blocos, 'blocos');
+    tx.objectStore('config').put(backupData.blocos, 'blocos');
     blocosCount = Object.keys(backupData.blocos).length;
   } else if (backupData.lista && typeof backupData.lista === 'object' && !Array.isArray(backupData.lista)) {
-    await db.put('config', backupData.lista, 'blocos');
+    tx.objectStore('config').put(backupData.lista, 'blocos');
     blocosCount = Object.keys(backupData.lista).length;
   } else if (backupData.config && typeof backupData.config === 'object' && !Array.isArray(backupData.config)) {
-    await db.put('config', backupData.config, 'blocos');
+    tx.objectStore('config').put(backupData.config, 'blocos');
     blocosCount = Object.keys(backupData.config).length;
   }
 
   if (backupData.concluidos && typeof backupData.concluidos === 'object' && !Array.isArray(backupData.concluidos)) {
-    await db.put('config', backupData.concluidos, 'concluidos');
+    tx.objectStore('config').put(backupData.concluidos, 'concluidos');
   }
 
   if (backupData.fotos) {
-    const tx = db.transaction('fotos', 'readwrite');
-    const store = tx.objectStore('fotos');
+    const fotoStore = tx.objectStore('fotos');
     for (const f of backupData.fotos) {
       let blob: Blob;
       if (f.blobBase64) {
@@ -702,19 +782,20 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
         blob = new Blob([], { type: 'image/jpeg' });
       }
       const { blobBase64, ...rest } = f;
-      await store.add({ ...rest, blob } as FotoRecord);
+      await fotoStore.add({ ...rest, blob } as FotoRecord);
       fotosCount++;
     }
-    await tx.done;
   }
 
   if (backupData.syncLog) {
+    const logStore = tx.objectStore('syncLog');
     for (const entry of backupData.syncLog) {
-      await db.add('syncLog', entry as unknown as SyncLogEntry);
+      await logStore.add(entry as unknown as SyncLogEntry);
       syncCount++;
     }
   }
 
+  await tx.done;
   return { fotos: fotosCount, syncLog: syncCount, blocos: blocosCount };
 }
 
@@ -732,13 +813,25 @@ export async function checarEspacoStorage(): Promise<{ usado: number; total: num
 }
 
 // --- Concluidos (lista de aptos ja trocados sem fotos) ---
+// Cache for concluidos to avoid repeated API calls
+let _concluidosCache: Record<string, string[]> | null = null;
+let _concluidosCacheTime = 0;
+const CONCLUIDOS_CACHE_TTL = 30_000; // 30 seconds
+
 export async function salvarConcluidos(lista: Record<string, string[]>) {
   const db = await getDb();
   await db.put('config', lista, 'concluidos');
+  _concluidosCache = lista;
+  _concluidosCacheTime = Date.now();
   syncConcluidosToAPI(lista).catch((err) => console.warn('syncConcluidosToAPI error:', err));
 }
 
 export async function carregarConcluidos(): Promise<Record<string, string[]>> {
+  // Return cached data if fresh
+  if (_concluidosCache && Date.now() - _concluidosCacheTime < CONCLUIDOS_CACHE_TTL) {
+    return _concluidosCache;
+  }
+
   const db = await getDb();
   const local = (await db.get('config', 'concluidos')) ?? {};
 
@@ -761,12 +854,16 @@ export async function carregarConcluidos(): Promise<Record<string, string[]>> {
           }
         }
         await db.put('config', merged, 'concluidos');
+        _concluidosCache = merged;
+        _concluidosCacheTime = Date.now();
         return merged;
       }
     } catch {}
   }
 
   // Offline: return local data
+  _concluidosCache = local;
+  _concluidosCacheTime = Date.now();
   return local;
 }
 
@@ -792,6 +889,8 @@ async function syncConcluidosToAPI(lista: Record<string, string[]>) {
 export async function limparConcluidos() {
   const db = await getDb();
   await db.delete('config', 'concluidos');
+  _concluidosCache = {};
+  _concluidosCacheTime = Date.now();
   syncConcluidosToAPI({}).catch((err) => console.warn('syncConcluidosToAPI error:', err));
 }
 
@@ -921,15 +1020,27 @@ export async function importarConfigXLSX(file: File): Promise<{ blocos: number; 
 }
 
 // --- Notas por Apartamento ---
+// Helper: find nota by bloco/apartamento using cursor (avoids loading all)
+async function findNota(bloco: string, apartamento: string): Promise<NotaApto | null> {
+  const db = await getDb();
+  const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+  const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
+  let cursor = await db.transaction('notas', 'readonly').store.openCursor();
+  while (cursor) {
+    const n = cursor.value;
+    const nLetter = n.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+    const blocoMatch = isSingleLetter ? nLetter === letter : n.bloco === bloco;
+    if (blocoMatch && normApto(n.apartamento) === normApto(apartamento)) {
+      return n;
+    }
+    cursor = await cursor.continue();
+  }
+  return null;
+}
+
 export async function salvarNotaApto(bloco: string, apartamento: string, texto: string): Promise<void> {
   const db = await getDb();
-  const all = await db.getAll('notas');
-  const match = all.find((n) => {
-    const nLetter = n.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
-    const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
-    const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? nLetter === letter : n.bloco === bloco;
-    return blocoMatch && normApto(n.apartamento) === normApto(apartamento);
-  });
+  const match = await findNota(bloco, apartamento);
   if (match?.id) {
     await db.put('notas', { ...match, texto, atualizadoEm: Date.now() });
   } else {
@@ -938,26 +1049,13 @@ export async function salvarNotaApto(bloco: string, apartamento: string, texto: 
 }
 
 export async function obterNotaApto(bloco: string, apartamento: string): Promise<string> {
-  const db = await getDb();
-  const all = await db.getAll('notas');
-  const match = all.find((n) => {
-    const nLetter = n.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
-    const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
-    const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? nLetter === letter : n.bloco === bloco;
-    return blocoMatch && normApto(n.apartamento) === normApto(apartamento);
-  });
+  const match = await findNota(bloco, apartamento);
   return match?.texto || '';
 }
 
 export async function excluirNotaApto(bloco: string, apartamento: string): Promise<void> {
   const db = await getDb();
-  const all = await db.getAll('notas');
-  const match = all.find((n) => {
-    const nLetter = n.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
-    const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
-    const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? nLetter === letter : n.bloco === bloco;
-    return blocoMatch && normApto(n.apartamento) === normApto(apartamento);
-  });
+  const match = await findNota(bloco, apartamento);
   if (match?.id) await db.delete('notas', match.id);
 }
 
@@ -969,29 +1067,40 @@ export async function adicionarComentario(bloco: string, apartamento: string, au
 
 export async function obterComentarios(bloco: string, apartamento: string): Promise<ComentarioApto[]> {
   const db = await getDb();
-  const all = await db.getAll('comentarios');
-  return all.filter((c) => {
+  const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
+  const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
+  // Use cursor to avoid loading ALL comments into memory
+  const result: ComentarioApto[] = [];
+  let cursor = await db.transaction('comentarios', 'readonly').store.openCursor();
+  while (cursor) {
+    const c = cursor.value;
     const cLetter = c.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
-    const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
-    const blocoMatch = letter.length === 1 && /^[A-H]$/.test(letter) ? cLetter === letter : c.bloco === bloco;
-    return blocoMatch && normApto(c.apartamento) === normApto(apartamento);
-  });
+    const blocoMatch = isSingleLetter ? cLetter === letter : c.bloco === bloco;
+    if (blocoMatch && normApto(c.apartamento) === normApto(apartamento)) {
+      result.push(c);
+    }
+    cursor = await cursor.continue();
+  }
+  return result;
 }
 
 /** Batch version: returns comment counts for all aptos in a block using a single DB read */
 export async function contarComentariosBloco(bloco: string): Promise<Record<string, number>> {
   const db = await getDb();
-  const all = await db.getAll('comentarios');
   const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
   const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
   const counts: Record<string, number> = {};
-  for (const c of all) {
+  // Use cursor to avoid loading ALL comments into memory
+  let cursor = await db.transaction('comentarios', 'readonly').store.openCursor();
+  while (cursor) {
+    const c = cursor.value;
     const cLetter = c.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
     const blocoMatch = isSingleLetter ? cLetter === letter : c.bloco === bloco;
     if (blocoMatch) {
       const key = `${bloco}_${c.apartamento}`;
       counts[key] = (counts[key] || 0) + 1;
     }
+    cursor = await cursor.continue();
   }
   return counts;
 }
@@ -1004,20 +1113,33 @@ export async function excluirComentario(id: number): Promise<void> {
 // --- Marcar todos docs como OK ---
 export async function marcarTodosDocsOK(bloco: string, apartamentos: string[]): Promise<number> {
   const db = await getDb();
-  const all = await db.getAll('fotos');
   let count = 0;
   const aptoSet = new Set(apartamentos);
 
   const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
   const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
 
-  for (const f of all) {
+  // Use cursor + batch transaction instead of loading all + individual puts
+  const updates: { record: FotoRecord; id: number }[] = [];
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    const f = cursor.value;
     const fLetter = f.bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
     const blocoMatch = isSingleLetter ? fLetter === letter : f.bloco === bloco;
     if (blocoMatch && aptoSet.has(normApto(f.apartamento)) && f.categoria === 'documento' && !f.synced) {
-      await db.put('fotos', { ...f, synced: true });
+      updates.push({ record: { ...f, synced: true }, id: f.id! });
+    }
+    cursor = await cursor.continue();
+  }
+
+  // Batch write in single transaction
+  if (updates.length > 0) {
+    const tx = db.transaction('fotos', 'readwrite');
+    for (const { record, id } of updates) {
+      tx.store.put(record, id);
       count++;
     }
+    await tx.done;
   }
   return count;
 }

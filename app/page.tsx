@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Buildings,
@@ -55,6 +55,7 @@ import {
   carregarListaApartamentos,
   statusDeTodosApartamentos,
   fotosPendentes,
+  fotosPendentesCount,
   marcarSincronizada,
   desmarcarSincronizada,
   registrarSync,
@@ -211,6 +212,7 @@ export default function Home() {
     const saved = sessionStorage.getItem('vistoria_pin');
     const savedRole = localStorage.getItem('vistoria_role') || 'viewer';
     setPin(saved);
+    pinRef.current = saved;
     setUserRole(savedRole);
     setPinChecked(true);
     setDiasAlerta(getDiasAlerta());
@@ -226,6 +228,7 @@ export default function Home() {
 
   const lastActivityRef = useRef(Date.now());
   const syncLockRef = useRef(false);
+  const pinRef = useRef<string | null>(null);
 
   const handleNavigation = useCallback((v: string) => {
     setActiveNav(v as typeof activeNav);
@@ -247,6 +250,7 @@ export default function Home() {
       if (Date.now() - lastActivityRef.current > TIMEOUT_MS) {
         sessionStorage.removeItem('vistoria_pin');
         setPin(null);
+        pinRef.current = null;
       }
     }, 60000);
     return () => {
@@ -594,10 +598,10 @@ export default function Home() {
         const newStatus = await statusDeTodosApartamentos(lista);
         setStatus(newStatus);
         setLoadingSkeleton(false);
-        setPendentes((await fotosPendentes()).length);
+        setPendentes(await fotosPendentesCount());
         return newStatus;
       }
-      setPendentes((await fotosPendentes()).length);
+      setPendentes(await fotosPendentesCount());
       return status;
     } catch (err) {
       console.warn('refreshStatus error:', err);
@@ -643,86 +647,99 @@ export default function Home() {
   }, [pin]);
 
   async function tentarSincronizar() {
-    if (!navigator.onLine || !pin) return;
+    const currentPin = pinRef.current;
+    if (!navigator.onLine || !currentPin) return;
     if (getSalvarEm() === 'dispositivo') return; // Skip if device-only mode
     if (syncLockRef.current) return;
     syncLockRef.current = true;
+    // Watchdog: reset lock after 5 minutes if stuck
+    const watchdogId = setTimeout(() => { syncLockRef.current = false; }, 5 * 60 * 1000);
     try {
-    const pendentesLista = await fotosPendentes();
-    if (pendentesLista.length === 0) return;
+      const pendentesLista = await fotosPendentes();
+      if (pendentesLista.length === 0) return; // safe: finally will run
 
-    logAudit('sync_started', `Sincronizando ${pendentesLista.length} foto(s)`);
+      logAudit('sync_started', `Sincronizando ${pendentesLista.length} foto(s)`);
 
-    // Show progress toast
-    const syncId = showSyncProgress(
-      pendentesLista.length === 1 ? 'Sincronizando foto...' : 'Sincronizando fotos...',
-      pendentesLista.length
-    );
+      // Show progress toast
+      const syncId = showSyncProgress(
+        pendentesLista.length === 1 ? 'Sincronizando foto...' : 'Sincronizando fotos...',
+        pendentesLista.length
+      );
 
-    const CONCURRENCY = SYNC_CONCURRENCY;
-    let anyFailed = false;
-    let uploadedCount = 0;
+      const CONCURRENCY = SYNC_CONCURRENCY;
+      let anyFailed = false;
+      let uploadedCount = 0;
 
-    async function uploadOne(foto: FotoRecord) {
-      try {
-        const form = new FormData();
-        form.append('file', foto.blob, `${foto.categoria}.jpg`);
-        form.append('bloco', foto.bloco);
-        form.append('apartamento', foto.apartamento);
-        form.append('categoria', foto.categoria);
-        form.append('timestamp', String(foto.timestamp));
-        const resp = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'x-app-pin': pin! },
-          body: form,
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          await marcarSincronizada(foto.id!, data.url);
-          await registrarSync({
-            timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
-            categoria: foto.categoria, url: data.url, ok: true,
+      async function uploadOne(foto: FotoRecord) {
+        try {
+          // Skip empty blobs (failed compression)
+          if (!foto.blob || foto.blob.size === 0) {
+            anyFailed = true;
+            await registrarSync({
+              timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
+              categoria: foto.categoria, url: '', ok: false, erro: 'Blob vazio (compressao falhou)',
+            });
+            return;
+          }
+          const form = new FormData();
+          form.append('file', foto.blob, `${foto.categoria}.jpg`);
+          form.append('bloco', foto.bloco);
+          form.append('apartamento', foto.apartamento);
+          form.append('categoria', foto.categoria);
+          form.append('timestamp', String(foto.timestamp));
+          const resp = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'x-app-pin': currentPin || '' },
+            body: form,
           });
-          uploadedCount++;
-          updateSyncProgress(syncId, uploadedCount);
-        } else {
+          if (resp.ok) {
+            const data = await resp.json();
+            if (foto.id != null) await marcarSincronizada(foto.id, data.url);
+            await registrarSync({
+              timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
+              categoria: foto.categoria, url: data.url, ok: true,
+            });
+            uploadedCount++;
+            updateSyncProgress(syncId, uploadedCount);
+          } else {
+            anyFailed = true;
+            await registrarSync({
+              timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
+              categoria: foto.categoria, url: '', ok: false, erro: `HTTP ${resp.status}`,
+            });
+          }
+        } catch (e: unknown) {
+          const err = e instanceof Error ? e : new Error(String(e));
           anyFailed = true;
           await registrarSync({
             timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
-            categoria: foto.categoria, url: '', ok: false, erro: `HTTP ${resp.status}`,
+            categoria: foto.categoria, url: '', ok: false, erro: err.message ?? 'offline',
           });
         }
-      } catch (e: unknown) {
-        const err = e instanceof Error ? e : new Error(String(e));
-        anyFailed = true;
-        await registrarSync({
-          timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
-          categoria: foto.categoria, url: '', ok: false, erro: err.message ?? 'offline',
-        });
       }
-    }
 
-    // Process all batches - don't stop on single failure
-    for (let i = 0; i < pendentesLista.length; i += CONCURRENCY) {
-      const batch = pendentesLista.slice(i, i + CONCURRENCY);
-      await Promise.all(batch.map(uploadOne));
-    }
-    if (anyFailed && uploadedCount < pendentesLista.length) {
-      logAudit('sync_failed', `Falha ao sincronizar ${pendentesLista.length} foto(s)`);
-      updateSyncProgress(syncId, uploadedCount, { status: 'error', errorMessage: 'Falha ao enviar. Verifique sua conexao.' });
-      notifySyncFailed(pendentesLista.length - uploadedCount);
-      const nId = addNotification({ tipo: 'error', titulo: 'Erro na sincronizacao', mensagem: 'Uma ou mais fotos falharam ao enviar. Verifique sua conexao.' });
-      autoDismiss(nId, 8000);
-    } else if (pendentesLista.length > 0) {
-      logAudit('sync_completed', `${pendentesLista.length} foto(s) sincronizada(s)`);
-      updateSyncProgress(syncId, pendentesLista.length, { status: 'success' });
-      notifySyncComplete(0, pendentesLista.length);
-      const nId = addNotification({ tipo: 'sync', titulo: 'Sincronizado', mensagem: `${pendentesLista.length} foto(s) enviada(s) com sucesso.` });
-      autoDismiss(nId, 5000);
-    }
-    await refreshStatus();
-    refreshFotosOnline();
+      // Process all batches - don't stop on single failure
+      for (let i = 0; i < pendentesLista.length; i += CONCURRENCY) {
+        const batch = pendentesLista.slice(i, i + CONCURRENCY);
+        await Promise.all(batch.map(uploadOne));
+      }
+      if (anyFailed && uploadedCount < pendentesLista.length) {
+        logAudit('sync_failed', `Falha ao sincronizar ${pendentesLista.length} foto(s)`);
+        updateSyncProgress(syncId, uploadedCount, { status: 'error', errorMessage: 'Falha ao enviar. Verifique sua conexao.' });
+        notifySyncFailed(pendentesLista.length - uploadedCount);
+        const nId = addNotification({ tipo: 'error', titulo: 'Erro na sincronizacao', mensagem: 'Uma ou mais fotos falharam ao enviar. Verifique sua conexao.' });
+        autoDismiss(nId, 8000);
+      } else if (pendentesLista.length > 0) {
+        logAudit('sync_completed', `${pendentesLista.length} foto(s) sincronizada(s)`);
+        updateSyncProgress(syncId, pendentesLista.length, { status: 'success' });
+        notifySyncComplete(0, pendentesLista.length);
+        const nId = addNotification({ tipo: 'sync', titulo: 'Sincronizado', mensagem: `${pendentesLista.length} foto(s) enviada(s) com sucesso.` });
+        autoDismiss(nId, 5000);
+      }
+      await refreshStatus();
+      refreshFotosOnline();
     } finally {
+      clearTimeout(watchdogId);
       syncLockRef.current = false;
     }
   }
@@ -1085,6 +1102,7 @@ export default function Home() {
           sessionStorage.setItem('vistoria_pin', p);
           localStorage.setItem('vistoria_role', role);
           setPin(p);
+          pinRef.current = p;
           setUserRole(role);
         }}
       />
@@ -1413,10 +1431,9 @@ export default function Home() {
           apartamento={aptoAtual}
           onVoltar={() => { setView('apartamentos'); refreshStatus(); setModoEscaneamento(false); }}
           onFotoSalva={async () => {
-            tentarSincronizar();
-            ultimasFotos(10).then(setFotosRecentes);
-            // Await refreshStatus to get fresh status for tower completion detection
+            // Refresh status first (needed for confetti detection)
             const freshStatus = await refreshStatus();
+            ultimasFotos(10).then(setFotosRecentes);
             // Detect tower completion for bigger confetti
             const aptosDoBlocoAtual = freshStatus.filter((s) => s.bloco === blocoAtual);
             const totalAptosBloco = aptosDoBlocoAtual.length || (lista?.[blocoAtual || '']?.length ?? 0);
@@ -1430,6 +1447,8 @@ export default function Home() {
             }
             setShowConfetti(true);
             setShowCheck(true);
+            // Start sync after status refresh (non-blocking)
+            tentarSincronizar();
           }}
           modoEscaneamento={modoEscaneamento}
           proximoApto={modoEscaneamento && proximoApto ? proximoApto.apartamento : undefined}
@@ -1993,7 +2012,7 @@ export default function Home() {
           versaoNova={versaoNova}
           onBackup={handleBackup}
           onRestore={handleRestore}
-          onLogout={() => { sessionStorage.removeItem('vistoria_pin'); setPin(null); }}
+          onLogout={() => { sessionStorage.removeItem('vistoria_pin'); setPin(null); pinRef.current = null; }}
           onUpdate={() => {
             setUpdateDisponivel(false);
             navigator.serviceWorker?.controller?.postMessage('skipWaiting');
@@ -2095,7 +2114,7 @@ function SyncBanner({ online, pendentes, onClick }: { online: boolean; pendentes
   );
 }
 
-function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltro, dataInicio, onFiltroDataChange, onFiltroInicioChange }: {
+const Dashboard = memo(function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltro, dataInicio, onFiltroDataChange, onFiltroInicioChange }: {
   status: ApartamentoStatus[];
   pendentes: number;
   fotosOnline: FotoOnline[];
@@ -2276,7 +2295,7 @@ function Dashboard({ status, pendentes, fotosOnline, datasDisponiveis, dataFiltr
       )}
     </div>
   );
-}
+})
 
 function EstatisticasPeriodo({ fotosOnline }: { fotosOnline: FotoOnline[] }) {
   const dados = useMemo(() => {

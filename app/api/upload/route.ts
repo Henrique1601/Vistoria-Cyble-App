@@ -69,8 +69,14 @@ export async function POST(req: NextRequest) {
     try {
       const sql = getSql();
       const dataLeitura = new Date(Number(timestamp)).toISOString().split('T')[0];
-      await sql`INSERT INTO fotos (bloco, apartamento, data_leitura, foto_url, foto_index)
-                 VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${blob.url}, 0)`;
+      // Idempotent: check if photo already exists before inserting
+      const existing = await sql`SELECT id FROM fotos 
+                                  WHERE bloco = ${bloco} AND apartamento = ${apartamento} 
+                                  AND data_leitura = ${dataLeitura}`;
+      if (existing.length === 0) {
+        await sql`INSERT INTO fotos (bloco, apartamento, data_leitura, foto_url, foto_index)
+                   VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${blob.url}, 0)`;
+      }
     } catch (err) {
       console.warn('Failed to save photo metadata to DB (photo still saved to Blob):', err);
     }

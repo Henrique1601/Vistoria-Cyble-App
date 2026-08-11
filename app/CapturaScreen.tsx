@@ -221,6 +221,7 @@ export default function CapturaScreen({
   const [fotoZoom, setFotoZoom] = useState<string | null>(null);
   const [blurWarning, setBlurWarning] = useState<{ message: string; file: File; categoria: Categoria } | null>(null);
   const [processingPhoto, setProcessingPhoto] = useState(false);
+  const processingRef = useRef(false);
   const { toast } = useToast();
   const deletedRef = useRef<Map<number, FotoRecord>>(new Map());
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -372,6 +373,9 @@ export default function CapturaScreen({
       toast('Nenhuma foto recebida. Tente de novo.', 'warning');
       return;
     }
+    // Guard against double-tap / double file input
+    if (processingRef.current) return;
+    processingRef.current = true;
     haptic('medium');
     setProcessingPhoto(true);
 
@@ -386,6 +390,7 @@ export default function CapturaScreen({
         const blurResult = await detectBlur(file);
         if (blurResult.isBlurry || blurResult.isDark) {
           setBlurWarning({ message: blurResult.message || 'Foto com problema', file, categoria });
+          processingRef.current = false;
           setProcessingPhoto(false);
           return;
         }
@@ -411,6 +416,7 @@ export default function CapturaScreen({
       }
       haptic('error');
     } finally {
+      processingRef.current = false;
       setProcessingPhoto(false);
       // Reset input value so the same file can be re-selected
       const input = inputsRef.current[categoria];
@@ -458,11 +464,19 @@ export default function CapturaScreen({
         console.warn('Second compression failed, saving editor blob directly:', compressErr);
         finalBlob = blob;
       }
-      const gps = await getGPS();
+      // Start GPS in parallel — don't block save
+      const gpsPromise = getGPS();
       await salvarFoto({
         bloco, apartamento, categoria: cat, blob: finalBlob, timestamp: Date.now(), synced: false,
-        gps: gps || undefined,
       });
+      // Update with GPS when available (non-blocking)
+      const gps = await gpsPromise;
+      if (gps) {
+        try {
+          const { atualizarGpsFoto } = await import('@/lib/db');
+          await atualizarGpsFoto(bloco, apartamento, cat, gps);
+        } catch { /* silent — GPS is nice-to-have */ }
+      }
 
       // Auto-download to device if setting is 'dispositivo' or 'ambos'
       const salvarEm = getSalvarEm();

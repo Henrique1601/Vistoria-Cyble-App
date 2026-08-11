@@ -17,6 +17,7 @@ let queue: SyncQueueItem[] = [];
 const listeners: Set<Listener> = new Set();
 let isRunning = false;
 let abortController: AbortController | null = null;
+let syncGeneration = 0;
 
 const MAX_ATTEMPTS = 10;
 const BASE_DELAY_MS = 1000;
@@ -46,6 +47,15 @@ export function getQueueStats() {
 export async function loadQueue() {
   const pendentes = await fotosPendentes();
   const existingIds = new Set(queue.map((i) => i.foto.id));
+  const pendentesMap = new Map(pendentes.map((f) => [f.id, f]));
+
+  // Update existing items with fresh photo data (may have GPS, notes, etc.)
+  for (const item of queue) {
+    const freshFoto = pendentesMap.get(item.foto.id);
+    if (freshFoto) {
+      item.foto = freshFoto;
+    }
+  }
 
   // Add new pending photos not already in queue
   for (const foto of pendentes) {
@@ -60,11 +70,12 @@ export async function loadQueue() {
 
   // Remove items whose photos are no longer pending (synced externally)
   const pendingIds = new Set(pendentes.map((f) => f.id));
-  queue = queue.filter((i) => {
-    if (i.status === 'success') return false;
-    if (i.status === 'uploading') return false;
-    return pendingIds.has(i.foto.id);
-  });
+  for (let i = queue.length - 1; i >= 0; i--) {
+    const item = queue[i];
+    if (item.status === 'success' || item.status === 'uploading' || !pendingIds.has(item.foto.id)) {
+      queue.splice(i, 1);
+    }
+  }
 
   emit();
 }
@@ -135,6 +146,8 @@ export async function syncAll(pin: string, onDone?: () => void) {
   if (isRunning || !navigator.onLine || !pin) return;
   if (getSalvarEm() === 'dispositivo') return; // skip sync if device-only mode
   isRunning = true;
+  syncGeneration++;
+  const myGeneration = syncGeneration;
   abortController = new AbortController();
 
   const pendingItems = queue.filter((i) => i.status === 'pending' || canRetry(i));
@@ -172,9 +185,12 @@ export async function syncAll(pin: string, onDone?: () => void) {
     emit();
   }
 
-  // Remove success items after a delay
+  // Remove success items after a delay (only if no newer sync started)
   setTimeout(() => {
-    queue = queue.filter((i) => i.status !== 'success');
+    if (syncGeneration !== myGeneration) return; // stale timeout, skip
+    for (let i = queue.length - 1; i >= 0; i--) {
+      if (queue[i].status === 'success') queue.splice(i, 1);
+    }
     emit();
   }, 3000);
 
@@ -191,7 +207,7 @@ export function retryItem(item: SyncQueueItem, pin: string) {
     item.lastError = undefined;
     item.nextRetryAt = undefined;
     emit();
-    syncAll(pin);
+    syncAll(pin).catch(() => {});
   }
 }
 
@@ -205,7 +221,7 @@ export function retryFailed(pin: string) {
       i.nextRetryAt = undefined;
     });
   emit();
-  syncAll(pin);
+  syncAll(pin).catch(() => {});
 }
 
 export function clearSuccess() {
