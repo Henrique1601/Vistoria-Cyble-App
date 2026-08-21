@@ -59,6 +59,12 @@ const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi:
   { key: 'documento', label: 'Documento do apartamento', icon: <FileText size={16} weight="duotone" />, multi: true },
 ];
 
+const WATERMARK_LABELS: Record<Categoria, string> = {
+  cyble_antes: 'Cyble Antes',
+  cyble_depois: 'Cyble Depois',
+  documento: 'Documento',
+};
+
 function DroppableCategorySection({
   catKey,
   children,
@@ -399,9 +405,9 @@ export default function CapturaScreen({
       }
 
       // Compress and open editor — race against timeout
-      const dataStr = new Date().toLocaleDateString('pt-BR');
+      const watermarkLabel = WATERMARK_LABELS[categoria] || categoria;
       const comprimido = await Promise.race([
-        comprimirImagem(file, { texto: dataStr, bloco, apartamento }),
+        comprimirImagem(file, { texto: watermarkLabel, bloco, apartamento }),
         timeoutPromise,
       ]);
       setEditingPhoto({ blob: comprimido, categoria });
@@ -433,9 +439,9 @@ export default function CapturaScreen({
       setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 25000)
     );
     try {
-      const dataStr = new Date().toLocaleDateString('pt-BR');
+      const watermarkLabel = WATERMARK_LABELS[categoria] || categoria;
       const comprimido = await Promise.race([
-        comprimirImagem(file, { texto: dataStr, bloco, apartamento }),
+        comprimirImagem(file, { texto: watermarkLabel, bloco, apartamento }),
         timeoutPromise,
       ]);
       setEditingPhoto({ blob: comprimido, categoria });
@@ -455,15 +461,9 @@ export default function CapturaScreen({
     if (!editingPhoto) return;
     const cat = editingPhoto.categoria;
     try {
-      // Try to compress after editor; if it fails, save the editor blob directly
-      // Note: watermark was already applied in first compression, so skip here
-      let finalBlob: Blob;
-      try {
-        finalBlob = await comprimirImagem(new File([blob], 'foto.jpg', { type: 'image/jpeg' }));
-      } catch (compressErr) {
-        console.warn('Second compression failed, saving editor blob directly:', compressErr);
-        finalBlob = blob;
-      }
+      // Skip second compression — watermark was already applied in first pass
+      // User requested no compression to preserve original quality
+      const finalBlob = blob;
       // Start GPS in parallel — don't block save
       const gpsPromise = getGPS();
       await salvarFoto({

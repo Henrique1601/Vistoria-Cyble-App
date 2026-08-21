@@ -444,10 +444,9 @@ export async function comprimirImagem(
   const realW = isRotated ? srcH : srcW;
   const realH = isRotated ? srcW : srcH;
   const qualidade = QUALIDADE_MAP[getQualidadeFoto()] ?? 0.75;
-  const maxWidth = qualidade >= 1.0 ? MAX_IMAGE_WIDTH_FULL : MAX_IMAGE_WIDTH_DEFAULT;
-  const escala = Math.min(1, maxWidth / Math.max(realW, realH));
-  const w = Math.round(realW * escala);
-  const h = Math.round(realH * escala);
+  // When quality is 100%, skip scaling entirely to preserve original resolution
+  const w = qualidade >= 1.0 ? realW : Math.round(realW * Math.min(1, MAX_IMAGE_WIDTH_DEFAULT / Math.max(realW, realH)));
+  const h = qualidade >= 1.0 ? realH : Math.round(realH * Math.min(1, MAX_IMAGE_WIDTH_DEFAULT / Math.max(realW, realH)));
   // OffscreenCanvas fallback: use regular canvas on older browsers/iOS
   const isOffscreen = typeof OffscreenCanvas !== 'undefined';
   const rawCanvas = isOffscreen ? new OffscreenCanvas(w, h) : document.createElement('canvas');
