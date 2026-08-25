@@ -2,6 +2,7 @@ import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { AcaoDesenho } from './drawing';
 import { normApto } from './utils';
 import { getQualidadeFoto } from './settings';
+import { comprimirImagemComWorker } from './imageProcessor';
 
 export type Categoria = 'cyble_antes' | 'cyble_depois' | 'documento';
 
@@ -433,7 +434,7 @@ function drawImageWithOrientation(
   ctx.restore();
 }
 
-export async function comprimirImagem(
+export async function comprimirImagemLocal(
   file: File
 ): Promise<Blob> {
   const [img, orientation] = await Promise.all([loadImageFromBlob(file), getExifOrientation(file)]);
@@ -474,6 +475,10 @@ export async function comprimirImagem(
     }),
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Canvas toBlob timeout')), BLOB_TIMEOUT_MS)),
   ]);
+}
+
+export async function comprimirImagem(file: File): Promise<Blob> {
+  return comprimirImagemComWorker(file, comprimirImagemLocal);
 }
 
 // --- Marca d'agua (aplicada no save final) ---

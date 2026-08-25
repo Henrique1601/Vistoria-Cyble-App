@@ -42,7 +42,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, atualizarNota, moverFotoCategoria, reordenarFotos, FotoRecord, Categoria } from '@/lib/db';
+import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, comprimirImagemLocal, atualizarNota, moverFotoCategoria, reordenarFotos, FotoRecord, Categoria } from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { getSalvarEm } from '@/lib/settings';
@@ -51,6 +51,7 @@ import { EmptyStatePhotos } from '@/components/EmptyState';
 import PhotoEditor from '@/components/PhotoEditor';
 import { spring, stagger, item } from '@/lib/motion';
 import { detectBlur } from '@/lib/blurDetect';
+import { processarFotoCompleta } from '@/lib/imageProcessor';
 import { TOUCH_SENSOR_DELAY, TOUCH_SENSOR_TOLERANCE, GPS_TIMEOUT_MS, GPS_MAX_AGE_MS } from '@/lib/constants';
 
 const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi: boolean }[] = [
@@ -391,24 +392,19 @@ export default function CapturaScreen({
     );
 
     try {
-      // Blur detection — if it fails, skip and continue
-      try {
-        const blurResult = await detectBlur(file);
-        if (blurResult.isBlurry || blurResult.isDark) {
-          setBlurWarning({ message: blurResult.message || 'Foto com problema', file, categoria });
-          processingRef.current = false;
-          setProcessingPhoto(false);
-          return;
-        }
-      } catch {
-        // detectBlur failed (e.g. canvas not supported) — continue without blur check
-      }
-
-      // Compress and open editor — race against timeout
-      const comprimido = await Promise.race([
-        comprimirImagem(file),
+      // Processamento em Web Worker (compressão + análise de nitidez simultâneas)
+      const { blob: comprimido, blur: blurResult } = await Promise.race([
+        processarFotoCompleta(file, comprimirImagemLocal),
         timeoutPromise,
       ]);
+
+      if (blurResult.isBlurry || blurResult.isDark) {
+        setBlurWarning({ message: blurResult.message || 'Foto com problema', file, categoria });
+        processingRef.current = false;
+        setProcessingPhoto(false);
+        return;
+      }
+
       setEditingPhoto({ blob: comprimido, categoria });
       toast('Foto capturada! Revise e salve.', 'info');
     } catch (err) {

@@ -649,99 +649,37 @@ export default function Home() {
   async function tentarSincronizar() {
     const currentPin = pinRef.current;
     if (!navigator.onLine || !currentPin) return;
-    if (getSalvarEm() === 'dispositivo') return; // Skip if device-only mode
-    if (syncLockRef.current) return;
-    syncLockRef.current = true;
-    // Watchdog: reset lock after 5 minutes if stuck
-    const watchdogId = setTimeout(() => { syncLockRef.current = false; }, 5 * 60 * 1000);
-    try {
-      const pendentesLista = await fotosPendentes();
-      if (pendentesLista.length === 0) return; // safe: finally will run
+    if (getSalvarEm() === 'dispositivo') return;
 
-      logAudit('sync_started', `Sincronizando ${pendentesLista.length} foto(s)`);
+    let syncToastId: string | null = null;
+    const { syncAll } = await import('@/lib/syncQueue');
 
-      // Show progress toast
-      const syncId = showSyncProgress(
-        pendentesLista.length === 1 ? 'Sincronizando foto...' : 'Sincronizando fotos...',
-        pendentesLista.length
-      );
-
-      const CONCURRENCY = SYNC_CONCURRENCY;
-      let anyFailed = false;
-      let uploadedCount = 0;
-
-      async function uploadOne(foto: FotoRecord) {
-        try {
-          // Skip empty blobs (failed compression)
-          if (!foto.blob || foto.blob.size === 0) {
-            anyFailed = true;
-            await registrarSync({
-              timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
-              categoria: foto.categoria, url: '', ok: false, erro: 'Blob vazio (compressao falhou)',
-            });
-            return;
-          }
-          const form = new FormData();
-          form.append('file', foto.blob, `${foto.categoria}.jpg`);
-          form.append('bloco', foto.bloco);
-          form.append('apartamento', foto.apartamento);
-          form.append('categoria', foto.categoria);
-          form.append('timestamp', String(foto.timestamp));
-          const resp = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'x-app-pin': currentPin || '' },
-            body: form,
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (foto.id != null) await marcarSincronizada(foto.id, data.url);
-            await registrarSync({
-              timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
-              categoria: foto.categoria, url: data.url, ok: true,
-            });
-            uploadedCount++;
-            updateSyncProgress(syncId, uploadedCount);
-          } else {
-            anyFailed = true;
-            await registrarSync({
-              timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
-              categoria: foto.categoria, url: '', ok: false, erro: `HTTP ${resp.status}`,
-            });
-          }
-        } catch (e: unknown) {
-          const err = e instanceof Error ? e : new Error(String(e));
-          anyFailed = true;
-          await registrarSync({
-            timestamp: Date.now(), bloco: foto.bloco, apartamento: foto.apartamento,
-            categoria: foto.categoria, url: '', ok: false, erro: err.message ?? 'offline',
+    await syncAll(currentPin, {
+      onStart: (total) => {
+        syncToastId = showSyncProgress(
+          total === 1 ? 'Sincronizando foto...' : 'Sincronizando fotos...',
+          total
+        );
+      },
+      onProgress: (uploaded) => {
+        if (syncToastId) updateSyncProgress(syncToastId, uploaded);
+      },
+      onSuccess: (total) => {
+        if (syncToastId) updateSyncProgress(syncToastId, total, { status: 'success' });
+      },
+      onError: (_err, failedCount) => {
+        if (syncToastId) {
+          updateSyncProgress(syncToastId, 0, {
+            status: 'error',
+            errorMessage: `${failedCount} foto(s) falharam ao enviar. Verifique sua conexão.`,
           });
         }
-      }
-
-      // Process all batches - don't stop on single failure
-      for (let i = 0; i < pendentesLista.length; i += CONCURRENCY) {
-        const batch = pendentesLista.slice(i, i + CONCURRENCY);
-        await Promise.all(batch.map(uploadOne));
-      }
-      if (anyFailed && uploadedCount < pendentesLista.length) {
-        logAudit('sync_failed', `Falha ao sincronizar ${pendentesLista.length} foto(s)`);
-        updateSyncProgress(syncId, uploadedCount, { status: 'error', errorMessage: 'Falha ao enviar. Verifique sua conexao.' });
-        notifySyncFailed(pendentesLista.length - uploadedCount);
-        const nId = addNotification({ tipo: 'error', titulo: 'Erro na sincronizacao', mensagem: 'Uma ou mais fotos falharam ao enviar. Verifique sua conexao.' });
-        autoDismiss(nId, 8000);
-      } else if (pendentesLista.length > 0) {
-        logAudit('sync_completed', `${pendentesLista.length} foto(s) sincronizada(s)`);
-        updateSyncProgress(syncId, pendentesLista.length, { status: 'success' });
-        notifySyncComplete(0, pendentesLista.length);
-        const nId = addNotification({ tipo: 'sync', titulo: 'Sincronizado', mensagem: `${pendentesLista.length} foto(s) enviada(s) com sucesso.` });
-        autoDismiss(nId, 5000);
-      }
-      await refreshStatus();
-      refreshFotosOnline();
-    } finally {
-      clearTimeout(watchdogId);
-      syncLockRef.current = false;
-    }
+      },
+      onDone: async () => {
+        await refreshStatus();
+        refreshFotosOnline();
+      },
+    });
   }
 
   // Pre-computed maps for O(1) lookups

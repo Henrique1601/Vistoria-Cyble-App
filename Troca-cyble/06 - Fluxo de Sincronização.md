@@ -1,32 +1,23 @@
 # Fluxo de Sincronização
 
 ## Visão Geral
-O app funciona offline-first. Fotos são salvas no IndexedDB local e sincronizadas automaticamente quando há conexão. Duas camadas de sync coexistem:
-
-1. **Legacy batch** — `tentarSincronizar()` no page.tsx (15s timer + online event)
-2. **Modern queue** — `lib/syncQueue.ts` (retry/backoff, UI dedicada)
+O app funciona offline-first. Fotos são salvas no IndexedDB local e sincronizadas automaticamente quando há conexão. O pipeline de sincronização é **totalmente unificado** dentro de `lib/syncQueue.ts`, gerenciando concorrência (3 uploads simultâneos), retry automático com backoff exponencial, telemetria de progresso em tempo real e auditoria.
 
 ## Diagrama de Fluxo
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│  Captura    │────→│  IndexedDB   │────→│  Upload     │
-│  (Câmera)   │     │  (blob local)│     │  (Vercel)   │
-└─────────────┘     └──────┬───────┘     └─────────────┘
-                           │
-                    ┌──────▼───────┐     ┌──────────────┐
-                    │  Tentar      │────→│ ProgressToast│
-                    │  Sincronizar │     │ (barra anim.)│
-                    │  (loop 15s)  │     └──────────────┘
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐     ┌──────────────┐
-                    │  SyncQueue   │────→│ Neon Postgres │
-                    │  (retry)     │     │ (metadados)  │
-                    └──────────────┘     └──────────────┘
+┌─────────────┐     ┌──────────────┐     ┌────────────────┐     ┌─────────────┐
+│  Captura    │────→│  IndexedDB   │────→│   syncQueue    │────→│  Upload     │
+│  (Câmera)   │     │  (blob local)│     │  (lotes de 3)  │     │  (Vercel)   │
+└─────────────┘     └──────────────┘     └───────┬────────┘     └─────────────┘
+                                                 │
+                                          ┌──────┴───────┐
+                                          ▼              ▼
+                                   ProgressToast   Neon Postgres
+                                   (shimmer bar)    (metadados)
 ```
 
-## Legacy Batch (`tentarSincronizar()`)
+## Motor Unificado de Sincronização (`lib/syncQueue.ts`)
 
 ### Triggers
 1. **Timer:** `setInterval(tentarSincronizar, 15000)` — a cada 15 segundos

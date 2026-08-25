@@ -1,5 +1,9 @@
 import { FotoRecord, fotosPendentes, marcarSincronizada, registrarSync } from './db';
 import { getSalvarEm } from './settings';
+import { SYNC_CONCURRENCY } from './constants';
+import { logAudit } from './auditLog';
+import { notifySyncComplete, notifySyncFailed } from './notificationsPush';
+import { addNotification, autoDismiss } from './notifications';
 
 export type SyncStatus = 'pending' | 'uploading' | 'success' | 'failed';
 
@@ -9,6 +13,15 @@ export interface SyncQueueItem {
   attempts: number;
   lastError?: string;
   nextRetryAt?: number;
+}
+
+export interface SyncOptions {
+  concurrency?: number;
+  onStart?: (total: number) => void;
+  onProgress?: (uploaded: number, total: number) => void;
+  onSuccess?: (total: number) => void;
+  onError?: (error: string, failedCount: number) => void;
+  onDone?: () => void;
 }
 
 type Listener = () => void;
@@ -44,7 +57,7 @@ export function getQueueStats() {
   return { pending, uploading, success, failed, total };
 }
 
-export async function loadQueue() {
+export async function loadQueue(): Promise<SyncQueueItem[]> {
   const pendentes = await fotosPendentes();
   const existingIds = new Set(queue.map((i) => i.foto.id));
   const pendentesMap = new Map(pendentes.map((f) => [f.id, f]));
@@ -78,6 +91,7 @@ export async function loadQueue() {
   }
 
   emit();
+  return queue;
 }
 
 function getDelay(attempts: number): number {
@@ -96,10 +110,26 @@ function shouldRetry(item: SyncQueueItem): boolean {
 }
 
 async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
-  // Skip if already synced (another tab may have uploaded it)
+  // Skip if already synced
   if (item.foto.synced && item.foto.uploadUrl) {
-    await marcarSincronizada(item.foto.id!, item.foto.uploadUrl);
+    if (item.foto.id != null) {
+      await marcarSincronizada(item.foto.id, item.foto.uploadUrl);
+    }
     return true;
+  }
+
+  // Skip empty blobs (failed compression)
+  if (!item.foto.blob || item.foto.blob.size === 0) {
+    await registrarSync({
+      timestamp: Date.now(),
+      bloco: item.foto.bloco,
+      apartamento: item.foto.apartamento,
+      categoria: item.foto.categoria,
+      url: '',
+      ok: false,
+      erro: 'Blob vazio (compressao falhou)',
+    });
+    return false;
   }
 
   const form = new FormData();
@@ -118,7 +148,9 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
 
   if (resp.ok) {
     const data = await resp.json();
-    await marcarSincronizada(item.foto.id!, data.url);
+    if (item.foto.id != null) {
+      await marcarSincronizada(item.foto.id, data.url);
+    }
     await registrarSync({
       timestamp: Date.now(),
       bloco: item.foto.bloco,
@@ -142,62 +174,138 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
   return false;
 }
 
-export async function syncAll(pin: string, onDone?: () => void) {
-  if (isRunning || !navigator.onLine || !pin) return;
-  if (getSalvarEm() === 'dispositivo') return; // skip sync if device-only mode
+/**
+ * Motor de sincronização unificado com concorrência configurável, retry, backoff exponencial,
+ * auditoria e telemetria de progresso em tempo real.
+ */
+export async function syncAll(
+  pin: string,
+  optionsOrDone?: SyncOptions | (() => void)
+): Promise<{ success: boolean; uploaded: number; failed: number }> {
+  const options: SyncOptions =
+    typeof optionsOrDone === 'function' ? { onDone: optionsOrDone } : optionsOrDone || {};
+
+  if (isRunning || !navigator.onLine || !pin) {
+    return { success: false, uploaded: 0, failed: 0 };
+  }
+  if (getSalvarEm() === 'dispositivo') {
+    return { success: true, uploaded: 0, failed: 0 }; // Modo somente dispositivo
+  }
+
+  await loadQueue();
+  const pendingItems = queue.filter((i) => i.status === 'pending' || canRetry(i) || shouldRetry(i));
+  if (pendingItems.length === 0) {
+    options.onDone?.();
+    return { success: true, uploaded: 0, failed: 0 };
+  }
+
   isRunning = true;
   syncGeneration++;
   const myGeneration = syncGeneration;
   abortController = new AbortController();
 
-  const pendingItems = queue.filter((i) => i.status === 'pending' || canRetry(i));
+  // Watchdog de segurança: reseta lock após 5 minutos caso fique preso
+  const watchdog = setTimeout(() => {
+    isRunning = false;
+  }, 5 * 60 * 1000);
 
-  for (const item of pendingItems) {
-    if (!isRunning) break;
+  const total = pendingItems.length;
+  let uploadedCount = 0;
+  let failedCount = 0;
 
-    item.status = 'uploading';
-    item.attempts++;
-    emit();
+  logAudit('sync_started', `Sincronizando ${total} foto(s)`);
+  options.onStart?.(total);
 
-    try {
-      const ok = await uploadOne(item, pin);
-      if (ok) {
-        item.status = 'success';
-      } else {
-        item.status = 'failed';
-        item.lastError = 'Upload failed';
-        if (item.attempts < MAX_ATTEMPTS) {
-          item.nextRetryAt = Date.now() + getDelay(item.attempts);
-        }
-      }
-    } catch (e: unknown) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      if (err.name === 'AbortError') {
-        item.status = 'pending';
-      } else {
-        item.status = 'failed';
-        item.lastError = err.message ?? 'Connection error';
-        if (item.attempts < MAX_ATTEMPTS) {
-          item.nextRetryAt = Date.now() + getDelay(item.attempts);
-        }
-      }
+  const concurrency = options.concurrency ?? SYNC_CONCURRENCY;
+
+  try {
+    // Processamento em lotes concorrentes
+    for (let i = 0; i < pendingItems.length; i += concurrency) {
+      if (!isRunning) break;
+
+      const batch = pendingItems.slice(i, i + concurrency);
+
+      // Marca todos do batch como uploading
+      batch.forEach((item) => {
+        item.status = 'uploading';
+        item.attempts++;
+      });
+      emit();
+
+      await Promise.all(
+        batch.map(async (item) => {
+          try {
+            const ok = await uploadOne(item, pin);
+            if (ok) {
+              item.status = 'success';
+              uploadedCount++;
+            } else {
+              item.status = 'failed';
+              item.lastError = 'Upload failed';
+              failedCount++;
+              if (item.attempts < MAX_ATTEMPTS) {
+                item.nextRetryAt = Date.now() + getDelay(item.attempts);
+              }
+            }
+          } catch (e: unknown) {
+            const err = e instanceof Error ? e : new Error(String(e));
+            if (err.name === 'AbortError') {
+              item.status = 'pending';
+            } else {
+              item.status = 'failed';
+              item.lastError = err.message ?? 'Connection error';
+              failedCount++;
+              if (item.attempts < MAX_ATTEMPTS) {
+                item.nextRetryAt = Date.now() + getDelay(item.attempts);
+              }
+            }
+          }
+        })
+      );
+
+      emit();
+      options.onProgress?.(uploadedCount, total);
     }
+
+    if (failedCount > 0) {
+      logAudit('sync_failed', `Falha ao sincronizar ${failedCount} de ${total} foto(s)`);
+      notifySyncFailed(failedCount);
+      const nId = addNotification({
+        tipo: 'error',
+        titulo: 'Erro na sincronização',
+        mensagem: 'Uma ou mais fotos falharam ao enviar. Verifique sua conexão.',
+      });
+      autoDismiss(nId, 8000);
+      options.onError?.('Falha ao sincronizar algumas fotos', failedCount);
+    } else if (uploadedCount > 0) {
+      logAudit('sync_completed', `${uploadedCount} foto(s) sincronizada(s) com sucesso`);
+      notifySyncComplete(0, uploadedCount);
+      const nId = addNotification({
+        tipo: 'sync',
+        titulo: 'Sincronizado',
+        mensagem: `${uploadedCount} foto(s) enviada(s) com sucesso.`,
+      });
+      autoDismiss(nId, 5000);
+      options.onSuccess?.(uploadedCount);
+    }
+  } finally {
+    clearTimeout(watchdog);
+    isRunning = false;
+    abortController = null;
     emit();
+    options.onDone?.();
+
+    // Remove itens de sucesso após 3 segundos
+    setTimeout(() => {
+      if (syncGeneration !== myGeneration) return;
+      for (let i = queue.length - 1; i >= 0; i--) {
+        if (queue[i].status === 'success') queue.splice(i, 1);
+      }
+      emit();
+    }, 3000);
   }
 
-  // Remove success items after a delay (only if no newer sync started)
-  setTimeout(() => {
-    if (syncGeneration !== myGeneration) return; // stale timeout, skip
-    for (let i = queue.length - 1; i >= 0; i--) {
-      if (queue[i].status === 'success') queue.splice(i, 1);
-    }
-    emit();
-  }, 3000);
-
-  isRunning = false;
-  abortController = null;
-  emit();
-  onDone?.();
+  return { success: failedCount === 0, uploaded: uploadedCount, failed: failedCount };
 }
 
 export function retryItem(item: SyncQueueItem, pin: string) {
@@ -245,7 +353,7 @@ export function isSyncing() {
   return isRunning;
 }
 
-// Auto-retry when connection comes back
+// Auto-retry quando conexão retorna
 let onlineListener: (() => void) | null = null;
 
 export function startOfflineAutoRetry(getPin: () => string | null) {
@@ -253,7 +361,7 @@ export function startOfflineAutoRetry(getPin: () => string | null) {
   onlineListener = () => {
     const pin = getPin();
     if (pin && !isRunning) {
-      setTimeout(() => syncAll(pin), 2000); // wait 2s for connection to stabilize
+      setTimeout(() => syncAll(pin), 2000); // 2s para estabilizar conexão
     }
   };
   window.addEventListener('online', onlineListener);

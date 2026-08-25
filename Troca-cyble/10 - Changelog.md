@@ -1,5 +1,24 @@
 # Changelog — Vistoria Cyble
 
+## v3.6.0 (25/08/2026)
+
+### Sincronização Unificada
+- **`lib/syncQueue.ts`** — Pipeline de sincronização 100% centralizado e unificado
+  - Suporte a concorrência configurável (lotes de 3 uploads simultâneos via `SYNC_CONCURRENCY`)
+  - Gestão de ciclo de vida com callbacks (`onStart`, `onProgress`, `onSuccess`, `onError`, `onDone`)
+  - Integração nativa com `logAudit` (`sync_started`, `sync_completed`, `sync_failed`)
+  - Notificações in-app e push automáticas
+  - Mutex com watchdog de segurança contra deadlocks
+- **`app/page.tsx`** — Remoção da lógica de upload duplicada, delegando integralmente para `syncQueue.syncAll()`
+
+### Processamento e Compressão em Web Worker
+- **`public/workers/imageWorker.js`** — Web Worker para processamento paralelo de imagens
+  - Autocorreção nativa de orientação EXIF com `createImageBitmap`
+  - Redimensionamento e compressão JPEG com `OffscreenCanvas` em thread secundária
+  - Análise laplaciana de nitidez e brilho médio para `detectBlur` em background
+- **`lib/imageProcessor.ts`** — Gerenciador de ciclo de vida do worker com fallback automático
+- **`app/CapturaScreen.tsx`** — Integração com `processarFotoCompleta()` mantendo a UI em 60 FPS contínuos durante disparos rápidos
+
 ## v3.5.1 (06/08/2026)
 
 ### Compartilhamento de Agenda
