@@ -405,9 +405,8 @@ export default function CapturaScreen({
       }
 
       // Compress and open editor — race against timeout
-      const watermarkLabel = WATERMARK_LABELS[categoria] || categoria;
       const comprimido = await Promise.race([
-        comprimirImagem(file, { texto: watermarkLabel, bloco, apartamento }),
+        comprimirImagem(file),
         timeoutPromise,
       ]);
       setEditingPhoto({ blob: comprimido, categoria });
@@ -439,9 +438,8 @@ export default function CapturaScreen({
       setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 25000)
     );
     try {
-      const watermarkLabel = WATERMARK_LABELS[categoria] || categoria;
       const comprimido = await Promise.race([
-        comprimirImagem(file, { texto: watermarkLabel, bloco, apartamento }),
+        comprimirImagem(file),
         timeoutPromise,
       ]);
       setEditingPhoto({ blob: comprimido, categoria });
@@ -461,9 +459,10 @@ export default function CapturaScreen({
     if (!editingPhoto) return;
     const cat = editingPhoto.categoria;
     try {
-      // Skip second compression — watermark was already applied in first pass
-      // User requested no compression to preserve original quality
-      const finalBlob = blob;
+      // Apply watermark to final output
+      const { aplicarMarcaDagua } = await import('@/lib/db');
+      const watermarkLabel = WATERMARK_LABELS[cat] || cat;
+      const finalBlob = await aplicarMarcaDagua(blob, watermarkLabel, bloco, apartamento);
       // Start GPS in parallel — don't block save
       const gpsPromise = getGPS();
       await salvarFoto({

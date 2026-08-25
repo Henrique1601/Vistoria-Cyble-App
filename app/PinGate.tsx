@@ -22,11 +22,25 @@ export default function PinGate({ onOk }: { onOk: (pin: string, role: string) =>
       });
       const data = await resp.json();
       if (data.ok) {
+        // Cache validated PIN for offline access
+        try {
+          const cached = JSON.parse(sessionStorage.getItem('vistoria_validated_pins') || '{}');
+          cached[pin] = data.role;
+          sessionStorage.setItem('vistoria_validated_pins', JSON.stringify(cached));
+        } catch { /* ignore */ }
         onOk(pin, data.role);
       } else {
         setErro('PIN incorreto');
       }
     } catch {
+      // Offline: check against cached validated PINs
+      try {
+        const cached = JSON.parse(sessionStorage.getItem('vistoria_validated_pins') || '{}');
+        if (cached[pin]) {
+          onOk(pin, cached[pin]);
+          return;
+        }
+      } catch { /* ignore */ }
       setErro('Sem conexao pra validar agora — tente de novo quando tiver sinal');
     } finally {
       setChecking(false);

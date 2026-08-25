@@ -434,8 +434,7 @@ function drawImageWithOrientation(
 }
 
 export async function comprimirImagem(
-  file: File,
-  watermark?: { texto: string; bloco?: string; apartamento?: string }
+  file: File
 ): Promise<Blob> {
   const [img, orientation] = await Promise.all([loadImageFromBlob(file), getExifOrientation(file)]);
   const srcW = img.naturalWidth;
@@ -456,36 +455,6 @@ export async function comprimirImagem(
   if (!ctx) throw new Error('Nao foi possivel criar canvas (getContext retornou null)');
   drawImageWithOrientation(ctx, img, orientation, w, h);
 
-  if (watermark) {
-    const fontSize = Math.max(16, Math.round(h * 0.025));
-    ctx.font = `bold ${fontSize}px monospace`;
-    ctx.textBaseline = 'bottom';
-
-    const lines: string[] = [];
-    if (watermark.bloco && watermark.apartamento) {
-      lines.push(`${watermark.bloco} - Apto ${watermark.apartamento}`);
-    }
-    lines.push(watermark.texto);
-
-    const padding = Math.round(w * 0.015);
-    const lineHeight = fontSize + 6;
-    const blockH = lines.length * lineHeight + padding * 2;
-    const blockW = Math.max(...lines.map((l) => ctx.measureText(l).width)) + padding * 2;
-
-    const x = w - blockW - padding;
-    const y = h - blockH - padding;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    ctx.beginPath();
-    ctx.roundRect(x, y, blockW, blockH, 6);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    lines.forEach((line, i) => {
-      ctx.fillText(line, x + padding, y + padding + lineHeight * (i + 1) - 4);
-    });
-  }
-
   const BLOB_TIMEOUT_MS = 15000;
   // convertToBlob only on OffscreenCanvas; toBlob on regular canvas fallback
   if (isOffscreen) {
@@ -505,6 +474,71 @@ export async function comprimirImagem(
     }),
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Canvas toBlob timeout')), BLOB_TIMEOUT_MS)),
   ]);
+}
+
+// --- Marca d'agua (aplicada no save final) ---
+export async function aplicarMarcaDagua(
+  blob: Blob,
+  texto: string,
+  bloco?: string,
+  apartamento?: string
+): Promise<Blob> {
+  // Convert Blob to File for loadImageFromBlob
+  const file = new File([blob], 'foto.jpg', { type: blob.type || 'image/jpeg' });
+  const img = await loadImageFromBlob(file);
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+
+  const isOffscreen = typeof OffscreenCanvas !== 'undefined';
+  const rawCanvas = isOffscreen ? new OffscreenCanvas(w, h) : document.createElement('canvas');
+  if (!isOffscreen) { (rawCanvas as HTMLCanvasElement).width = w; (rawCanvas as HTMLCanvasElement).height = h; }
+  const canvas = rawCanvas as unknown as OffscreenCanvas;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return blob; // fallback: return original
+
+  // Draw image
+  ctx.drawImage(img, 0, 0);
+
+  // Draw watermark
+  const fontSize = Math.max(16, Math.round(h * 0.025));
+  ctx.font = `bold ${fontSize}px monospace`;
+  ctx.textBaseline = 'bottom';
+
+  const lines: string[] = [];
+  if (bloco && apartamento) {
+    lines.push(`${bloco} - Apto ${apartamento}`);
+  }
+  lines.push(texto);
+
+  const padding = Math.round(w * 0.015);
+  const lineHeight = fontSize + 6;
+  const blockH = lines.length * lineHeight + padding * 2;
+  const blockW = Math.max(...lines.map((l) => ctx.measureText(l).width)) + padding * 2;
+
+  const x = w - blockW - padding;
+  const y = h - blockH - padding;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, blockW, blockH, 6);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  lines.forEach((line, i) => {
+    ctx.fillText(line, x + padding, y + padding + lineHeight * (i + 1) - 4);
+  });
+
+  // Export at quality 1.0 (no recompression, just watermark overlay)
+  if (isOffscreen) {
+    return canvas.convertToBlob({ type: 'image/jpeg', quality: 1.0 });
+  }
+  return new Promise<Blob>((resolve, reject) => {
+    (rawCanvas as HTMLCanvasElement).toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))),
+      'image/jpeg',
+      1.0,
+    );
+  });
 }
 
 // --- Ultimas fotos (para acesso rapido) ---
