@@ -30,6 +30,8 @@ import {
   listarAgendamentos,
   toggleConcluidoAgendamento,
   excluirAgendamento,
+  carregarConcluidos,
+  salvarConcluidos,
 } from '@/lib/db';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
@@ -155,6 +157,26 @@ export default function AgendaScreen({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: ag.id, concluido: novoConcluido }),
         });
+      }
+      // 3. Link: agendamento concluido → apartamento concluido (sem fotos)
+      const letter = ag.bloco.replace(/^Torre\s*/i, '').trim();
+      if (letter.length === 1) {
+        const concluidos = await carregarConcluidos();
+        const aptosBloco = concluidos[ag.bloco] || [];
+        if (novoConcluido) {
+          // Add apartment to concluidos
+          if (!aptosBloco.includes(ag.apartamento)) {
+            const updated = { ...concluidos, [ag.bloco]: [...aptosBloco, ag.apartamento].sort((a, b) => Number(a) - Number(b)) };
+            await salvarConcluidos(updated);
+          }
+        } else {
+          // Remove apartment from concluidos
+          const idx = aptosBloco.indexOf(ag.apartamento);
+          if (idx !== -1) {
+            const updated = { ...concluidos, [ag.bloco]: aptosBloco.filter(a => a !== ag.apartamento) };
+            await salvarConcluidos(updated);
+          }
+        }
       }
     } catch {
       // rollback
