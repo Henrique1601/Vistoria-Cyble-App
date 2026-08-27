@@ -24,9 +24,9 @@ export default function PinGate({ onOk }: { onOk: (pin: string, role: string) =>
       if (data.ok) {
         // Cache validated PIN for offline access
         try {
-          const cached = JSON.parse(sessionStorage.getItem('vistoria_validated_pins') || '{}');
+          const cached = JSON.parse(localStorage.getItem('vistoria_validated_pins') || '{}');
           cached[pin] = data.role;
-          sessionStorage.setItem('vistoria_validated_pins', JSON.stringify(cached));
+          localStorage.setItem('vistoria_validated_pins', JSON.stringify(cached));
         } catch { /* ignore */ }
         onOk(pin, data.role);
       } else {
@@ -35,7 +35,7 @@ export default function PinGate({ onOk }: { onOk: (pin: string, role: string) =>
     } catch {
       // Offline: check against cached validated PINs
       try {
-        const cached = JSON.parse(sessionStorage.getItem('vistoria_validated_pins') || '{}');
+        const cached = JSON.parse(localStorage.getItem('vistoria_validated_pins') || '{}');
         if (cached[pin]) {
           onOk(pin, cached[pin]);
           return;
