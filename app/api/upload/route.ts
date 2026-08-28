@@ -10,7 +10,7 @@ const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 
 // --- Token refresh ---
 async function refreshAccessToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string; expires_in: number } | null> {
-  const clientId = process.env.ONEDRIVE_CLIENT_ID;
+  const clientId = 'f7c1e25d-b9d2-44be-8832-0760e948c399';
   const clientSecret = process.env.ONEDRIVE_CLIENT_SECRET;
 
   if (!clientId || !refreshToken) return null;

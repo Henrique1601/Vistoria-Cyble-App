@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/?onedrive_error=no_code', req.url));
   }
 
-  const clientId = process.env.ONEDRIVE_CLIENT_ID || process.env.NEXT_PUBLIC_ONEDRIVE_CLIENT_ID || 'f7c1e25d-b9d2-44be-8832-0760e948c399';
+  const clientId = 'f7c1e25d-b9d2-44be-8832-0760e948c399';
   const clientSecret = process.env.ONEDRIVE_CLIENT_SECRET;
 
   if (!clientId) {

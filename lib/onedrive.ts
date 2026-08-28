@@ -3,7 +3,7 @@
  * Handles OAuth2 flow, token management, and file uploads.
  */
 
-const ONEDRIVE_CLIENT_ID = process.env.NEXT_PUBLIC_ONEDRIVE_CLIENT_ID || 'f7c1e25d-b9d2-44be-8832-0760e948c399';
+const ONEDRIVE_CLIENT_ID = 'f7c1e25d-b9d2-44be-8832-0760e948c399';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const SCOPES = 'Files.ReadWrite offline_access';
 const REDIRECT_URI = typeof window !== 'undefined' ? `${window.location.origin}/api/onedrive-callback` : '';
