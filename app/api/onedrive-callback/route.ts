@@ -51,7 +51,11 @@ export async function GET(req: NextRequest) {
     if (!tokenResp.ok) {
       const err = await tokenResp.text();
       console.error('Token exchange failed:', tokenResp.status, err);
-      return NextResponse.redirect(new URL(`/?onedrive_error=token_${tokenResp.status}`, req.url));
+      // Pass error details to client for debugging
+      const appUrl = new URL('/', req.url);
+      appUrl.searchParams.set('onedrive_error', `token_${tokenResp.status}`);
+      appUrl.searchParams.set('detail', err.substring(0, 200));
+      return NextResponse.redirect(appUrl);
     }
 
     const tokens = await tokenResp.json();
