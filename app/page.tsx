@@ -289,8 +289,17 @@ export default function Home() {
         setVersaoNova(event.data.latestVersion);
         if (event.data.hasUpdate) {
           navigator.serviceWorker?.controller?.postMessage('skipWaiting');
-          // Soft refresh: just notify, don't reload
           setUpdateDisponivel(true);
+          toast('Nova versao disponivel!', 'info', {
+            duration: 0,
+            undoLabel: 'Atualizar',
+            onUndo: () => {
+              setUpdateDisponivel(false);
+              navigator.serviceWorker?.controller?.postMessage('skipWaiting');
+              window.dispatchEvent(new Event('sw-updated'));
+              window.location.reload();
+            },
+          });
         }
       }
       if (event.data?.type === 'syncTriggered') {
@@ -317,7 +326,7 @@ export default function Home() {
       navigator.serviceWorker.removeEventListener('message', handler);
       window.removeEventListener('sw-updated', handleSwUpdated);
     };
-  }, [pin]);
+  }, [pin, toast]);
 
   useEffect(() => {
     if (pin) {
