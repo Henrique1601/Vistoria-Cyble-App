@@ -151,6 +151,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
   const [showImportFotos, setShowImportFotos] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [gdriveConnected, setGdriveConnected] = useState(false);
+  const [onedriveConnected, setOnedriveConnected] = useState(false);
   const [gdriveLoading, setGdriveLoading] = useState(false);
   const [fotosPendentes, setFotosPendentes] = useState(0);
 
@@ -159,6 +160,10 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
     checarEspacoStorage().then(setEspaco);
     import('@/lib/db').then(({ fotosPendentes: count }) => {
       count().then((fotos) => setFotosPendentes(fotos.length));
+    });
+    // Check OneDrive connection status
+    import('@/lib/onedrive').then(({ isConnected }) => {
+      setOnedriveConnected(isConnected());
     });
   }, []);
 
@@ -853,6 +858,35 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                   >
                     <Folder size={16} weight="bold" />
                     {gdriveLoading ? 'Listando...' : 'Listar backups no Drive'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* OneDrive */}
+            <div className="px-4 py-2">
+              <p className="text-xs text-content-tertiary font-medium uppercase tracking-wider">OneDrive</p>
+            </div>
+            <div className="px-4 py-3.5">
+              {!onedriveConnected ? (
+                <button
+                  onClick={() => import('@/lib/onedrive').then(m => m.startAuthFlow())}
+                  className="tactile-press w-full flex items-center justify-center gap-2 bg-[#0078d4]/10 border border-[#0078d4]/30 rounded-xl px-4 py-3 text-sm font-medium text-[#0078d4] hover:bg-[#0078d4]/20 transition-all"
+                >
+                  <Cloud size={16} weight="bold" />
+                  Conectar ao OneDrive
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/30 rounded-xl">
+                    <div className="w-2 h-2 rounded-full bg-success" />
+                    <span className="text-xs font-medium text-success">Conectado ao OneDrive</span>
+                  </div>
+                  <button
+                    onClick={() => { import('@/lib/onedrive').then(m => m.disconnect()); setOnedriveConnected(false); toast('OneDrive desconectado', 'info'); }}
+                    className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-danger/30 transition-all"
+                  >
+                    Desconectar OneDrive
                   </button>
                 </div>
               )}

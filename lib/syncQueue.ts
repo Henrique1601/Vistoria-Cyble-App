@@ -139,6 +139,16 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
   form.append('categoria', item.foto.categoria);
   form.append('timestamp', String(item.foto.timestamp));
 
+  // Include OneDrive tokens if available
+  try {
+    const { getStoredTokens } = await import('@/lib/onedrive');
+    const tokens = getStoredTokens();
+    if (tokens) {
+      form.append('access_token', tokens.access_token);
+      form.append('refresh_token', tokens.refresh_token);
+    }
+  } catch { /* OneDrive not connected */ }
+
   const resp = await fetch('/api/upload', {
     method: 'POST',
     headers: { 'x-app-pin': pin },
@@ -148,6 +158,16 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
 
   if (resp.ok) {
     const data = await resp.json();
+    // Update stored tokens if the server refreshed them
+    if (data.refreshed_token) {
+      try {
+        const { getStoredTokens, storeTokens } = await import('@/lib/onedrive');
+        const tokens = getStoredTokens();
+        if (tokens) {
+          storeTokens({ ...tokens, access_token: data.refreshed_token });
+        }
+      } catch { /* ignore */ }
+    }
     if (item.foto.id != null) {
       await marcarSincronizada(item.foto.id, data.url);
     }

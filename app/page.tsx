@@ -224,6 +224,25 @@ export default function Home() {
     import('@/lib/syncQueue').then(({ startOfflineAutoRetry }) => {
       startOfflineAutoRetry(() => sessionStorage.getItem('vistoria_pin'));
     });
+
+    // Handle OneDrive OAuth callback (tokens in URL hash)
+    if (window.location.hash.includes('onedrive_token=')) {
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const tokenData = JSON.parse(hashParams.get('onedrive_token') || '{}');
+        if (tokenData.access_token) {
+          import('@/lib/onedrive').then(({ storeTokens }) => {
+            storeTokens({
+              access_token: tokenData.access_token,
+              refresh_token: tokenData.refresh_token,
+              expires_at: Date.now() + tokenData.expires_in * 1000,
+            });
+          });
+          // Clean hash from URL
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      } catch { /* ignore */ }
+    }
   }, []);
 
   const lastActivityRef = useRef(Date.now());

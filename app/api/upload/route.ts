@@ -1,4 +1,3 @@
-import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES } from '@/lib/sql';
 import { requireAdmin } from '@/lib/auth';
@@ -6,6 +5,63 @@ import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
 import { validateBloco, validateApartamento, validateCategoria, isValidationError } from '@/lib/validation';
 
 export const runtime = 'nodejs';
+
+const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
+
+// --- Token refresh ---
+async function refreshAccessToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string; expires_in: number } | null> {
+  const clientId = process.env.ONEDRIVE_CLIENT_ID;
+  const clientSecret = process.env.ONEDRIVE_CLIENT_SECRET;
+
+  if (!clientId || !refreshToken) return null;
+
+  try {
+    const resp = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        ...(clientSecret ? { client_secret: clientSecret } : {}),
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        scope: 'Files.ReadWrite offline_access',
+      }),
+    });
+
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch {
+    return null;
+  }
+}
+
+// --- Upload to OneDrive ---
+async function uploadToOneDrive(
+  accessToken: string,
+  filePath: string,
+  fileBuffer: ArrayBuffer,
+  contentType: string,
+): Promise<{ url: string; id: string }> {
+  const encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
+  const uploadUrl = `${GRAPH_BASE}/me/drive/root:/${encodedPath}:/content`;
+
+  const resp = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': contentType,
+    },
+    body: fileBuffer,
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`OneDrive upload failed: ${resp.status} ${err}`);
+  }
+
+  const data = await resp.json();
+  return { url: data.webUrl || '', id: data.id || '' };
+}
 
 export async function POST(req: NextRequest) {
   // Rate limit
@@ -29,9 +85,15 @@ export async function POST(req: NextRequest) {
   const apartamentoRaw = form.get('apartamento') as string;
   const categoriaRaw = form.get('categoria') as string;
   const timestamp = form.get('timestamp') as string;
+  const accessToken = form.get('access_token') as string;
+  const refreshToken = form.get('refresh_token') as string;
 
   if (!file || !blocoRaw || !apartamentoRaw || !categoriaRaw) {
     return NextResponse.json({ erro: 'campos faltando' }, { status: 400 });
+  }
+
+  if (!accessToken) {
+    return NextResponse.json({ erro: 'OneDrive não conectado. Conecte em Configurações.' }, { status: 401 });
   }
 
   // Validate inputs
@@ -57,30 +119,54 @@ export async function POST(req: NextRequest) {
   }
 
   const ext = file.type === 'image/png' ? 'png' : 'jpg';
-  const path = `vistorias/bloco-${bloco}/apto-${apartamento}/${categoria}-${timestamp}.${ext}`;
+  const filePath = `Vistoria Cyble/bloco-${bloco}/apto-${apartamento}/${categoria}-${timestamp}.${ext}`;
 
-  const blob = await put(path, file, {
-    access: 'public',
-    addRandomSuffix: false,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
+  // Try upload with current token, refresh if 401
+  let currentToken = accessToken;
+  let uploadResult: { url: string; id: string };
 
+  try {
+    const buffer = await file.arrayBuffer();
+    uploadResult = await uploadToOneDrive(currentToken, filePath, buffer, file.type || 'image/jpeg');
+  } catch (err: unknown) {
+    // If 401, try refreshing the token
+    const errMsg = err instanceof Error ? err.message : '';
+    if (errMsg.includes('401') && refreshToken) {
+      const refreshed = await refreshAccessToken(refreshToken);
+      if (refreshed) {
+        currentToken = refreshed.access_token;
+        const buffer = await file.arrayBuffer();
+        uploadResult = await uploadToOneDrive(currentToken, filePath, buffer, file.type || 'image/jpeg');
+      } else {
+        return NextResponse.json({ erro: 'Token OneDrive expirado. Reconecte em Configurações.' }, { status: 401 });
+      }
+    } else {
+      throw err;
+    }
+  }
+
+  // Save metadata to Neon
   if (process.env.DATABASE_URL) {
     try {
       const sql = getSql();
       const dataLeitura = new Date(Number(timestamp)).toISOString().split('T')[0];
-      // Idempotent: check if photo already exists before inserting
       const existing = await sql`SELECT id FROM fotos 
                                   WHERE bloco = ${bloco} AND apartamento = ${apartamento} 
                                   AND data_leitura = ${dataLeitura}`;
       if (existing.length === 0) {
         await sql`INSERT INTO fotos (bloco, apartamento, data_leitura, foto_url, foto_index)
-                   VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${blob.url}, 0)`;
+                   VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${uploadResult.url}, 0)`;
       }
     } catch (err) {
-      console.warn('Failed to save photo metadata to DB (photo still saved to Blob):', err);
+      console.warn('Failed to save photo metadata to DB (photo still saved to OneDrive):', err);
     }
   }
 
-  return NextResponse.json({ url: blob.url, path });
+  // Return new tokens if refreshed
+  const response: Record<string, string> = { url: uploadResult.url, path: filePath };
+  if (currentToken !== accessToken) {
+    response.refreshed_token = currentToken;
+  }
+
+  return NextResponse.json(response);
 }
