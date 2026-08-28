@@ -1,5 +1,19 @@
 # Changelog — Vistoria Cyble
 
+## v3.7.0 (28/08/2026)
+
+### Modularização Arquitetural de `app/page.tsx`
+- **`hooks/useVistoriaState.ts`** — Hook centralizador do estado do IndexedDB, status dos apartamentos, fotos online e mapas O(1)
+- **`hooks/useApartamentosFilter.ts`** — Hook para gerenciamento de filtros, ordenação, busca e paginação de torres
+- **`hooks/useAppLifecycle.ts`** — Hook para timeout de inatividade, auto-backup, checagem de versão e alertas de storage
+- **`components/views/ApartamentosView.tsx`** — View dedicada de listagem de apartamentos com rolagem virtualizada
+- **`components/views/ExportarView.tsx`** — View isolada de exportação multiformato e relatórios
+- **`components/Dashboard.tsx`** — Painel Hero isolado de métricas e filtros por período
+- **`components/SyncBanner.tsx`** — Banner flutuante de sincronização/offline
+- **`components/EstatisticasPeriodo.tsx` & `components/EstatisticasPorTorre.tsx`** — Componentes visuais de estatísticas
+- **`app/page.tsx`** — Redução de ~2.412 linhas para 647 linhas limpas focadas em roteamento e modais
+- **Performance:** Redução do bundle First Load JS em ~8 kB
+
 ## v3.6.0 (25/08/2026)
 
 ### Sincronização Unificada
