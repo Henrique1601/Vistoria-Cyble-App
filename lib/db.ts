@@ -478,7 +478,9 @@ export async function comprimirImagemLocal(
 }
 
 export async function comprimirImagem(file: File): Promise<Blob> {
-  return comprimirImagemComWorker(file, comprimirImagemLocal);
+  // TEMP: compressão desabilitada para teste de qualidade
+  return new Blob([await file.arrayBuffer()], { type: 'image/jpeg' });
+  // return comprimirImagemComWorker(file, comprimirImagemLocal);
 }
 
 // --- Marca d'agua (aplicada no save final) ---
