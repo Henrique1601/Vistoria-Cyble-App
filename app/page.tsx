@@ -278,17 +278,21 @@ export default function Home() {
     };
   }, [pin]);
 
-  // Checar atualização via service worker
+  // Checar atualização — fetch direto (sem SW message)
   useEffect(() => {
     if (!pin) return;
-    if (!('serviceWorker' in navigator)) return;
 
-    const handler = (event: MessageEvent) => {
-      if (event.data?.type === 'versionCheck') {
-        setVersaoAtual(event.data.currentVersion);
-        setVersaoNova(event.data.latestVersion);
-        if (event.data.hasUpdate) {
-          navigator.serviceWorker?.controller?.postMessage('skipWaiting');
+    let mounted = true;
+    const verAplicada = APP_VERSION;
+
+    async function checarVersao() {
+      try {
+        const resp = await fetch('/api/version', { cache: 'no-store' });
+        const data = await resp.json();
+        if (!mounted) return;
+        setVersaoAtual(verAplicada);
+        setVersaoNova(data.version);
+        if (data.version !== verAplicada) {
           setUpdateDisponivel(true);
           toast('Nova versao disponivel!', 'info', {
             duration: 0,
@@ -296,37 +300,31 @@ export default function Home() {
             onUndo: () => {
               setUpdateDisponivel(false);
               navigator.serviceWorker?.controller?.postMessage('skipWaiting');
-              window.dispatchEvent(new Event('sw-updated'));
               window.location.reload();
             },
           });
         }
-      }
+      } catch { /* offline or error — ignore */ }
+    }
+
+    // Checa imediatamente ao entrar
+    checarVersao();
+    // E a cada 60s em background
+    const interval = setInterval(checarVersao, 60000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [pin, toast]);
+
+  // Sync trigger from SW
+  useEffect(() => {
+    if (!pin || !('serviceWorker' in navigator)) return;
+    const handler = (event: MessageEvent) => {
       if (event.data?.type === 'syncTriggered') {
         tentarSincronizar();
       }
     };
-
     navigator.serviceWorker.addEventListener('message', handler);
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
-      reg.update();
-      reg.active?.postMessage('checkVersion');
-    }).catch(() => {});
-
-    // Soft refresh handler: re-fetch data without full page reload
-    const handleSwUpdated = () => {
-      // Reload status, pendentes, and other data
-      if (pin) {
-        carregarListaApartamentos().then((l) => setLista(Object.keys(l).length ? l : null));
-      }
-    };
-    window.addEventListener('sw-updated', handleSwUpdated);
-
-    return () => {
-      navigator.serviceWorker.removeEventListener('message', handler);
-      window.removeEventListener('sw-updated', handleSwUpdated);
-    };
-  }, [pin, toast]);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, [pin]);
 
   useEffect(() => {
     if (pin) {
