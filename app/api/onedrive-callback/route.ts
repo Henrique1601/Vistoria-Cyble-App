@@ -22,34 +22,36 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/?onedrive_error=no_code', req.url));
   }
 
-  const clientId = process.env.ONEDRIVE_CLIENT_ID;
+  const clientId = process.env.ONEDRIVE_CLIENT_ID || process.env.NEXT_PUBLIC_ONEDRIVE_CLIENT_ID || 'f7c1e25d-b9d2-44be-8832-0760e948c399';
   const clientSecret = process.env.ONEDRIVE_CLIENT_SECRET;
 
   if (!clientId) {
+    console.error('ONEDRIVE_CLIENT_ID not found in env');
     return NextResponse.redirect(new URL('/?onedrive_error=no_client_id', req.url));
   }
 
   try {
     const redirectUri = `${new URL(req.url).origin}/api/onedrive-callback`;
 
+    const params = new URLSearchParams();
+    params.append('client_id', clientId);
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);
+    params.append('redirect_uri', redirectUri);
+    params.append('scope', 'Files.ReadWrite offline_access');
+    if (clientSecret) params.append('client_secret', clientSecret);
+
     // Exchange auth code for tokens
     const tokenResp = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        ...(clientSecret ? { client_secret: clientSecret } : {}),
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: redirectUri,
-        scope: 'Files.ReadWrite offline_access',
-      }),
+      body: params.toString(),
     });
 
     if (!tokenResp.ok) {
       const err = await tokenResp.text();
-      console.error('Token exchange failed:', err);
-      return NextResponse.redirect(new URL('/?onedrive_error=token_exchange_failed', req.url));
+      console.error('Token exchange failed:', tokenResp.status, err);
+      return NextResponse.redirect(new URL(`/?onedrive_error=token_${tokenResp.status}`, req.url));
     }
 
     const tokens = await tokenResp.json();
