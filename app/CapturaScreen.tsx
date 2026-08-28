@@ -406,9 +406,7 @@ export default function CapturaScreen({
       }
 
       // TEMP: editor desabilitado — salvar direto
-      await handleEditorSalvar(comprimido);
-      // setEditingPhoto({ blob: comprimido, categoria });
-      // toast('Foto capturada! Revise e salve.', 'info');
+      await salvarDireto(comprimido, categoria);
     } catch (err) {
       console.warn('Erro ao processar foto:', err);
       const msg = err instanceof Error ? err.message : '';
@@ -441,16 +439,52 @@ export default function CapturaScreen({
         timeoutPromise,
       ]);
       // TEMP: editor desabilitado — salvar direto
-      await handleEditorSalvar(comprimido);
-      // setEditingPhoto({ blob: comprimido, categoria });
-      // toast('Foto capturada! Revise e salve.', 'info');
+      await salvarDireto(comprimido, categoria);
     } catch (err) {
       console.warn('Erro ao processar foto (override):', err);
       toast('Foto com problema de processamento. Verifique o tamanho e tente de novo.', 'error');
       haptic('error');
-    } finally {
       setProcessingPhoto(false);
       const input = inputsRef.current[categoria];
+      if (input) input.value = '';
+    }
+  }
+
+  // TEMP: salvar direto sem editor
+  async function salvarDireto(blob: Blob, categoria: Categoria) {
+    const cat = categoria;
+    try {
+      const { aplicarMarcaDagua } = await import('@/lib/db');
+      const watermarkLabel = WATERMARK_LABELS[cat] || cat;
+      const finalBlob = await aplicarMarcaDagua(blob, watermarkLabel, bloco, apartamento);
+      const gpsPromise = getGPS();
+      await salvarFoto({
+        bloco, apartamento, categoria: cat, blob: finalBlob, timestamp: Date.now(), synced: false,
+      });
+      const gps = await gpsPromise;
+      if (gps) {
+        try {
+          const { atualizarGpsFoto } = await import('@/lib/db');
+          await atualizarGpsFoto(bloco, apartamento, cat, gps);
+        } catch { /* silent */ }
+      }
+      haptic('success');
+      playScanFeedback('photo_captured');
+      toast('Foto salva com sucesso!', 'success');
+      await recarregar();
+      onFotoSalva();
+      const isMulti = CATEGORIAS.find((c) => c.key === cat)?.multi ?? false;
+      if (keepInCamera && isMulti) {
+        setTimeout(() => { inputsRef.current[cat]?.click(); }, 300);
+      }
+    } catch (err) {
+      console.warn('Erro ao salvar foto:', err);
+      toast('Foto nao foi salva. Verifique o armazenamento do celular e tente de novo.', 'error');
+      haptic('error');
+    } finally {
+      processingRef.current = false;
+      setProcessingPhoto(false);
+      const input = inputsRef.current[cat];
       if (input) input.value = '';
     }
   }
