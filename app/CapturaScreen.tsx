@@ -405,8 +405,10 @@ export default function CapturaScreen({
         return;
       }
 
-      setEditingPhoto({ blob: comprimido, categoria });
-      toast('Foto capturada! Revise e salve.', 'info');
+      // TEMP: editor desabilitado — salvar direto
+      await handleEditorSalvar(comprimido);
+      // setEditingPhoto({ blob: comprimido, categoria });
+      // toast('Foto capturada! Revise e salve.', 'info');
     } catch (err) {
       console.warn('Erro ao processar foto:', err);
       const msg = err instanceof Error ? err.message : '';
@@ -438,8 +440,10 @@ export default function CapturaScreen({
         comprimirImagem(file),
         timeoutPromise,
       ]);
-      setEditingPhoto({ blob: comprimido, categoria });
-      toast('Foto capturada! Revise e salve.', 'info');
+      // TEMP: editor desabilitado — salvar direto
+      await handleEditorSalvar(comprimido);
+      // setEditingPhoto({ blob: comprimido, categoria });
+      // toast('Foto capturada! Revise e salve.', 'info');
     } catch (err) {
       console.warn('Erro ao processar foto (override):', err);
       toast('Foto com problema de processamento. Verifique o tamanho e tente de novo.', 'error');
@@ -935,6 +939,7 @@ export default function CapturaScreen({
         </AnimatePresence>
       </div>
 
+      {/* TEMP: editor desabilitado para teste
       <AnimatePresence>
         {editingPhoto && (
           <PhotoEditor
@@ -944,6 +949,7 @@ export default function CapturaScreen({
           />
         )}
       </AnimatePresence>
+      */}
 
       {/* Lightbox de visualizacao da foto */}
       <AnimatePresence>
