@@ -132,22 +132,46 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
     return false;
   }
 
+  // Checar configurações de armazenamento
+  const { getSalvarEm, getProvedorNuvem } = await import('@/lib/settings');
+  const salvarEm = getSalvarEm();
+  const provedorNuvem = getProvedorNuvem();
+
+  // Se o upload na nuvem estiver desativado ou configurado apenas para dispositivo, conclui localmente
+  if (salvarEm === 'dispositivo' || provedorNuvem === 'desativado') {
+    if (item.foto.id != null) {
+      await marcarSincronizada(item.foto.id, 'local');
+    }
+    await registrarSync({
+      timestamp: Date.now(),
+      bloco: item.foto.bloco,
+      apartamento: item.foto.apartamento,
+      categoria: item.foto.categoria,
+      url: 'local',
+      ok: true,
+    });
+    return true;
+  }
+
   const form = new FormData();
   form.append('file', item.foto.blob, `${item.foto.categoria}.jpg`);
   form.append('bloco', item.foto.bloco);
   form.append('apartamento', item.foto.apartamento);
   form.append('categoria', item.foto.categoria);
   form.append('timestamp', String(item.foto.timestamp));
+  form.append('provedor_nuvem', provedorNuvem);
 
-  // Include OneDrive tokens if available
-  try {
-    const { getStoredTokens } = await import('@/lib/onedrive');
-    const tokens = getStoredTokens();
-    if (tokens) {
-      form.append('access_token', tokens.access_token);
-      form.append('refresh_token', tokens.refresh_token);
-    }
-  } catch { /* OneDrive not connected */ }
+  // Incluir tokens do OneDrive se necessário
+  if (provedorNuvem === 'onedrive' || provedorNuvem === 'ambos') {
+    try {
+      const { getStoredTokens } = await import('@/lib/onedrive');
+      const tokens = getStoredTokens();
+      if (tokens) {
+        form.append('access_token', tokens.access_token);
+        form.append('refresh_token', tokens.refresh_token);
+      }
+    } catch { /* OneDrive não conectado */ }
+  }
 
   const resp = await fetch('/api/upload', {
     method: 'POST',

@@ -42,6 +42,9 @@ import {
   setBackupIntervalo,
   getSalvarEm,
   setSalvarEm,
+  getProvedorNuvem,
+  setProvedorNuvem,
+  type ProvedorNuvem,
 } from '@/lib/settings';
 import {
   backupDados,
@@ -133,6 +136,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
   const isAdmin = pin === '4821';
   const [qualidade, setQualidade] = useState(getQualidadeFoto);
   const [salvarEm, setSalvarEmState] = useState(getSalvarEm);
+  const [provedorNuvem, setProvedorNuvemState] = useState<ProvedorNuvem>(getProvedorNuvem);
   const [scanDefault, setScanDefault] = useState(getScanMode);
   const [dias, setDias] = useState(getDiasAlerta);
   const [itens, setItens] = useState(getItensPagina);
@@ -246,6 +250,20 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
     setSalvarEm(val);
     const labels = { nuvem: 'Somente nuvem', dispositivo: 'Somente dispositivo', ambos: 'Nuvem + Dispositivo' };
     toast(`Salvar fotos: ${labels[val]}`, 'success');
+  }
+
+  function handleProvedorNuvem(v: string) {
+    const val = v as ProvedorNuvem;
+    haptic('light');
+    setProvedorNuvemState(val);
+    setProvedorNuvem(val);
+    const labels: Record<ProvedorNuvem, string> = {
+      ambos: 'Vercel Blob + OneDrive',
+      blob: 'Somente Vercel Blob',
+      onedrive: 'Somente OneDrive',
+      desativado: 'Upload na nuvem desativado',
+    };
+    toast(`Destino da nuvem: ${labels[val]}`, 'success');
   }
 
   function handleDiasAlerta(d: string) {
@@ -676,6 +694,20 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                 ]}
               />
             </SettingRow>
+            {salvarEm !== 'dispositivo' && (
+              <SettingRow label="Destino da nuvem" description="Onde armazenar as fotos online">
+                <ToggleGroup
+                  value={provedorNuvem}
+                  onChange={handleProvedorNuvem}
+                  options={[
+                    { label: 'Ambos', value: 'ambos' },
+                    { label: 'Blob', value: 'blob' },
+                    { label: 'OneDrive', value: 'onedrive' },
+                    { label: 'Off', value: 'desativado' },
+                  ]}
+                />
+              </SettingRow>
+            )}
             <SettingRow label="Modo escaneamento" description="Abrir camera automaticamente ao entrar no apto">
               <ToggleGroup
                 value={String(scanDefault)}
@@ -863,34 +895,85 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
               )}
             </div>
 
-            {/* OneDrive */}
+            {/* Provedores de Armazenamento na Nuvem */}
             <div className="px-4 py-2">
-              <p className="text-xs text-content-tertiary font-medium uppercase tracking-wider">OneDrive</p>
+              <p className="text-xs text-content-tertiary font-medium uppercase tracking-wider">Armazenamento das Fotos na Nuvem</p>
             </div>
-            <div className="px-4 py-3.5">
-              {!onedriveConnected ? (
-                <button
-                  onClick={() => import('@/lib/onedrive').then(m => m.startAuthFlow())}
-                  className="tactile-press w-full flex items-center justify-center gap-2 bg-[#0078d4]/10 border border-[#0078d4]/30 rounded-xl px-4 py-3 text-sm font-medium text-[#0078d4] hover:bg-[#0078d4]/20 transition-all"
-                >
-                  <Cloud size={16} weight="bold" />
-                  Conectar ao OneDrive
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/30 rounded-xl">
-                    <div className="w-2 h-2 rounded-full bg-success" />
-                    <span className="text-xs font-medium text-success">Conectado ao OneDrive</span>
+            <div className="px-4 py-2 space-y-2.5">
+              {provedorNuvem === 'ambos' && (
+                <div className="p-3 rounded-xl bg-accent/10 border border-accent/25 text-xs space-y-1">
+                  <div className="font-semibold text-accent flex items-center gap-1.5">
+                    <Cloud size={14} weight="bold" />
+                    Modo Híbrido: Vercel Blob + OneDrive
                   </div>
-                  <button
-                    onClick={() => { import('@/lib/onedrive').then(m => m.disconnect()); setOnedriveConnected(false); toast('OneDrive desconectado', 'info'); }}
-                    className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-danger/30 transition-all"
-                  >
-                    Desconectar OneDrive
-                  </button>
+                  <p className="text-content-secondary text-[11px] leading-relaxed">
+                    Fotos no <strong>Vercel Blob</strong> (galeria online e relatórios públicos) e no <strong>OneDrive</strong> (pastas corporativas).
+                  </p>
+                </div>
+              )}
+              {provedorNuvem === 'blob' && (
+                <div className="p-3 rounded-xl bg-base-overlay border border-base-border text-xs space-y-1">
+                  <div className="font-semibold text-content flex items-center gap-1.5">
+                    <Database size={14} weight="bold" />
+                    Somente Vercel Blob
+                  </div>
+                  <p className="text-content-secondary text-[11px] leading-relaxed">
+                    Fotos na CDN pública da Vercel para visualização rápida na Galeria Web e laudos.
+                  </p>
+                </div>
+              )}
+              {provedorNuvem === 'onedrive' && (
+                <div className="p-3 rounded-xl bg-[#0078d4]/10 border border-[#0078d4]/25 text-xs space-y-1">
+                  <div className="font-semibold text-[#0078d4] flex items-center gap-1.5">
+                    <Cloud size={14} weight="bold" />
+                    Somente Microsoft OneDrive
+                  </div>
+                  <p className="text-content-secondary text-[11px] leading-relaxed">
+                    Fotos arquivadas exclusivamente nas pastas da conta corporativa do OneDrive.
+                  </p>
+                </div>
+              )}
+              {provedorNuvem === 'desativado' && (
+                <div className="p-3 rounded-xl bg-warn-dim border border-warn/30 text-xs space-y-1">
+                  <div className="font-semibold text-warn flex items-center gap-1.5">
+                    <Warning size={14} weight="bold" />
+                    Upload na Nuvem Desativado
+                  </div>
+                  <p className="text-content-secondary text-[11px] leading-relaxed">
+                    Nenhuma foto será enviada para a internet. As fotos ficam exclusivamente no celular.
+                  </p>
                 </div>
               )}
             </div>
+
+            {/* Conexão OneDrive (quando ativo) */}
+            {(provedorNuvem === 'onedrive' || provedorNuvem === 'ambos') && (
+              <div className="px-4 py-3">
+                <p className="text-[11px] text-content-tertiary font-medium uppercase tracking-wider mb-2">Conta OneDrive</p>
+                {!onedriveConnected ? (
+                  <button
+                    onClick={() => import('@/lib/onedrive').then(m => m.startAuthFlow())}
+                    className="tactile-press w-full flex items-center justify-center gap-2 bg-[#0078d4]/10 border border-[#0078d4]/30 rounded-xl px-4 py-3 text-sm font-medium text-[#0078d4] hover:bg-[#0078d4]/20 transition-all"
+                  >
+                    <Cloud size={16} weight="bold" />
+                    Conectar ao OneDrive
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/30 rounded-xl">
+                      <div className="w-2 h-2 rounded-full bg-success" />
+                      <span className="text-xs font-medium text-success">Conectado ao OneDrive</span>
+                    </div>
+                    <button
+                      onClick={() => { import('@/lib/onedrive').then(m => m.disconnect()); setOnedriveConnected(false); toast('OneDrive desconectado', 'info'); }}
+                      className="tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-2.5 text-xs font-medium text-content-secondary hover:text-content hover:border-danger/30 transition-all"
+                    >
+                      Desconectar OneDrive
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Danger Zone — Admin only */}
             {isAdmin && (

@@ -1,5 +1,17 @@
 # Changelog — Vistoria Cyble
 
+## v3.7.2 (02/09/2026)
+
+### Storage Híbrido & Provedores de Nuvem Configuráveis
+- **`lib/settings.ts`** — Adicionado o tipo `ProvedorNuvem` (`'ambos' | 'blob' | 'onedrive' | 'desativado'`), valor default `'ambos'` e helpers `getProvedorNuvem()` / `setProvedorNuvem()`.
+- **`app/api/upload/route.ts`** — Suporte a múltiplos provedores de nuvem controlados pelo cliente via `provedor_nuvem`:
+  - **Ambos:** Gravação paralela no Vercel Blob (para visualização pública na Galeria Web e relatórios sem autenticação) e no Microsoft OneDrive (cópia corporativa em pastas organizadas).
+  - **Blob:** Upload exclusivo para o Vercel Blob via `BLOB_READ_WRITE_TOKEN`.
+  - **OneDrive:** Upload exclusivo para a conta corporativa Microsoft via Graph API.
+  - **Desativado:** Resposta imediata de sucesso local sem tráfego de rede na nuvem.
+- **`lib/syncQueue.ts`** — A fila de upload agora respeita tanto o modo `salvarEm` quanto o `provedorNuvem`. Se o upload na nuvem estiver desativado ou o usuário configurou apenas dispositivo, a foto é concluída localmente sem travar a sincronização.
+- **`app/configuracoes/ConfiguracoesClient.tsx`** — Nova opção de seleção rápida **"Destino da nuvem"** (`Ambos`, `Blob`, `OneDrive`, `Off`) e painel descritivo do status dos provedores, mantendo o controle independente de salvamento no dispositivo.
+
 ## v3.7.1 (02/09/2026)
 
 ### Integridade de Dados & Sincronização

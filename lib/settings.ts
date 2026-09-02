@@ -1,7 +1,10 @@
+export type ProvedorNuvem = 'ambos' | 'blob' | 'onedrive' | 'desativado';
+
 const DEFAULTS = {
   tema: 'auto' as 'dark' | 'light' | 'auto',
   qualidadeFoto: '90' as '50' | '75' | '90' | '100',
   salvarEm: 'ambos' as 'nuvem' | 'dispositivo' | 'ambos',
+  provedorNuvem: 'ambos' as ProvedorNuvem,
   scanMode: false,
   diasAlerta: 7,
   itensPagina: 20,
@@ -49,6 +52,14 @@ export function getSalvarEm() {
 
 export function setSalvarEm(v: 'nuvem' | 'dispositivo' | 'ambos') {
   set('salvar_em', v);
+}
+
+export function getProvedorNuvem() {
+  return get<ProvedorNuvem>('provedor_nuvem', DEFAULTS.provedorNuvem);
+}
+
+export function setProvedorNuvem(v: ProvedorNuvem) {
+  set('provedor_nuvem', v);
 }
 
 export function getScanMode() {

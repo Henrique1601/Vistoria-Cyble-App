@@ -1,7 +1,7 @@
 # AGENTS.md — Vistoria Cyble App
 
 > **Manual de Instruções, Governança, Arquitetura e Diretrizes para Agentes de IA**  
-> **Versão do App:** 3.7.1 | **Framework:** Next.js 14.2.35 (App Router) | **Linguagem:** TypeScript 5.5
+> **Versão do App:** 3.7.2 | **Framework:** Next.js 14.2.35 (App Router) | **Linguagem:** TypeScript 5.5
 
 ---
 
