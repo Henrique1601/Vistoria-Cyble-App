@@ -478,9 +478,7 @@ export async function comprimirImagemLocal(
 }
 
 export async function comprimirImagem(file: File): Promise<Blob> {
-  // TEMP: compressão desabilitada para teste de qualidade
-  return new Blob([await file.arrayBuffer()], { type: 'image/jpeg' });
-  // return comprimirImagemComWorker(file, comprimirImagemLocal);
+  return comprimirImagemComWorker(file, comprimirImagemLocal);
 }
 
 // --- Marca d'agua (aplicada no save final) ---
@@ -640,6 +638,9 @@ export async function backupDados(): Promise<Blob> {
   const syncLog = await db.getAll('syncLog');
   const blocos = await db.get('config', 'blocos');
   const concluidos = await db.get('config', 'concluidos');
+  const agendamentos = await db.getAll('agendamentos');
+  const notas = await db.getAll('notas');
+  const comentarios = await db.getAll('comentarios');
 
   // Process photos in batches to avoid OOM on large datasets
   const fotosSerializadas: { bloco: string; apartamento: string; categoria: string; timestamp: number; synced: boolean; uploadUrl?: string; nota?: string; gps?: { lat: number; lng: number }; blobBase64: string }[] = [];
@@ -663,13 +664,16 @@ export async function backupDados(): Promise<Blob> {
   }
 
   const dados = {
-    versao: 3,
+    versao: 4,
     tipo: 'completo',
     data: new Date().toISOString(),
     fotos: fotosSerializadas,
     syncLog,
     blocos,
     concluidos,
+    agendamentos,
+    notas,
+    comentarios,
   };
 
   return new Blob([JSON.stringify(dados)], { type: 'application/json' });
@@ -752,6 +756,9 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
     lista?: Record<string, string[]>;
     config?: Record<string, string[]>;
     concluidos?: Record<string, string[]>;
+    agendamentos?: Array<Record<string, unknown>>;
+    notas?: Array<Record<string, unknown>>;
+    comentarios?: Array<Record<string, unknown>>;
     fotos?: Array<Record<string, unknown> & { blobBase64?: string }>;
     syncLog?: Array<Record<string, unknown>>;
   };
@@ -787,13 +794,16 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
 
   // Only clear AFTER validation passes
   // Use a single transaction for clear + restore to prevent data loss on crash
-  const tx = db.transaction(['fotos', 'syncLog', 'config'], 'readwrite');
+  const tx = db.transaction(['fotos', 'syncLog', 'config', 'agendamentos', 'notas', 'comentarios'], 'readwrite');
   
   // Clear stores within the transaction
   await Promise.all([
     tx.objectStore('fotos').clear(),
     tx.objectStore('syncLog').clear(),
     tx.objectStore('config').clear(),
+    tx.objectStore('agendamentos').clear(),
+    tx.objectStore('notas').clear(),
+    tx.objectStore('comentarios').clear(),
   ]);
 
   if (backupData.blocos && typeof backupData.blocos === 'object' && !Array.isArray(backupData.blocos)) {
@@ -832,6 +842,30 @@ export async function restaurarDados(json: string): Promise<{ fotos: number; syn
     for (const entry of backupData.syncLog) {
       await logStore.add(entry as unknown as SyncLogEntry);
       syncCount++;
+    }
+  }
+
+  if (backupData.agendamentos && Array.isArray(backupData.agendamentos)) {
+    const agStore = tx.objectStore('agendamentos');
+    for (const ag of backupData.agendamentos) {
+      const { id: _id, ...rest } = ag;
+      await agStore.add(rest as unknown as Agendamento);
+    }
+  }
+
+  if (backupData.notas && Array.isArray(backupData.notas)) {
+    const notasStore = tx.objectStore('notas');
+    for (const n of backupData.notas) {
+      const { id: _id, ...rest } = n;
+      await notasStore.add(rest as unknown as NotaApto);
+    }
+  }
+
+  if (backupData.comentarios && Array.isArray(backupData.comentarios)) {
+    const comStore = tx.objectStore('comentarios');
+    for (const c of backupData.comentarios) {
+      const { id: _id, ...rest } = c;
+      await comStore.add(rest as unknown as ComentarioApto);
     }
   }
 

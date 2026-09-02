@@ -61,17 +61,19 @@ export async function POST(req: NextRequest) {
     }
 
     const sql = getSql();
-    await sql`DELETE FROM concluidos`;
 
     for (const [bloco, aptos] of Object.entries(data as Record<string, unknown>)) {
       const b = validateBloco(bloco);
       if (isValidationError(b)) continue; // skip invalid bloco keys
-      if (!Array.isArray(aptos) || aptos.length === 0) continue;
+      if (!Array.isArray(aptos)) continue;
       // Only keep valid string apartment IDs
       const validAptos = aptos.filter((a): a is string => typeof a === 'string' && /^\d{1,10}$/.test(a));
-      if (validAptos.length > 0) {
-        await sql`INSERT INTO concluidos (bloco, apartamentos) VALUES (${b}, ${validAptos}::text[])`;
-      }
+      await sql`
+        INSERT INTO concluidos (bloco, apartamentos)
+        VALUES (${b}, ${validAptos}::text[])
+        ON CONFLICT (bloco) DO UPDATE
+        SET apartamentos = EXCLUDED.apartamentos
+      `;
     }
 
     return NextResponse.json({ ok: true });

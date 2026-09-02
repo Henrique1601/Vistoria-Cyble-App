@@ -19,11 +19,12 @@ export function exportarCSV(status: ApartamentoStatus[]) {
     )
     .join('\n');
 
-  const total = status.filter((s) => s.qtdFotos > 0).length;
+  const total = status.length;
   const concluidos = status.filter((s) => statusApto(s) === 'Concluido').length;
-  const pendentes = total - concluidos;
+  const emAndamento = status.filter((s) => statusApto(s) === 'Em andamento').length;
+  const pendentes = total - concluidos - emAndamento;
 
-  const resumo = `\n\nResumo;;${concluidos} concluidos;${pendentes} pendentes;${total} total;;`;
+  const resumo = `\n\nResumo;;${concluidos} concluidos;${emAndamento} em andamento;${pendentes} pendentes;${total} total;`;
 
   const blob = new Blob(['\uFEFF' + header + rows + resumo], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

@@ -1,5 +1,28 @@
 # Changelog — Vistoria Cyble
 
+## v3.7.1 (02/09/2026)
+
+### Integridade de Dados & Sincronização
+- **`app/api/upload/route.ts`** — Corrigida inserção de metadados no Neon para suportar múltiplas fotos (`cyble_antes`, `cyble_depois`, `documento`) no mesmo dia sem descarte silencioso; cálculo dinâmico de `foto_index` (0, 1, 2) e verificação de duplicidade por `foto_url`.
+- **`app/api/concluidos/route.ts`** — Removido o destrutivo `DELETE FROM concluidos` global. Substituído por upsert atômico `INSERT ... ON CONFLICT (bloco) DO UPDATE SET apartamentos = EXCLUDED.apartamentos` prevenindo perda de dados em sincronização simultânea.
+- **`lib/db.ts`** — Incluídas as object stores `notas`, `comentarios` e `agendamentos` nas rotinas de `backupDados()` e `restaurarDados()` (versão 4 do payload), impedindo a perda definitiva de anotações e pautas locais.
+- **`app/api/status/route.ts`** — Conexão unificada via `getSql()` de `lib/sql.ts`; salvamento de conclusão direcionado para a tabela `concluidos` em vez de criar fotos sintéticas com URL `'concluido'`.
+
+### Relatórios & Exportações
+- **`lib/export/html.ts`** — Corrigida a compatibilidade de string de status (`Concluido` sem acento vs `Concluído` com acento). O relatório HTML agora exibe com precisão a contagem de concluídos, a barra de progresso percentual e os badges verdes.
+- **`lib/export/csv.ts`** — Corrigido o cálculo do resumo do CSV para evitar números negativos em `pendentes` e adicionar a coluna de apartamentos em andamento.
+- **`lib/export/zip.ts`** — Filtro de URLs não-HTTP para evitar erros com fotos sintéticas e inferência automática de categoria (`antes`, `depois`, `documento`).
+- **`app/galeria/GaleriaClient.tsx`** — Filtro client-side para descartar entradas não-HTTP na renderização da galeria.
+
+### Usabilidade, Câmera & Performance
+- **`lib/googleCalendar.ts`** — Corrigido cálculo de término de agendamento para duração padrão de 30 minutos (eliminando eventos com duração 0 min no Google Calendar e arquivos `.ics`).
+- **`components/ImportarFotosModal.tsx`** — Regex de pastas atualizada para tolerar sufixos e formatos de campo (`148F NINGUEM`, `202B VAZIO`, `Torre F 148`).
+- **`app/CapturaScreen.tsx`** — Adicionado download para galeria local em `salvarDireto()` quando `salvarEm` estiver configurado como `'dispositivo'` ou `'ambos'`.
+- **`lib/db.ts`** — Reativada a compressão com Web Worker (`comprimirImagemComWorker`).
+- **`hooks/useAppLifecycle.ts`** — Eliminado timer redundante de auto-backup concorrente.
+- **`app/page.tsx`** — Removido caractere `$` que vazava na interface ao lado do status de conexão.
+- **`components/ContextMenu.tsx` & `components/AptoCard.tsx`** — Ajustadas ordens e dependências de hooks (`useCallback`).
+
 ## v3.7.0 (28/08/2026)
 
 ### Modularização Arquitetural de `app/page.tsx`

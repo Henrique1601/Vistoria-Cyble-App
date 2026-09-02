@@ -33,12 +33,23 @@ export async function exportarZIP(
       (f) => normalizeBloco(f.bloco) === normalizeBloco(s.bloco) && normApto(f.apartamento) === s.apartamento
     );
     for (const f of onlineFotos) {
+      if (!f.foto_url || !f.foto_url.startsWith('http')) continue;
       try {
         const resp = await fetch(f.foto_url);
         if (!resp.ok) continue;
         const blob = await resp.blob();
         const ext = f.foto_url.includes('.png') ? 'png' : 'jpg';
-        const catLabel = f.foto_index === 0 ? 'cyble_antes' : f.foto_index === 1 ? 'cyble_depois' : 'documento';
+        const catLabel = f.foto_url.includes('antes')
+          ? 'cyble_antes'
+          : f.foto_url.includes('depois')
+          ? 'cyble_depois'
+          : f.foto_url.includes('doc')
+          ? 'documento'
+          : f.foto_index === 0
+          ? 'cyble_antes'
+          : f.foto_index === 1
+          ? 'cyble_depois'
+          : 'documento';
         zip.file(`${folderName}/${catLabel}_${f.foto_index + 1}.${ext}`, blob);
       } catch { /* skip */ }
     }

@@ -932,7 +932,7 @@ export default function Home() {
           {rtOnline && (
             <div className="ml-5 mt-2 flex items-center gap-1.5 text-[10px] text-content-tertiary">
               <span className={`w-1.5 h-1.5 rounded-full ${rtOnline ? 'bg-success' : 'bg-danger'}`} />
-              <span>{rtOnline ? 'Online' : 'Offline'}${rtLastUpdate ? ` · atualizado ${rtLastUpdate}` : ''}</span>
+              <span>{rtOnline ? 'Online' : 'Offline'}{rtLastUpdate ? ` · atualizado ${rtLastUpdate}` : ''}</span>
             </div>
           )}
         </motion.div>

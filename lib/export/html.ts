@@ -12,13 +12,11 @@ function esc(s: string): string {
 }
 
 function statusBadge(s: string): string {
-  const colors: Record<string, string> = {
-    'Concluído': '#22c55e',
-    'Em andamento': '#f59e0b',
-    'Pendente': '#6b7280',
-  };
-  const c = colors[s] ?? '#6b7280';
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;color:#fff;background:${c}">${esc(s)}</span>`;
+  const isConcluido = s === 'Concluido' || s === 'Concluído';
+  const isAndamento = s === 'Em andamento';
+  const label = isConcluido ? 'Concluído' : isAndamento ? 'Em andamento' : 'Pendente';
+  const color = isConcluido ? '#22c55e' : isAndamento ? '#f59e0b' : '#6b7280';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;color:#fff;background:${color}">${label}</span>`;
 }
 
 function fotoThumb(url: string, label: string): string {
@@ -46,8 +44,13 @@ export function gerarRelatorioHTML(
     towers.set(s.bloco, arr);
   }
 
+  const isDone = (s: ApartamentoStatus) => {
+    const st = statusApto(s);
+    return st === 'Concluido' || st === 'Concluído';
+  };
+
   const totalAptos = filtered.length;
-  const concluidos = filtered.filter((s) => statusApto(s) === 'Concluído').length;
+  const concluidos = filtered.filter(isDone).length;
   const emAndamento = filtered.filter((s) => statusApto(s) === 'Em andamento').length;
   const pendentes = totalAptos - concluidos - emAndamento;
   const pct = totalAptos > 0 ? Math.round((concluidos / totalAptos) * 100) : 0;
@@ -116,7 +119,7 @@ export function gerarRelatorioHTML(
   const sortedTowers = Array.from(towers.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
   for (const [tower, apts] of sortedTowers) {
-    const tConcluidos = apts.filter((s) => statusApto(s) === 'Concluído').length;
+    const tConcluidos = apts.filter(isDone).length;
     const tTotal = apts.length;
     const tPct = tTotal > 0 ? Math.round((tConcluidos / tTotal) * 100) : 0;
 

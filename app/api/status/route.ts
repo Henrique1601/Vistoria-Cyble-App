@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { requireAnyPin, requireAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
+import { getSql } from '@/lib/sql';
 import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
 import { validateBloco, validateApartamento, isValidationError } from '@/lib/validation';
-
-function getSql() {
-  return neon(process.env.DATABASE_URL!);
-}
 
 /** Normalize "A" → "Torre A", "B" → "Torre B", etc. */
 function normalizeBlocoName(raw: string): string {
@@ -28,10 +24,14 @@ export async function GET(req: NextRequest) {
   const pin = req.headers.get('x-app-pin') || req.nextUrl.searchParams.get('pin') || '';
   if (!pin) return NextResponse.json({ status: {}, lastUpdate: Date.now() });
 
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ status: {}, lastUpdate: Date.now() });
+  }
+
   try {
     const sql = getSql();
     const all = await sql`
-      SELECT DISTINCT bloco, apartamento, foto_url FROM fotos ORDER BY bloco, apartamento
+      SELECT DISTINCT bloco, apartamento, foto_url FROM fotos WHERE foto_url != 'concluido' ORDER BY bloco, apartamento
     `;
 
     const aptoCats: Record<string, Set<string>> = {};
@@ -50,7 +50,6 @@ export async function GET(req: NextRequest) {
       const bloco = normalizeBlocoName(rawBloco);
       if (!towerStats[bloco]) towerStats[bloco] = { total: 0, concluidos: 0, emAndamento: 0, pendentes: 0 };
       towerStats[bloco].total++;
-      // Concluído = tem cyble_antes, cyble_depois E documento
       if (cats.has('cyble_antes') && cats.has('cyble_depois') && cats.has('documento')) {
         towerStats[bloco].concluidos++;
       } else if (cats.size > 0) {
@@ -80,7 +79,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   // Rate limit
   const ip = getClientIp(req);
-  const rl = checkRateLimit(`status-post:${ip}`, RATE_LIMITS.auth);
+  const rl = checkRateLimit(`status-post:${ip}`, RATE_LIMITS.write);
   if (!rl.allowed) {
     return NextResponse.json({ ok: false, error: 'Muitas requisicoes' }, {
       status: 429,
@@ -88,21 +87,32 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Use timing-safe auth instead of plain === comparison
-  const auth = requireAnyPin(req);
+  // Admin only
+  const auth = requireAdmin(req);
   if (!auth.ok) return auth.error!;
+
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ ok: false, error: 'DATABASE_URL not configured' }, { status: 500 });
+  }
 
   try {
     const body = await req.json();
     const { bloco, apartamento, concluido } = body;
 
     if (concluido && bloco && apartamento) {
-      const sql = getSql();
-      await sql`
-        INSERT INTO fotos (bloco, apartamento, foto_url, foto_index, data_leitura)
-        VALUES (${bloco}, ${apartamento}, 'concluido', 0, CURRENT_DATE)
-        ON CONFLICT DO NOTHING
-      `;
+      const b = validateBloco(bloco);
+      const a = validateApartamento(apartamento);
+      if (!isValidationError(b) && !isValidationError(a)) {
+        const sql = getSql();
+        await sql`
+          INSERT INTO concluidos (bloco, apartamentos)
+          VALUES (${b}, ARRAY[${a}]::text[])
+          ON CONFLICT (bloco) DO UPDATE
+          SET apartamentos = ARRAY(
+            SELECT DISTINCT unnest(concluidos.apartamentos || EXCLUDED.apartamentos)
+          )
+        `;
+      }
     }
 
     return NextResponse.json({ ok: true, role: auth.role });
@@ -126,6 +136,10 @@ export async function DELETE(req: NextRequest) {
   const auth = requireAdmin(req);
   if (!auth.ok) return auth.error!;
 
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ ok: false, error: 'DATABASE_URL not configured' }, { status: 500 });
+  }
+
   try {
     const body = await req.json();
     const { bloco, apartamento } = body;
@@ -136,6 +150,13 @@ export async function DELETE(req: NextRequest) {
     if (isValidationError(a)) return NextResponse.json({ error: a.message }, { status: 400 });
 
     const sql = getSql();
+    // Remove o apartamento da tabela concluidos
+    await sql`
+      UPDATE concluidos
+      SET apartamentos = array_remove(apartamentos, ${a})
+      WHERE bloco = ${b}
+    `;
+
     // Deleta todas as fotos do apartamento para desmarcar como concluido
     const result = await sql`
       WITH deleted AS (

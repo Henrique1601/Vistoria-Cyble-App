@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   try {
     const sql = getSql();
     const fotos =
-      await sql`SELECT id, bloco, apartamento, data_leitura::text, foto_url, foto_index FROM fotos ORDER BY data_leitura DESC, bloco, apartamento, foto_index`;
+      await sql`SELECT id, bloco, apartamento, data_leitura::text, foto_url, foto_index FROM fotos WHERE foto_url != 'concluido' AND foto_url LIKE 'http%' ORDER BY data_leitura DESC, bloco, apartamento, foto_index`;
     return NextResponse.json({ fotos });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

@@ -81,7 +81,8 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
     authFetch('/api/fotos')
       .then((r) => r.json())
       .then((data) => {
-        setFotos(data.fotos || []);
+        const validFotos = (data.fotos || []).filter((f: Foto) => f.foto_url && f.foto_url.startsWith('http'));
+        setFotos(validFotos);
         setLoading(false);
       })
       .catch(() => setLoading(false));

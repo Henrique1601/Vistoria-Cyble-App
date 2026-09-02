@@ -38,11 +38,13 @@ const CATEGORIA_OPTIONS: { key: Categoria; label: string }[] = [
 ];
 
 function parseFolderName(name: string): { tower: string; apto: string } {
-  const match = name.match(/^(\d+)([A-H])$/i);
+  // Formatos tipo "148F", "148F NINGUEM", "148-F"
+  const match = name.match(/^(\d+)[-_\s]*([A-H])(?:\b|[_\s].*|$)/i);
   if (match) {
     return { apto: match[1], tower: match[2].toUpperCase() };
   }
-  const letterMatch = name.match(/^([A-H])(\d+)$/i);
+  // Formatos tipo "F148", "F-148", "Torre F 148"
+  const letterMatch = name.match(/^(?:Torre\s*)?([A-H])[-_\s]*(\d+)/i);
   if (letterMatch) {
     return { tower: letterMatch[1].toUpperCase(), apto: letterMatch[2] };
   }

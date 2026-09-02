@@ -22,6 +22,13 @@ export function useLongPress({ onLongPress, onClick, delay = 500 }: UseLongPress
     }, delay);
   }, [onLongPress, delay]);
 
+  const clear = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
   const move = useCallback((e: React.PointerEvent) => {
     if (startPosRef.current) {
       const dx = Math.abs(e.clientX - startPosRef.current.x);
@@ -30,14 +37,7 @@ export function useLongPress({ onLongPress, onClick, delay = 500 }: UseLongPress
         clear();
       }
     }
-  }, []);
-
-  const clear = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
+  }, [clear]);
 
   const end = useCallback((e: React.MouseEvent) => {
     clear();

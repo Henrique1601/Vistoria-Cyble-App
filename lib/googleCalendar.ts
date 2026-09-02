@@ -8,6 +8,34 @@ interface Agendamento {
   observacao: string | null;
 }
 
+function calcularDatas(data: string, hora?: string): { dataInicio: string; dataFim: string } {
+  const cleanData = data.replace(/-/g, '');
+  if (!hora) {
+    return {
+      dataInicio: `${cleanData}T090000`,
+      dataFim: `${cleanData}T100000`,
+    };
+  }
+
+  const [hStr, mStr] = hora.split(':');
+  const h = parseInt(hStr, 10) || 0;
+  const m = parseInt(mStr, 10) || 0;
+
+  // Duração padrão de 30 minutos para vistoria
+  let endM = m + 30;
+  let endH = h;
+  if (endM >= 60) {
+    endM -= 60;
+    endH = (endH + 1) % 24;
+  }
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dataInicio = `${cleanData}T${pad(h)}${pad(m)}00`;
+  const dataFim = `${cleanData}T${pad(endH)}${pad(endM)}00`;
+
+  return { dataInicio, dataFim };
+}
+
 /**
  * Gera URL do Google Calendar para adicionar um agendamento
  * https://calendar.google.com/calendar/render?action=TEMPLATE&...
@@ -18,13 +46,7 @@ export function gerarUrlGoogleCalendar(ag: Agendamento): string {
     ? `Observacao: ${ag.observacao}\n\nAgendado via Vistoria Cyble`
     : 'Agendado via Vistoria Cyble';
 
-  // Format dates for Google Calendar (YYYYMMDDTHHMMSS or YYYYMMDD)
-  const dataInicio = ag.hora
-    ? `${ag.data.replace(/-/g, '')}T${ag.hora.replace(':', '')}00`
-    : `${ag.data.replace(/-/g, '')}T090000`;
-  const dataFim = ag.hora
-    ? `${ag.data.replace(/-/g, '')}T${ag.hora.replace(':', '')}00`
-    : `${ag.data.replace(/-/g, '')}T100000`;
+  const { dataInicio, dataFim } = calcularDatas(ag.data, ag.hora);
 
   const params = new URLSearchParams({
     action: 'TEMPLATE',
@@ -59,12 +81,7 @@ export function gerarICS(agendamentos: Agendamento[]): string {
   ];
 
   for (const ag of agendamentos) {
-    const dataInicio = ag.hora
-      ? `${ag.data.replace(/-/g, '')}T${ag.hora.replace(':', '')}00`
-      : `${ag.data.replace(/-/g, '')}T090000`;
-    const dataFim = ag.hora
-      ? `${ag.data.replace(/-/g, '')}T${ag.hora.replace(':', '')}00`
-      : `${ag.data.replace(/-/g, '')}T100000`;
+    const { dataInicio, dataFim } = calcularDatas(ag.data, ag.hora);
 
     const titulo = `Vistoria ${ag.bloco} - Apto ${ag.apartamento}`;
     const detalhes = ag.observacao

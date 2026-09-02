@@ -172,7 +172,7 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     lastTouchEndRef.current = now;
     setSwipeX(0);
     setShowSwipeAction(null);
-  }, [swipeX, s.bloco, s.apartamento, onAbrir, dispatchAction]);
+  }, [swipeX, s.bloco, s.apartamento, onAbrir, dispatchAction, toast]);
 
   /** Handle click for PC (mouse) */
   const handleClick = useCallback((e: React.MouseEvent) => {

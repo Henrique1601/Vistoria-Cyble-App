@@ -149,13 +149,23 @@ export async function POST(req: NextRequest) {
   if (process.env.DATABASE_URL) {
     try {
       const sql = getSql();
-      const dataLeitura = new Date(Number(timestamp)).toISOString().split('T')[0];
+      const tsNum = Number(timestamp);
+      const dataLeitura = !isNaN(tsNum) && tsNum > 0
+        ? new Date(tsNum).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      const INDEX_MAP: Record<string, number> = {
+        cyble_antes: 0,
+        cyble_depois: 1,
+        documento: 2,
+      };
+      const fotoIndex = INDEX_MAP[categoria] ?? 0;
+
       const existing = await sql`SELECT id FROM fotos 
-                                  WHERE bloco = ${bloco} AND apartamento = ${apartamento} 
-                                  AND data_leitura = ${dataLeitura}`;
+                                  WHERE foto_url = ${uploadResult.url}`;
       if (existing.length === 0) {
         await sql`INSERT INTO fotos (bloco, apartamento, data_leitura, foto_url, foto_index)
-                   VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${uploadResult.url}, 0)`;
+                   VALUES (${bloco}, ${apartamento}, ${dataLeitura}, ${uploadResult.url}, ${fotoIndex})`;
       }
     } catch (err) {
       console.warn('Failed to save photo metadata to DB (photo still saved to OneDrive):', err);

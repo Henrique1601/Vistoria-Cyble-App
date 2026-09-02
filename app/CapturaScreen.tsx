@@ -461,6 +461,22 @@ export default function CapturaScreen({
       await salvarFoto({
         bloco, apartamento, categoria: cat, blob: finalBlob, timestamp: Date.now(), synced: false,
       });
+
+      // Auto-download to device if setting is 'dispositivo' or 'ambos'
+      const salvarEm = getSalvarEm();
+      if (salvarEm === 'dispositivo' || salvarEm === 'ambos') {
+        try {
+          const url = URL.createObjectURL(finalBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${bloco}_${apartamento}_${cat}_${Date.now()}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch { /* silent */ }
+      }
+
       const gps = await gpsPromise;
       if (gps) {
         try {

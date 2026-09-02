@@ -15,7 +15,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **Virtualização:** @tanstack/react-virtual (disponível)
 - **Fonts:** Geist (display + mono)
 - **Deploy:** Vercel (auto-deploy do GitHub)
-- **Versão atual:** 3.7.0
+- **Versão atual:** 3.7.1
 
 ## Sistema de PIN
 - **`ADMIN_PIN`** — Acesso total: editar, excluir fotos, selecionar múltiplas, agendar, configurar

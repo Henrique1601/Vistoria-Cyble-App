@@ -16,7 +16,6 @@ import {
 } from '@/lib/backup';
 import { getSalvarEm, getBackupIntervalo } from '@/lib/settings';
 import { logAudit } from '@/lib/auditLog';
-import { startAutoBackup, stopAutoBackup } from '@/lib/autoBackup';
 import { shouldShowTutorial } from '@/components/OnboardingTour';
 
 interface UseAppLifecycleProps {
@@ -216,13 +215,6 @@ export function useAppLifecycle({ pin, onLogout, onAutoSync }: UseAppLifecyclePr
     }
   }, [pin]);
 
-  // Auto-backup de banco
-  useEffect(() => {
-    if (getSalvarEm() !== 'dispositivo' && pin) {
-      startAutoBackup();
-    }
-    return () => stopAutoBackup();
-  }, [pin]);
 
   return {
     online,
