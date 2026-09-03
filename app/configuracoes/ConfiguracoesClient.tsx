@@ -57,6 +57,7 @@ import {
   importarConcluidosTxt,
   limparConcluidos,
   carregarConcluidos,
+  carregarTodosConcluidosConsolidados,
   exportarConcluidosTxt,
 } from '@/lib/db';
 import { useToast } from '@/components/Toast';
@@ -183,6 +184,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
       const {
         carregarListaApartamentos,
         carregarTodosConcluidosConsolidados,
+        salvarConcluidos,
         listarAgendamentos,
         getDb,
       } = await import('@/lib/db');
@@ -199,6 +201,9 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
       const db = await getDb();
       const notas = await db.getAll('notas');
       const comentarios = await db.getAll('comentarios');
+
+      // Atualiza também os concluídos consolidados (unindo manual + fotos) no banco
+      await salvarConcluidos(concluidos);
 
       const res = await authFetch('/api/building-config', {
         method: 'POST',
@@ -511,7 +516,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
     try {
       const blob = await exportarConcluidosTxt();
       downloadBlob(blob, `concluidos-${dateStr()}.txt`);
-      const c = await carregarConcluidos();
+      const c = await carregarTodosConcluidosConsolidados();
       const total = Object.values(c).reduce((acc, a) => acc + a.length, 0);
       toast(`${total} apartamentos concluidos exportados`, 'success');
     } catch {

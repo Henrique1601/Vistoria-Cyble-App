@@ -1070,6 +1070,26 @@ export async function carregarTodosConcluidosConsolidados(): Promise<Record<stri
     }
   }
 
+  // 3. Concluídos via fotos na nuvem (API /api/fotos)
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const { authFetch } = await import('@/lib/api');
+      const resp = await authFetch('/api/fotos');
+      if (resp.ok) {
+        const data = await resp.json();
+        const fotos: Array<{ bloco: string; apartamento: string }> = data.fotos || [];
+        for (const f of fotos) {
+          const bNorm = normalizeBloco(f.bloco);
+          const aNorm = normApto(f.apartamento);
+          if (bNorm && aNorm) {
+            if (!mapa[bNorm]) mapa[bNorm] = new Set();
+            mapa[bNorm].add(aNorm);
+          }
+        }
+      }
+    } catch {}
+  }
+
   const result: Record<string, string[]> = {};
   for (const [bloco, set] of Object.entries(mapa)) {
     result[bloco] = Array.from(set).sort((a, b) => Number(a) - Number(b));
