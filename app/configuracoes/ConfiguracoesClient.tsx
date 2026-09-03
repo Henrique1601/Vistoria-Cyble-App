@@ -494,13 +494,13 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
     setConfirmDialog({
       open: true,
       title: 'Limpar concluídos?',
-      message: 'Remover todos os apartamentos marcados como concluídos?',
+      message: 'Remover todos os apartamentos marcados como concluídos no celular e na nuvem?',
       variant: 'warning',
       onConfirm: async () => {
         setConfirmDialog((d) => ({ ...d, open: false }));
         haptic('medium');
         await limparConcluidos();
-        toast('Lista de concluidos limpa', 'success');
+        toast('Lista de concluídos limpa com sucesso (celular e nuvem)!', 'success');
         onRefresh?.();
       },
     });

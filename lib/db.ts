@@ -218,6 +218,29 @@ export async function deletarFoto(id: number) {
   await db.delete('fotos', id);
 }
 
+export async function deletarFotosApartamento(bloco: string, apartamento: string): Promise<number> {
+  const db = await getDb();
+  const bNorm = normalizeBloco(bloco);
+  const aNorm = normApto(apartamento);
+  const ids: number[] = [];
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    const f = cursor.value;
+    if (normalizeBloco(f.bloco) === bNorm && normApto(f.apartamento) === aNorm && f.id !== undefined) {
+      ids.push(f.id);
+    }
+    cursor = await cursor.continue();
+  }
+  if (ids.length > 0) {
+    const tx = db.transaction('fotos', 'readwrite');
+    for (const id of ids) {
+      await tx.store.delete(id);
+    }
+    await tx.done;
+  }
+  return ids.length;
+}
+
 export async function atualizarNota(id: number, nota: string) {
   const db = await getDb();
   const rec = await db.get('fotos', id);
@@ -919,6 +942,21 @@ export async function salvarConcluidos(lista: Record<string, string[]>) {
   syncConcluidosToAPI(lista).catch((err) => console.warn('syncConcluidosToAPI error:', err));
 }
 
+export async function desmarcarConcluidoLocal(bloco: string, apto: string) {
+  const db = await getDb();
+  const bNorm = normalizeBloco(bloco);
+  const aNorm = normApto(apto);
+  const concluidos = (await db.get('config', 'concluidos')) ?? {};
+  if (concluidos[bNorm]) {
+    concluidos[bNorm] = concluidos[bNorm].filter((a: string) => normApto(a) !== aNorm);
+    await db.put('config', concluidos, 'concluidos');
+    _concluidosCache = concluidos;
+    _concluidosCacheTime = Date.now();
+    syncConcluidosToAPI(concluidos).catch((err) => console.warn('syncConcluidosToAPI error:', err));
+  }
+  await deletarFotosApartamento(bloco, apto);
+}
+
 export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   // Return cached data if fresh
   if (_concluidosCache && Date.now() - _concluidosCacheTime < CONCLUIDOS_CACHE_TTL) {
@@ -928,23 +966,17 @@ export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   const db = await getDb();
   const local = (await db.get('config', 'concluidos')) ?? {};
 
-  // When online, fetch remote and merge (remote wins for conflicts)
+  // When online, fetch remote and merge without resurrecting deleted local items
   if (typeof navigator !== 'undefined' && navigator.onLine) {
     try {
       const { authFetch } = await import('@/lib/api');
       const resp = await authFetch('/api/concluidos');
       if (resp.ok) {
         const remote = await resp.json();
-        // Merge: remote data takes precedence, but keep local-only entries
-        const merged: Record<string, string[]> = { ...local };
-        for (const [bloco, aptos] of Object.entries(remote)) {
-          if (!merged[bloco]) {
-            merged[bloco] = aptos as string[];
-          } else {
-            // Union of both arrays
-            const set = new Set([...(merged[bloco] as string[]), ...(aptos as string[])]);
-            merged[bloco] = [...set].sort((a, b) => Number(a) - Number(b));
-          }
+        const merged: Record<string, string[]> = { ...remote };
+        // If local has entries for blocks, local state takes precedence so unmarking is preserved
+        for (const [bloco, aptos] of Object.entries(local)) {
+          merged[bloco] = aptos as string[];
         }
         await db.put('config', merged, 'concluidos');
         _concluidosCache = merged;
@@ -984,7 +1016,12 @@ export async function limparConcluidos() {
   await db.delete('config', 'concluidos');
   _concluidosCache = {};
   _concluidosCacheTime = Date.now();
-  syncConcluidosToAPI({}).catch((err) => console.warn('syncConcluidosToAPI error:', err));
+  try {
+    const { authFetch } = await import('@/lib/api');
+    await authFetch('/api/concluidos', { method: 'DELETE' });
+  } catch (err) {
+    console.warn('syncConcluidosToAPI DELETE error:', err);
+  }
 }
 
 /**

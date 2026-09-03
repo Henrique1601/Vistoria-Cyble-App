@@ -1,5 +1,14 @@
 # Changelog — Vistoria Cyble
 
+## v3.7.4 (02/09/2026)
+
+### Sincronização e Controle de Limpeza de Concluídos
+- **`app/api/concluidos/route.ts`** — Adicionado método `DELETE` para limpeza remota definitiva no Neon e suporte à exclusão atômica quando o cliente envia lista vazia no `POST`.
+- **`lib/db.ts` (`desmarcarConcluidoLocal`)** — Nova função que remove imediatamente o apartamento de `concluidos` no IndexedDB local, exclui suas fotos locais e envia a lista atualizada para a API, impedindo que o apartamento desmarcado ressuscite na tela.
+- **`lib/db.ts` (`carregarConcluidos`)** — Ajustada a sincronização para respeitar remoções e desmarcações locais, evitando ressuscitar apartamentos excluídos através de união cega de sets.
+- **`lib/db.ts` (`limparConcluidos`)** — A limpeza agora apaga simultaneamente o IndexedDB local e a tabela remota `concluidos` no Neon via `DELETE /api/concluidos`.
+- **`app/page.tsx` (`handleDesmarcarExecutar`)** — Desmarcação de apartamentos agora limpa os dados locais e remotos instantaneamente.
+
 ## v3.7.3 (02/09/2026)
 
 ### Backup de Prédio Completo (Agenda + Concluídos + Estrutura) & Exportação

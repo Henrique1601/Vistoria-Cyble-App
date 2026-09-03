@@ -61,8 +61,14 @@ export async function POST(req: NextRequest) {
     }
 
     const sql = getSql();
+    const entries = Object.entries(data as Record<string, unknown>);
 
-    for (const [bloco, aptos] of Object.entries(data as Record<string, unknown>)) {
+    if (entries.length === 0) {
+      await sql`DELETE FROM concluidos`;
+      return NextResponse.json({ ok: true, cleared: true });
+    }
+
+    for (const [bloco, aptos] of entries) {
       const b = validateBloco(bloco);
       if (isValidationError(b)) continue; // skip invalid bloco keys
       if (!Array.isArray(aptos)) continue;
@@ -77,6 +83,33 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`write:${ip}`, RATE_LIMITS.write);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Muitas requisicoes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.error!;
+
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 });
+  }
+
+  try {
+    const sql = getSql();
+    await sql`DELETE FROM concluidos`;
+    return NextResponse.json({ ok: true, cleared: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });

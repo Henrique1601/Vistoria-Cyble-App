@@ -400,6 +400,9 @@ export default function Home() {
     setDesmarcarConfirm(null);
     haptic('heavy');
     try {
+      const { desmarcarConcluidoLocal } = await import('@/lib/db');
+      await desmarcarConcluidoLocal(bloco, apto);
+
       const resp = await authFetch('/api/status', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -411,7 +414,8 @@ export default function Home() {
         refreshCommentCounts(bloco);
       } else {
         const data = await resp.json();
-        toast(data.error || 'Erro ao desmarcar', 'error');
+        toast(data.error || 'Erro ao desmarcar na nuvem', 'warning');
+        await refreshStatus();
       }
     } catch {
       toast('Erro ao desmarcar apartamento', 'error');
