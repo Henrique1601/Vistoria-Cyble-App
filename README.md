@@ -54,14 +54,8 @@ só precisa fazer uma vez (ou quando quiser corrigir a lista, tem o botão
   tudo, as fotos ainda não enviadas se perdem — por isso vale de vez em
   quando checar o aviso de "pendentes" e garantir que chegou a zero antes de
   encerrar o dia (com internet).
-- O reconhecimento de "apartamento concluído" (as 3 bolinhas verdes) é só
-  local, no seu celular — se você usar em mais de um aparelho, cada um tem
-  seu próprio progresso. Como você me disse que só você vai usar, isso não é
-  problema agora, mas se no futuro quiser que outra pessoa use também, aí
-  precisaríamos de um progresso compartilhado (banco de dados central em vez
-  de só IndexedDB local) — é uma evolução natural do projeto, é só pedir.
-- Sem paginação na lista de apartamentos — com ~180 por bloco funciona bem;
-  se algum bloco tiver muito mais que isso, pode valer otimizar depois.
+- O reconhecimento de "apartamento concluído" e a agenda de vistorias podem ser compartilhados entre aparelhos através do menu **Configurações > Prédio (Salvar / Carregar da Nuvem)** ou via exportação/importação em XLSX multissheet, CSV ou TXT de concluídos.
+- Sem paginação pesada na lista de apartamentos — com ~180 por bloco funciona instantaneamente; virtualização via `@tanstack/react-virtual` disponível para listas gigantescas.
 
 ## Google Drive Backup
 

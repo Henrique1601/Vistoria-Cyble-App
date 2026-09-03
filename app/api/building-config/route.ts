@@ -76,11 +76,13 @@ export async function POST(req: NextRequest) {
     }
 
     const sql = getSql();
+    const configStr = typeof config === 'string' ? config : JSON.stringify(config);
 
     await sql`
       INSERT INTO building_config (id, nome, config, updated_at)
-      VALUES (1, ${nome || 'Prédio AcquaPlay'}::text, ${config}::jsonb, now())
+      VALUES (1, ${nome || 'Prédio AcquaPlay'}::text, ${configStr}::jsonb, now())
       ON CONFLICT (id) DO UPDATE SET
+        nome = EXCLUDED.nome,
         config = EXCLUDED.config,
         updated_at = now()
     `;

@@ -180,21 +180,44 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
         setSavingConfig(false);
         return;
       }
-      const { carregarListaApartamentos } = await import('@/lib/db');
+      const {
+        carregarListaApartamentos,
+        carregarTodosConcluidosConsolidados,
+        listarAgendamentos,
+        getDb,
+      } = await import('@/lib/db');
+
       const lista = await carregarListaApartamentos();
-      if (!lista) {
+      if (!lista || Object.keys(lista).length === 0) {
         toast('Nenhuma configuracao local para salvar', 'error');
         setSavingConfig(false);
         return;
       }
+
+      const concluidos = await carregarTodosConcluidosConsolidados();
+      const agendamentos = await listarAgendamentos();
+      const db = await getDb();
+      const notas = await db.getAll('notas');
+      const comentarios = await db.getAll('comentarios');
+
       const res = await authFetch('/api/building-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: 'Predio AcquaPlay', config: lista }),
+        body: JSON.stringify({
+          nome: 'Predio AcquaPlay',
+          config: {
+            lista,
+            concluidos,
+            agendamentos,
+            notas,
+            comentarios,
+          },
+        }),
       });
       const data = await res.json();
       if (data.ok) {
-        toast('Configuracao salva na nuvem', 'success');
+        const totalConc = Object.values(concluidos).reduce((acc, a) => acc + a.length, 0);
+        toast(`Prédio salvo na nuvem (${totalConc} concluídos, ${agendamentos.length} agendamentos)`, 'success');
         setLastSaved(new Date().toLocaleTimeString('pt-BR'));
       } else {
         toast('Erro ao salvar: ' + (data.error || 'desconhecido'), 'error');
@@ -209,14 +232,65 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
     setLoadingConfig(true);
     haptic('medium');
     try {
+      if (!navigator.onLine) {
+        toast('Voce esta offline. Conecte-se a internet para carregar da nuvem.', 'error');
+        setLoadingConfig(false);
+        return;
+      }
       const res = await authFetch('/api/building-config');
       const data = await res.json();
-      if (data.buildings && data.buildings.length > 0) {
-        toast(`${data.buildings.length} prédio(s) encontrado(s) na nuvem`, 'success');
-        setLastSaved(data.buildings[0].updated_at);
-      } else {
-        toast('Nenhum prédio na nuvem', 'error');
+      if (!data.buildings || data.buildings.length === 0) {
+        toast('Nenhum prédio encontrado na nuvem', 'error');
+        setLoadingConfig(false);
+        return;
       }
+
+      const building = data.buildings[0];
+      const rawConfig = building.config;
+      const lista = (rawConfig && typeof rawConfig === 'object' && 'lista' in rawConfig)
+        ? rawConfig.lista
+        : rawConfig;
+
+      if (!lista || Object.keys(lista).length === 0) {
+        toast('Configuração do prédio vazia na nuvem', 'error');
+        setLoadingConfig(false);
+        return;
+      }
+
+      const {
+        salvarListaApartamentos,
+        salvarConcluidos,
+        salvarAgendamentosLote,
+        salvarNotasLote,
+        salvarComentariosLote,
+      } = await import('@/lib/db');
+
+      await salvarListaApartamentos(lista);
+
+      let infoConc = 0;
+      let infoAgenda = 0;
+
+      if (rawConfig && typeof rawConfig === 'object' && 'concluidos' in rawConfig && rawConfig.concluidos) {
+        await salvarConcluidos(rawConfig.concluidos);
+        infoConc = Object.values(rawConfig.concluidos as Record<string, string[]>).reduce((acc, a) => acc + a.length, 0);
+      }
+
+      if (rawConfig && typeof rawConfig === 'object' && 'agendamentos' in rawConfig && Array.isArray(rawConfig.agendamentos)) {
+        await salvarAgendamentosLote(rawConfig.agendamentos);
+        infoAgenda = rawConfig.agendamentos.length;
+      }
+
+      if (rawConfig && typeof rawConfig === 'object' && 'notas' in rawConfig && Array.isArray(rawConfig.notas)) {
+        await salvarNotasLote(rawConfig.notas);
+      }
+
+      if (rawConfig && typeof rawConfig === 'object' && 'comentarios' in rawConfig && Array.isArray(rawConfig.comentarios)) {
+        await salvarComentariosLote(rawConfig.comentarios);
+      }
+
+      setLastSaved(building.updated_at || new Date().toLocaleTimeString('pt-BR'));
+      toast(`Prédio carregado com sucesso! (${infoConc} concluídos, ${infoAgenda} agendamentos)`, 'success');
+      onRefresh?.();
     } catch {
       toast('Erro ao carregar configuracao', 'error');
     }

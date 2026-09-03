@@ -1,6 +1,6 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { AcaoDesenho } from './drawing';
-import { normApto } from './utils';
+import { normApto, normalizeBloco } from './utils';
 import { getQualidadeFoto } from './settings';
 import { comprimirImagemComWorker } from './imageProcessor';
 
@@ -101,7 +101,7 @@ interface VistoriaDB extends DBSchema {
 
 let dbPromise: Promise<IDBPDatabase<VistoriaDB>> | null = null;
 
-function getDb() {
+export function getDb() {
   if (!dbPromise) {
     dbPromise = openDB<VistoriaDB>('vistoria-cyble', 4, {
       upgrade(db, oldVersion) {
@@ -629,6 +629,25 @@ export async function excluirAgendamentosConcluidos(): Promise<number> {
   return ids.length;
 }
 
+export async function salvarAgendamentosLote(agendamentos: Agendamento[]): Promise<number> {
+  const db = await getDb();
+  const tx = db.transaction('agendamentos', 'readwrite');
+  const existing = await tx.store.getAll();
+  const seen = new Set(existing.map((e) => `${normalizeBloco(e.bloco)}__${normApto(e.apartamento)}__${e.data}`));
+  let count = 0;
+  for (const ag of agendamentos) {
+    const key = `${normalizeBloco(ag.bloco)}__${normApto(ag.apartamento)}__${ag.data}`;
+    if (!seen.has(key)) {
+      const { id: _id, ...rest } = ag;
+      await tx.store.add({ ...rest, criadoEm: rest.criadoEm || Date.now() } as Agendamento);
+      seen.add(key);
+      count++;
+    }
+  }
+  await tx.done;
+  return count;
+}
+
 // --- Backup / Restore ---
 const BACKUP_BATCH_SIZE = 50;
 
@@ -968,11 +987,65 @@ export async function limparConcluidos() {
   syncConcluidosToAPI({}).catch((err) => console.warn('syncConcluidosToAPI error:', err));
 }
 
+/**
+ * Retorna todos os apartamentos concluídos consolidados:
+ * Une os concluídos marcados manualmente (ou importados) com os apartamentos
+ * que possuem as fotos obrigatórias (cyble_antes E cyble_depois).
+ */
+export async function carregarTodosConcluidosConsolidados(): Promise<Record<string, string[]>> {
+  const db = await getDb();
+  const manual = await carregarConcluidos();
+  const mapa: Record<string, Set<string>> = {};
+
+  // 1. Concluídos manuais / importados
+  for (const [bloco, aptos] of Object.entries(manual)) {
+    const bNorm = normalizeBloco(bloco);
+    if (!mapa[bNorm]) mapa[bNorm] = new Set();
+    for (const a of aptos) {
+      const aNorm = normApto(a);
+      if (aNorm) mapa[bNorm].add(aNorm);
+    }
+  }
+
+  // 2. Concluídos via fotos (tem cyble_antes e cyble_depois)
+  const antesMap = new Set<string>();
+  const depoisMap = new Set<string>();
+
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    const f = cursor.value;
+    const bNorm = normalizeBloco(f.bloco);
+    const aNorm = normApto(f.apartamento);
+    if (aNorm) {
+      const key = `${bNorm}__${aNorm}`;
+      if (f.categoria === 'cyble_antes') antesMap.add(key);
+      if (f.categoria === 'cyble_depois') depoisMap.add(key);
+    }
+    cursor = await cursor.continue();
+  }
+
+  // Se tem antes e depois, inclui nos concluídos
+  for (const key of antesMap) {
+    if (depoisMap.has(key)) {
+      const [bloco, apto] = key.split('__');
+      if (!mapa[bloco]) mapa[bloco] = new Set();
+      mapa[bloco].add(apto);
+    }
+  }
+
+  const result: Record<string, string[]> = {};
+  for (const [bloco, set] of Object.entries(mapa)) {
+    result[bloco] = Array.from(set).sort((a, b) => Number(a) - Number(b));
+  }
+  return result;
+}
+
 export async function importarConcluidosTxt(text: string): Promise<{ blocos: number; aptos: number }> {
   const mapa: Record<string, Set<string>> = {};
   const lines = text.split('\n').filter((l) => l.trim());
   for (const line of lines) {
-    const match = line.trim().match(/^Torre\s+([A-H])\s*-\s*APTO\s*(\d+)$/i);
+    // Regex flexível: Torre A-APTO0101, Torre A - Apto 101, Bloco B 101, Torre A 101
+    const match = line.trim().match(/^(?:Torre|Bloco)?\s*([A-Za-z0-9]+)\s*[-–—/]?\s*(?:APTO|APT)?\s*(\d+)$/i);
     if (!match) continue;
     const bloco = `Torre ${match[1].toUpperCase()}`;
     const apto = normApto(match[2]);
@@ -980,7 +1053,7 @@ export async function importarConcluidosTxt(text: string): Promise<{ blocos: num
     if (!mapa[bloco]) mapa[bloco] = new Set();
     mapa[bloco].add(apto);
   }
-  if (Object.keys(mapa).length === 0) throw new Error('Nenhum apartamento encontrado no formato "Torre X-APTO0077"');
+  if (Object.keys(mapa).length === 0) throw new Error('Nenhum apartamento encontrado no arquivo (ex: "Torre A-APTO0077")');
   const existing = await carregarConcluidos();
   const merged: Record<string, string[]> = {};
   let aptos = 0;
@@ -999,11 +1072,12 @@ export async function importarConcluidosTxt(text: string): Promise<{ blocos: num
 
 // --- Export concluidos TXT ---
 export async function exportarConcluidosTxt(): Promise<Blob> {
-  const concluidos = await carregarConcluidos();
+  const concluidos = await carregarTodosConcluidosConsolidados();
   const lines: string[] = [];
   for (const [bloco, aptos] of Object.entries(concluidos)) {
+    const match = bloco.match(/([A-Za-z0-9]+)$/);
+    const letter = match ? match[1].toUpperCase() : bloco.replace(/^Torre\s+/i, '').trim();
     for (const a of aptos) {
-      const letter = bloco.replace(/^Torre\s+/i, '').trim();
       lines.push(`Torre ${letter}-APTO${a.padStart(4, '0')}`);
     }
   }
@@ -1014,68 +1088,182 @@ export async function exportarConcluidosTxt(): Promise<Blob> {
 // --- Export configuracao CSV ---
 export async function exportarConfigCSV(): Promise<Blob> {
   const blocos = await carregarListaApartamentos();
-  const header = 'Torre;Apartamentos\n';
-  const rows = Object.entries(blocos)
-    .map(([torre, aptos]) => `${torre};${aptos.join(',')}`)
-    .join('\n');
-  return new Blob(['\uFEFF' + header + rows + '\n'], { type: 'text/csv;charset=utf-8;' });
+  const concluidos = await carregarTodosConcluidosConsolidados();
+  const agendamentos = await listarAgendamentos();
+
+  let content = '\uFEFF# CONFIGURACAO_TORRES\nTorre;Apartamentos\n';
+  for (const [torre, aptos] of Object.entries(blocos)) {
+    content += `${torre};${aptos.join(',')}\n`;
+  }
+
+  content += '\n# CONCLUIDOS\nTorre;Apartamentos\n';
+  for (const [torre, aptos] of Object.entries(concluidos)) {
+    content += `${torre};${aptos.join(',')}\n`;
+  }
+
+  content += '\n# AGENDAMENTOS\nTorre;Apartamento;Data;Hora;Observacao;Concluido\n';
+  for (const ag of agendamentos) {
+    content += `${ag.bloco};${ag.apartamento};${ag.data};${ag.hora || ''};${ag.observacao || ''};${ag.concluido ? '1' : '0'}\n`;
+  }
+
+  return new Blob([content], { type: 'text/csv;charset=utf-8;' });
 }
 
 // --- Import configuracao CSV ---
-export async function importarConfigCSV(text: string): Promise<{ blocos: number; aptos: number }> {
+export async function importarConfigCSV(text: string): Promise<{ blocos: number; aptos: number; concluidos?: number; agendamentos?: number }> {
   const blocos: Record<string, string[]> = {};
+  const concluidos: Record<string, Set<string>> = {};
+  const agendamentos: Agendamento[] = [];
   let aptos = 0;
-  const lines = text.split('\n').filter((l) => l.trim());
+
+  type Section = 'blocos' | 'concluidos' | 'agendamentos';
+  let currentSection: Section = 'blocos';
+
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   for (const line of lines) {
+    if (line.startsWith('# CONFIGURACAO_TORRES')) {
+      currentSection = 'blocos';
+      continue;
+    }
+    if (line.startsWith('# CONCLUIDOS')) {
+      currentSection = 'concluidos';
+      continue;
+    }
+    if (line.startsWith('# AGENDAMENTOS')) {
+      currentSection = 'agendamentos';
+      continue;
+    }
     if (line.startsWith('Torre;')) continue;
-    const sep = line.indexOf(';');
-    if (sep === -1) continue;
-    const torre = line.substring(0, sep).trim();
-    const aptosList = line
-      .substring(sep + 1)
-      .split(',')
-      .map((a) => normApto(a.trim()))
-      .filter(Boolean);
-    const seen = new Set<string>();
-    const deduped = aptosList.filter((a) => { if (seen.has(a)) return false; seen.add(a); return true; });
-    if (torre && deduped.length > 0) {
-      blocos[torre] = deduped;
-      aptos += deduped.length;
+
+    if (currentSection === 'blocos') {
+      const sep = line.indexOf(';');
+      if (sep === -1) continue;
+      const torre = normalizeBloco(line.substring(0, sep).trim());
+      const aptosList = line
+        .substring(sep + 1)
+        .split(',')
+        .map((a) => normApto(a.trim()))
+        .filter(Boolean);
+      const seen = new Set<string>();
+      const deduped = aptosList.filter((a) => { if (seen.has(a)) return false; seen.add(a); return true; });
+      if (torre && deduped.length > 0) {
+        blocos[torre] = deduped;
+        aptos += deduped.length;
+      }
+    } else if (currentSection === 'concluidos') {
+      const sep = line.indexOf(';');
+      if (sep === -1) continue;
+      const torre = normalizeBloco(line.substring(0, sep).trim());
+      const aptosList = line
+        .substring(sep + 1)
+        .split(',')
+        .map((a) => normApto(a.trim()))
+        .filter(Boolean);
+      if (torre && aptosList.length > 0) {
+        if (!concluidos[torre]) concluidos[torre] = new Set();
+        for (const a of aptosList) concluidos[torre].add(a);
+      }
+    } else if (currentSection === 'agendamentos') {
+      const parts = line.split(';');
+      if (parts.length >= 3) {
+        const [bloco, apto, data, hora, observacao, concluido] = parts;
+        agendamentos.push({
+          bloco: normalizeBloco(bloco),
+          apartamento: normApto(apto),
+          data,
+          hora: hora || undefined,
+          observacao: observacao || undefined,
+          concluido: concluido === '1',
+          criadoEm: Date.now(),
+        });
+      }
     }
   }
+
   if (Object.keys(blocos).length === 0) throw new Error('Nenhum bloco encontrado no CSV');
   await salvarListaApartamentos(blocos);
-  return { blocos: Object.keys(blocos).length, aptos };
+
+  let concluidosCount = 0;
+  if (Object.keys(concluidos).length > 0) {
+    const mergedConcluidos: Record<string, string[]> = {};
+    for (const [t, s] of Object.entries(concluidos)) {
+      mergedConcluidos[t] = Array.from(s).sort((a, b) => Number(a) - Number(b));
+      concluidosCount += mergedConcluidos[t].length;
+    }
+    await salvarConcluidos(mergedConcluidos);
+  }
+
+  if (agendamentos.length > 0) {
+    await salvarAgendamentosLote(agendamentos);
+  }
+
+  return { blocos: Object.keys(blocos).length, aptos, concluidos: concluidosCount, agendamentos: agendamentos.length };
 }
 
 // --- Export configuracao XLSX ---
 export async function exportarConfigXLSX(): Promise<Blob> {
   const XLSX = await import('xlsx');
   const blocos = await carregarListaApartamentos();
+  const concluidos = await carregarTodosConcluidosConsolidados();
+  const agendamentos = await listarAgendamentos();
+
   const wb = XLSX.utils.book_new();
-  const data: any[][] = [['Torre', 'Apartamentos']];
+
+  // Aba 1: Apartamentos
+  const dataBlocos: any[][] = [['Torre', 'Apartamentos']];
   for (const [torre, aptos] of Object.entries(blocos)) {
-    data.push([torre, aptos.join(', ')]);
+    dataBlocos.push([torre, aptos.join(', ')]);
   }
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{ wch: 15 }, { wch: 80 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'Configuracao');
+  const wsBlocos = XLSX.utils.aoa_to_sheet(dataBlocos);
+  wsBlocos['!cols'] = [{ wch: 15 }, { wch: 80 }];
+  XLSX.utils.book_append_sheet(wb, wsBlocos, 'Apartamentos');
+
+  // Aba 2: Concluidos
+  const dataConcluidos: any[][] = [['Torre', 'Apartamento']];
+  for (const [torre, aptos] of Object.entries(concluidos)) {
+    for (const apto of aptos) {
+      dataConcluidos.push([torre, apto]);
+    }
+  }
+  const wsConcluidos = XLSX.utils.aoa_to_sheet(dataConcluidos);
+  wsConcluidos['!cols'] = [{ wch: 15 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsConcluidos, 'Concluidos');
+
+  // Aba 3: Agenda
+  const dataAgenda: any[][] = [['Torre', 'Apartamento', 'Data', 'Hora', 'Observacao', 'Status']];
+  for (const ag of agendamentos) {
+    dataAgenda.push([
+      ag.bloco,
+      ag.apartamento,
+      ag.data,
+      ag.hora || '',
+      ag.observacao || '',
+      ag.concluido ? 'Concluido' : 'Pendente',
+    ]);
+  }
+  const wsAgenda = XLSX.utils.aoa_to_sheet(dataAgenda);
+  wsAgenda['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 30 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, wsAgenda, 'Agenda');
+
   const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
 // --- Import configuracao XLSX ---
-export async function importarConfigXLSX(file: File): Promise<{ blocos: number; aptos: number }> {
+export async function importarConfigXLSX(file: File): Promise<{ blocos: number; aptos: number; concluidos?: number; agendamentos?: number }> {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: 'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+
+  // 1. Sheet de Apartamentos (ou a primeira aba)
+  const sheetNameBlocos = wb.SheetNames.find((n) => /apartamento|config/i.test(n)) || wb.SheetNames[0];
+  const ws = wb.Sheets[sheetNameBlocos];
   const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
   const blocos: Record<string, string[]> = {};
   let aptos = 0;
   for (const row of rows) {
     if (!row || !row[0] || row[0] === 'Torre') continue;
-    const torre = String(row[0]).trim();
+    const torre = normalizeBloco(String(row[0]).trim());
     const aptosRaw = row[1] ? String(row[1]) : '';
     const aptosList = aptosRaw
       .split(/[,;]+/)
@@ -1090,7 +1278,63 @@ export async function importarConfigXLSX(file: File): Promise<{ blocos: number; 
   }
   if (Object.keys(blocos).length === 0) throw new Error('Nenhum bloco encontrado na planilha');
   await salvarListaApartamentos(blocos);
-  return { blocos: Object.keys(blocos).length, aptos };
+
+  // 2. Sheet de Concluídos (se existir)
+  let concluidosCount = 0;
+  const sheetNameConcluidos = wb.SheetNames.find((n) => /concluid/i.test(n));
+  if (sheetNameConcluidos) {
+    const wsConc = wb.Sheets[sheetNameConcluidos];
+    const concRows = XLSX.utils.sheet_to_json<any[]>(wsConc, { header: 1 });
+    const concMap: Record<string, Set<string>> = {};
+    for (const row of concRows) {
+      if (!row || !row[0] || row[0] === 'Torre') continue;
+      const torre = normalizeBloco(String(row[0]).trim());
+      const apto = normApto(String(row[1] || '').trim());
+      if (torre && apto) {
+        if (!concMap[torre]) concMap[torre] = new Set();
+        concMap[torre].add(apto);
+      }
+    }
+    if (Object.keys(concMap).length > 0) {
+      const merged: Record<string, string[]> = {};
+      for (const [t, s] of Object.entries(concMap)) {
+        merged[t] = Array.from(s).sort((a, b) => Number(a) - Number(b));
+        concluidosCount += merged[t].length;
+      }
+      await salvarConcluidos(merged);
+    }
+  }
+
+  // 3. Sheet de Agenda (se existir)
+  let agendaCount = 0;
+  const sheetNameAgenda = wb.SheetNames.find((n) => /agenda/i.test(n));
+  if (sheetNameAgenda) {
+    const wsAgenda = wb.Sheets[sheetNameAgenda];
+    const agendaRows = XLSX.utils.sheet_to_json<any[]>(wsAgenda, { header: 1 });
+    const ags: Agendamento[] = [];
+    for (const row of agendaRows) {
+      if (!row || !row[0] || row[0] === 'Torre') continue;
+      const bloco = normalizeBloco(String(row[0]).trim());
+      const apto = normApto(String(row[1] || '').trim());
+      const data = String(row[2] || '').trim();
+      if (bloco && apto && data) {
+        ags.push({
+          bloco,
+          apartamento: apto,
+          data,
+          hora: row[3] ? String(row[3]).trim() : undefined,
+          observacao: row[4] ? String(row[4]).trim() : undefined,
+          concluido: String(row[5] || '').toLowerCase().includes('conclui'),
+          criadoEm: Date.now(),
+        });
+      }
+    }
+    if (ags.length > 0) {
+      agendaCount = await salvarAgendamentosLote(ags);
+    }
+  }
+
+  return { blocos: Object.keys(blocos).length, aptos, concluidos: concluidosCount, agendamentos: agendaCount };
 }
 
 // --- Notas por Apartamento ---
@@ -1131,6 +1375,34 @@ export async function excluirNotaApto(bloco: string, apartamento: string): Promi
   const db = await getDb();
   const match = await findNota(bloco, apartamento);
   if (match?.id) await db.delete('notas', match.id);
+}
+
+export async function salvarNotasLote(notas: Array<{ bloco: string; apartamento: string; texto: string }>): Promise<number> {
+  const db = await getDb();
+  const tx = db.transaction('notas', 'readwrite');
+  let count = 0;
+  for (const n of notas) {
+    if (n.bloco && n.apartamento && n.texto) {
+      await tx.store.add({ bloco: n.bloco, apartamento: n.apartamento, texto: n.texto, atualizadoEm: Date.now() });
+      count++;
+    }
+  }
+  await tx.done;
+  return count;
+}
+
+export async function salvarComentariosLote(comentarios: Array<{ bloco: string; apartamento: string; autor: string; texto: string; criadoEm?: number }>): Promise<number> {
+  const db = await getDb();
+  const tx = db.transaction('comentarios', 'readwrite');
+  let count = 0;
+  for (const c of comentarios) {
+    if (c.bloco && c.apartamento && c.texto) {
+      await tx.store.add({ bloco: c.bloco, apartamento: c.apartamento, autor: c.autor || 'Admin', texto: c.texto, criadoEm: c.criadoEm || Date.now() });
+      count++;
+    }
+  }
+  await tx.done;
+  return count;
 }
 
 // --- Comentarios por Apartamento ---

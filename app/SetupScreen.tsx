@@ -24,7 +24,13 @@ type Mode = 'manual' | 'importar' | 'nuvem';
 interface BuildingConfig {
   id: number;
   nome: string;
-  config: Record<string, string[]>;
+  config: Record<string, string[]> | {
+    lista: Record<string, string[]>;
+    concluidos?: Record<string, string[]>;
+    agendamentos?: any[];
+    notas?: any[];
+    comentarios?: any[];
+  };
   updated_at: string;
 }
 
@@ -274,8 +280,13 @@ export default function SetupScreen({
 
   function handleSelectBuilding(b: BuildingConfig) {
     setSelectedBuilding(b);
+    const rawConfig = b.config;
+    const lista = (rawConfig && typeof rawConfig === 'object' && 'lista' in rawConfig)
+      ? (rawConfig.lista as Record<string, string[]>)
+      : (rawConfig as Record<string, string[]>);
+
     const normalized: Record<string, string[]> = {};
-    for (const [bloco, aptos] of Object.entries(b.config)) {
+    for (const [bloco, aptos] of Object.entries(lista || {})) {
       const seen = new Set<string>();
       normalized[bloco] = [];
       for (const a of aptos) {
@@ -311,6 +322,27 @@ export default function SetupScreen({
       }
     }
     await salvarListaApartamentos(lista);
+
+    if (mode === 'nuvem' && selectedBuilding && typeof selectedBuilding.config === 'object') {
+      const cfg = selectedBuilding.config as any;
+      if (cfg.concluidos) {
+        const { salvarConcluidos } = await import('@/lib/db');
+        await salvarConcluidos(cfg.concluidos);
+      }
+      if (cfg.agendamentos && Array.isArray(cfg.agendamentos)) {
+        const { salvarAgendamentosLote } = await import('@/lib/db');
+        await salvarAgendamentosLote(cfg.agendamentos);
+      }
+      if (cfg.notas && Array.isArray(cfg.notas)) {
+        const { salvarNotasLote } = await import('@/lib/db');
+        await salvarNotasLote(cfg.notas);
+      }
+      if (cfg.comentarios && Array.isArray(cfg.comentarios)) {
+        const { salvarComentariosLote } = await import('@/lib/db');
+        await salvarComentariosLote(cfg.comentarios);
+      }
+    }
+
     onDone(lista);
   }
 
@@ -582,8 +614,12 @@ export default function SetupScreen({
                 ) : (
                   <div className="space-y-2">
                     {buildingConfigs.map((b) => {
-                      const totalAptos = Object.values(b.config).reduce((acc, arr) => acc + arr.length, 0);
-                      const numBlocos = Object.keys(b.config).length;
+                      const raw = b.config;
+                      const lista: Record<string, string[]> = (raw && typeof raw === 'object' && 'lista' in raw)
+                        ? (raw.lista as Record<string, string[]>)
+                        : (raw as Record<string, string[]>);
+                      const totalAptos = Object.values(lista || {}).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+                      const numBlocos = Object.keys(lista || {}).length;
                       const isSelected = selectedBuilding?.id === b.id;
                       return (
                         <button
@@ -622,11 +658,11 @@ export default function SetupScreen({
                   <div className="flex items-center gap-2 mb-3">
                     <CheckCircle size={16} weight="duotone" className="text-success" aria-hidden="true" />
                     <span className="text-xs font-semibold uppercase tracking-widest text-success">
-                      {selectedBuilding.nome} — {Object.keys(selectedBuilding.config).length} blocos, {totalImport} apartamentos
+                      {selectedBuilding.nome} — {Object.keys(listaImportada || {}).length} blocos, {totalImport} apartamentos
                     </span>
                   </div>
                   <div className="max-h-48 overflow-y-auto space-y-2">
-                    {Object.entries(selectedBuilding.config).map(([nome, aptos]) => (
+                    {Object.entries(listaImportada || {}).map(([nome, aptos]) => (
                       <div key={nome} className="text-sm">
                         <span className="font-semibold text-content">{nome}</span>
                         <span className="text-content-tertiary ml-2">— {aptos.length} aptos</span>

@@ -1,5 +1,16 @@
 # Changelog — Vistoria Cyble
 
+## v3.7.3 (02/09/2026)
+
+### Backup de Prédio Completo (Agenda + Concluídos + Estrutura) & Exportação
+- **`lib/db.ts` (`carregarTodosConcluidosConsolidados`)** — Criada função que unifica os apartamentos concluídos manualmente e os concluídos através do registro de fotos (`cyble_antes` + `cyble_depois`), corrigindo a omissão de apartamentos no arquivo `.txt` de exportação.
+- **`lib/db.ts` (`exportarConcluidosTxt` & `importarConcluidosTxt`)** — O `.txt` de concluídos agora exporta 100% dos apartamentos vistoriados; o importador foi flexibilizado com regex tolerante a múltiplos formatos de campo (`Torre A-APTO0101`, `Bloco B 101`, etc.).
+- **`app/api/building-config/route.ts`** — API na nuvem atualizada para persistir o pacote completo de vistorias (`lista`, `concluidos`, `agendamentos`, `notas`, `comentarios`) em formato JSONB seguro.
+- **`app/configuracoes/ConfiguracoesClient.tsx`** — As ações de "Salvar" e "Carregar" em Prédio agora enviam e restauram a grade de torres, os apartamentos concluídos e toda a pauta de agendamentos entre celulares diferentes.
+- **`app/SetupScreen.tsx`** — Ao importar um condomínio da nuvem no primeiro acesso, o novo smartphone importa e restaura automaticamente todos os concluídos e agendamentos existentes.
+- **`lib/db.ts` (`exportarConfigXLSX` & `importarConfigXLSX`)** — A exportação em planilha Excel agora gera 3 abas dedicadas (`Apartamentos`, `Concluidos`, `Agenda`) com suporte a importação completa multissheet.
+- **`lib/db.ts` (`exportarConfigCSV` & `importarConfigCSV`)** — Exportação e importação em CSV atualizadas com suporte a seções estruturadas (`# CONFIGURACAO_TORRES`, `# CONCLUIDOS`, `# AGENDAMENTOS`).
+
 ## v3.7.2 (02/09/2026)
 
 ### Storage Híbrido & Provedores de Nuvem Configuráveis
