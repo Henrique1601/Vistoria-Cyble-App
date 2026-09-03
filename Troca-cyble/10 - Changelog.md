@@ -1,5 +1,30 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.0 (03/09/2026)
+
+### Pacote de 8 Melhorias (Design, UX, Câmera e Engenharia)
+- **1.2. Barras de Progresso Tricolores nas Torres (`BlocosGrid.tsx` & `useVistoriaState.ts`):**
+  - Barra de progresso segmentada tricolor nos cards de torres: Verde (`bg-success`) para concluídos, Amarelo (`bg-warn`) para em andamento (1 foto) e Cinza Escuro (`bg-base-overlay`) para pendentes.
+  - Micro-chips de status detalhados com contagem em tempo real (`X ok`, `Y andamento`, `Z pendentes`).
+- **1.3. Visual Dark Glass & Badges Monoespelhados (`globals.css`, `AptoCard.tsx`, Modais):**
+  - Numeração dos apartamentos com pill badge `Geist Mono` e borda sutil `border-white/[0.08]`.
+  - Utilitários `.glass-card` e `.glass-modal` aplicados aos modais com `backdrop-blur-md` e bordas translúcidas refinadas.
+  - Alvos de clique ampliados para 32x32px (`w-8 h-8`) para ergonomia de polegar com luvas em campo.
+- **1.4. Transições Espaciais Suaves com Framer Motion (`page.tsx`):**
+  - Animação de entrada e chaveamento entre torres e apartamentos com `spring` calibrado e deslizamento suave sem solavancos.
+- **2.1. Indicador Visual de Nuvem/Offline no Card do Apartamento (`AptoCard.tsx` & `db.ts`):**
+  - Adicionado cálculo de `qtdPendentes` e `qtdSynced` em `statusDeTodosApartamentos()`.
+  - Ícone `CloudCheck` verde para apartamentos com fotos 100% sincronizadas na nuvem e `CloudArrowUp` âmbar pulsante para vistorias salvas localmente aguardando conexão.
+- **3.1. Retículo Central Guia para Enquadramento do Hidrômetro (`CapturaScreen.tsx`):**
+  - Botão de mira no cabeçalho com ícone `Crosshair` para abrir guia esquemático de enquadramento (mostrador circular, encaixe retangular do módulo Cyble e dicas de ângulo/distância).
+  - Câmera ao vivo in-app com retículo sobreposto ao visor em tempo real, disparo tátil e controle de lanterna (`torch`) para caixas escuras.
+- **3.3. Alerta Anti-Erro de Foto Duplicada (`CapturaScreen.tsx` & `imageProcessor.ts`):**
+  - Ao capturar `cyble_depois`, o app calcula similaridade visual contra a foto de `cyble_antes`. Se similaridade $\ge 92\%$, exibe diálogo de alerta ("Refazer foto" ou "Salvar mesmo assim") com vibração pesada.
+- **4.1. Unificação Completa na Fila com Retry (`syncQueue.ts` & `page.tsx`):**
+  - Todos os gatilhos de sincronização e reconexão delegam exclusivamente para `syncQueue.syncAll()`, com auto-retry exponencial e canal unificado de telemetria.
+- **4.2. Otimização de Web Worker para Compressão e Processamento Assíncrono (`imageProcessor.ts` & `imageWorker.js`):**
+  - Processamento assíncrono de compressão e nitidez/brilho laplaciano em Web Worker com OffscreenCanvas fora da thread da UI, com fallback para a thread principal e timeout de segurança.
+
 ## v3.7.4 (02/09/2026)
 
 ### Sincronização e Controle de Limpeza de Concluídos

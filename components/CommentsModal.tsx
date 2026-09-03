@@ -75,7 +75,7 @@ export default function CommentsModal({ bloco, apartamento, isOpen, onClose, adm
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 100 }}
             transition={spring}
-            className="glass rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+            className="glass-modal rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl border border-white/[0.1]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-base-border">

@@ -57,6 +57,15 @@ só precisa fazer uma vez (ou quando quiser corrigir a lista, tem o botão
 - O reconhecimento de "apartamento concluído" e a agenda de vistorias podem ser compartilhados entre aparelhos através do menu **Configurações > Prédio (Salvar / Carregar da Nuvem)** ou via exportação/importação em XLSX multissheet, CSV ou TXT de concluídos.
 - Sem paginação pesada na lista de apartamentos — com ~180 por bloco funciona instantaneamente; virtualização via `@tanstack/react-virtual` disponível para listas gigantescas.
 
+## Recursos Recentes (v3.8.0)
+- **Barras de Progresso Tricolores:** Visualização instantânea no grid de blocos (verde para concluídos, amarelo para em andamento e cinza para pendentes).
+- **Dark Glass & Chips Geist Mono:** Interface polida com cards translúcidos, pills monoespelhados e botões ampliados para uso com luvas.
+- **Transições Espaciais Suaves:** Navegação fluida entre torres e apartamentos com Framer Motion.
+- **Status de Nuvem nos Cards:** Indicador visual em tempo real de fotos sincronizadas ou pendentes por apartamento.
+- **Mira & Retículo Guia do Hidrômetro:** Guia esquemático e câmera ao vivo com retículo sobreposto (mostrador circular + presilha Cyble) e controle de lanterna para caixas escuras.
+- **Alerta Anti-Erro de Foto Duplicada:** Detecção automática de similaridade visual ($\ge 92\%$) prevenindo fotos repetidas no "Depois".
+- **Fila Unificada & Web Worker:** Upload 100% resiliente com retry exponencial e compressão offloaded em thread secundária a 60 FPS.
+
 ## Google Drive Backup
 
 O app permite fazer backup completo dos dados no Google Drive:

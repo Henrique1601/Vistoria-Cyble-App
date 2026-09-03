@@ -743,7 +743,14 @@ export default function Home() {
 
   if (view === 'apartamentos' && blocoAtual) {
     return (
-      <ApartamentosView
+      <motion.div
+        key={`view-apartamentos-${blocoAtual}`}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        transition={spring}
+      >
+        <ApartamentosView
         blocoAtual={blocoAtual}
         aptosDoBloco={aptosDoBloco}
         aptosPaginados={aptosPaginados}
@@ -797,11 +804,17 @@ export default function Home() {
         showCommentsModal={showCommentsModal}
         setShowCommentsModal={setShowCommentsModal}
       />
+      </motion.div>
     );
   }
 
   return (
-    <main
+    <motion.main
+      key="view-main-blocos"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={spring}
       className="min-h-[100dvh] bg-base"
       ref={mainRef}
       onTouchStart={handleTouchStart}
@@ -1124,6 +1137,6 @@ export default function Home() {
       />
 
       <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
-    </main>
+    </motion.main>
   );
 }

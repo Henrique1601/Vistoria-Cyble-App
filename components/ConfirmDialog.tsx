@@ -41,7 +41,7 @@ export default function ConfirmDialog({
             exit={{ scale: 0.9, y: 20 }}
             transition={spring}
             onClick={(e) => e.stopPropagation()}
-            className="bg-base-raised border border-base-border rounded-2xl p-6 max-w-sm w-full shadow-xl"
+            className="glass-modal rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-white/[0.1]"
           >
             <div className={`w-12 h-12 rounded-full ${variant === 'danger' ? 'bg-danger-dim' : 'bg-warn-dim'} flex items-center justify-center mx-auto mb-4`}>
               {variant === 'danger' ? (

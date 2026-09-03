@@ -145,7 +145,7 @@ export default function NovoAgendamentoModal({ blocos, statusList, onFechar, onS
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 20, opacity: 0 }}
         transition={spring}
-        className="bg-base-raised border border-base-border rounded-2xl w-full max-w-md p-5 space-y-4"
+        className="glass-modal rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl border border-white/[0.1]"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -21,6 +21,9 @@ import {
   ArrowsOut,
   DotsSixVertical,
   ArrowDown,
+  Crosshair,
+  Lightning,
+  LightningSlash,
 } from '@phosphor-icons/react';
 import {
   DndContext,
@@ -49,9 +52,10 @@ import { getSalvarEm } from '@/lib/settings';
 import { playScanFeedback } from '@/lib/scanPro';
 import { EmptyStatePhotos } from '@/components/EmptyState';
 import PhotoEditor from '@/components/PhotoEditor';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { spring, stagger, item } from '@/lib/motion';
 import { detectBlur } from '@/lib/blurDetect';
-import { processarFotoCompleta } from '@/lib/imageProcessor';
+import { processarFotoCompleta, compararFotosSimilares } from '@/lib/imageProcessor';
 import { TOUCH_SENSOR_DELAY, TOUCH_SENSOR_TOLERANCE, GPS_TIMEOUT_MS, GPS_MAX_AGE_MS } from '@/lib/constants';
 
 const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi: boolean }[] = [
@@ -234,6 +238,118 @@ export default function CapturaScreen({
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overCategory, setOverCategory] = useState<Categoria | null>(null);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [showMiraGuia, setShowMiraGuia] = useState(false);
+  const [liveCameraCat, setLiveCameraCat] = useState<Categoria | null>(null);
+  const [hasTorch, setHasTorch] = useState(false);
+  const [torchActive, setTorchActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [similarWarning, setSimilarWarning] = useState<{
+    similarity: number;
+    blob: Blob;
+    categoria: Categoria;
+  } | null>(null);
+
+  const stopLiveCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setLiveCameraCat(null);
+    setTorchActive(false);
+    setHasTorch(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopLiveCamera();
+    };
+  }, [stopLiveCamera]);
+
+  const startLiveCamera = async (cat: Categoria) => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast('Câmera com retículo ao vivo não suportada neste dispositivo. Abrindo câmera padrão.', 'info');
+      inputsRef.current[cat]?.click();
+      return;
+    }
+    try {
+      haptic('light');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setLiveCameraCat(cat);
+
+      const track = stream.getVideoTracks()[0];
+      const capabilities = (track.getCapabilities ? track.getCapabilities() : {}) as any;
+      if (capabilities && 'torch' in capabilities) {
+        setHasTorch(true);
+      } else {
+        setHasTorch(false);
+      }
+    } catch (err) {
+      console.warn('Erro ao abrir câmera ao vivo:', err);
+      toast('Permissão de câmera não concedida. Abrindo captura nativa.', 'warning');
+      inputsRef.current[cat]?.click();
+    }
+  };
+
+  useEffect(() => {
+    if (liveCameraCat && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [liveCameraCat]);
+
+  const toggleTorch = async () => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      const next = !torchActive;
+      await (track as any).applyConstraints({
+        advanced: [{ torch: next }],
+      });
+      setTorchActive(next);
+      haptic('light');
+    } catch (err) {
+      console.warn('Erro ao alternar lanterna:', err);
+      toast('Não foi possível acionar a lanterna do aparelho.', 'warning');
+    }
+  };
+
+  const captureLiveFrame = async () => {
+    if (!videoRef.current || !liveCameraCat) return;
+    haptic('medium');
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const cat = liveCameraCat;
+    stopLiveCamera();
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          toast('Falha ao capturar imagem da câmera.', 'error');
+          return;
+        }
+        const file = new File([blob], `live_${cat}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        handleFile(cat, file);
+      },
+      'image/jpeg',
+      0.92
+    );
+  };
 
   useEffect(() => {
     const on = () => setIsOnline(true);
@@ -405,6 +521,29 @@ export default function CapturaScreen({
         return;
       }
 
+      // Verificação anti-erro de foto duplicada (Antes vs Depois)
+      if (categoria === 'cyble_depois') {
+        const fotoAntes = fotos.find((f) => f.categoria === 'cyble_antes');
+        if (fotoAntes && fotoAntes.blob && fotoAntes.blob.size > 0) {
+          try {
+            const similaridade = await compararFotosSimilares(fotoAntes.blob, comprimido);
+            if (similaridade >= 92) {
+              haptic('heavy');
+              setSimilarWarning({
+                similarity: Math.round(similaridade),
+                blob: comprimido,
+                categoria,
+              });
+              processingRef.current = false;
+              setProcessingPhoto(false);
+              return;
+            }
+          } catch (simErr) {
+            console.warn('Erro ao verificar similaridade:', simErr);
+          }
+        }
+      }
+
       // TEMP: editor desabilitado — salvar direto
       await salvarDireto(comprimido, categoria);
     } catch (err) {
@@ -438,6 +577,29 @@ export default function CapturaScreen({
         comprimirImagem(file),
         timeoutPromise,
       ]);
+
+      if (categoria === 'cyble_depois') {
+        const fotoAntes = fotos.find((f) => f.categoria === 'cyble_antes');
+        if (fotoAntes && fotoAntes.blob && fotoAntes.blob.size > 0) {
+          try {
+            const similaridade = await compararFotosSimilares(fotoAntes.blob, comprimido);
+            if (similaridade >= 92) {
+              haptic('heavy');
+              setSimilarWarning({
+                similarity: Math.round(similaridade),
+                blob: comprimido,
+                categoria,
+              });
+              processingRef.current = false;
+              setProcessingPhoto(false);
+              return;
+            }
+          } catch (simErr) {
+            console.warn('Erro ao verificar similaridade:', simErr);
+          }
+        }
+      }
+
       // TEMP: editor desabilitado — salvar direto
       await salvarDireto(comprimido, categoria);
     } catch (err) {
@@ -710,6 +872,21 @@ export default function CapturaScreen({
               </button>
             )}
             <button
+              onClick={() => {
+                haptic('light');
+                setShowMiraGuia(!showMiraGuia);
+              }}
+              aria-label={showMiraGuia ? 'Ocultar mira guia do hidrômetro' : 'Exibir mira guia do hidrômetro'}
+              title="Guia de Enquadramento do Hidrômetro"
+              className={`tactile-press w-11 h-11 rounded-xl border flex items-center justify-center transition-colors ${
+                showMiraGuia
+                  ? 'bg-accent-dim border-accent text-accent'
+                  : 'bg-base-raised border-base-border text-content-secondary hover:text-content hover:border-accent/30'
+              }`}
+            >
+              <Crosshair size={18} weight={showMiraGuia ? 'fill' : 'bold'} aria-hidden="true" />
+            </button>
+            <button
               onClick={() => setKeepInCamera(!keepInCamera)}
               aria-label={keepInCamera ? 'Desativar modo multi-foto' : 'Ativar modo multi-foto'}
               className={`tactile-press w-11 h-11 rounded-xl border flex items-center justify-center transition-colors ${
@@ -722,6 +899,71 @@ export default function CapturaScreen({
             </button>
           </div>
         </motion.div>
+
+        {/* Guia Visual de Enquadramento do Hidrômetro */}
+        <AnimatePresence>
+          {showMiraGuia && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={spring}
+              className="glass-card rounded-2xl p-4 border border-accent/30 bg-accent-dim/10 relative overflow-hidden mb-6"
+            >
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <Crosshair size={18} weight="bold" className="text-accent" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-content">
+                    Guia de Enquadramento — Hidrômetro & Cyble
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowMiraGuia(false)}
+                  className="text-content-tertiary hover:text-content text-xs p-1"
+                  aria-label="Fechar guia"
+                >
+                  <X size={14} weight="bold" />
+                </button>
+              </div>
+
+              {/* Retículo esquemático */}
+              <div className="relative w-full h-44 rounded-xl bg-black/40 border border-white/[0.08] flex flex-col items-center justify-center p-3 mb-3 overflow-hidden select-none">
+                <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-accent/60" />
+                <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-accent/60" />
+                <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-accent/60" />
+                <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-accent/60" />
+
+                <div className="relative w-24 h-24 rounded-full border-2 border-dashed border-accent/70 flex items-center justify-center bg-accent/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
+                  <span className="absolute -top-3 px-1.5 py-0.5 rounded bg-base-raised text-[8px] font-mono font-semibold text-accent border border-accent/30 uppercase">
+                    Mostrador / Relojaria
+                  </span>
+                </div>
+
+                <div className="relative -mt-2 w-28 h-10 rounded-lg border-2 border-dashed border-amber-400/70 flex items-center justify-center bg-amber-400/5">
+                  <span className="absolute -bottom-2.5 px-1.5 py-0.5 rounded bg-base-raised text-[8px] font-mono font-semibold text-amber-400 border border-amber-400/30 uppercase">
+                    Sensor Cyble
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-content-secondary">
+                <div className="flex items-center gap-1.5 bg-base-raised/60 px-2.5 py-1.5 rounded-lg border border-white/[0.05]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
+                  <span>Ângulo reto perpendicular (90°)</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-base-raised/60 px-2.5 py-1.5 rounded-lg border border-white/[0.05]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success flex-shrink-0" />
+                  <span>Distância ideal: ~20 a 30 cm</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-base-raised/60 px-2.5 py-1.5 rounded-lg border border-white/[0.05]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-warn flex-shrink-0" />
+                  <span>Evite reflexos diretos no vidro</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <motion.div
           variants={stagger}
@@ -775,15 +1017,26 @@ export default function CapturaScreen({
                     onChange={(e) => handleFile(cat.key, e.target.files?.[0] ?? null)}
                   />
 
-                  <button
-                    onClick={() => inputsRef.current[cat.key]?.click()}
-                    disabled={processingPhoto}
-                    aria-label={`Tirar foto ${cat.label}`}
-                    className={`tactile-press w-full flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all ${processingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <Camera size={16} weight="bold" aria-hidden="true" />
-                    {processingPhoto ? 'Processando...' : (doCategoria.length > 0 && !cat.multi ? 'Tirar de novo' : 'Tirar foto')}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => inputsRef.current[cat.key]?.click()}
+                      disabled={processingPhoto}
+                      aria-label={`Tirar foto ${cat.label}`}
+                      className={`tactile-press flex-1 flex items-center justify-center gap-2 bg-base-overlay border border-base-border rounded-xl px-4 py-3 text-sm font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all ${processingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <Camera size={16} weight="bold" aria-hidden="true" />
+                      {processingPhoto ? 'Processando...' : (doCategoria.length > 0 && !cat.multi ? 'Tirar de novo' : 'Tirar foto')}
+                    </button>
+                    <button
+                      onClick={() => startLiveCamera(cat.key)}
+                      disabled={processingPhoto}
+                      aria-label={`Abrir câmera com mira para ${cat.label}`}
+                      title="Câmera ao vivo com retículo guia e lanterna"
+                      className="tactile-press w-12 h-12 flex-shrink-0 flex items-center justify-center bg-base-overlay border border-base-border rounded-xl text-content-secondary hover:text-accent hover:border-accent/40 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-colors"
+                    >
+                      <Crosshair size={18} weight="bold" aria-hidden="true" />
+                    </button>
+                  </div>
 
                   <AnimatePresence>
                     {doCategoria.length > 0 && (
@@ -1088,6 +1341,130 @@ export default function CapturaScreen({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal de Câmera com Retículo ao Vivo */}
+      <AnimatePresence>
+        {liveCameraCat && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-between select-none overflow-hidden"
+          >
+            {/* Barra superior de controles */}
+            <div className="w-full z-10 p-4 pt-6 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+              <button
+                onClick={stopLiveCamera}
+                className="w-10 h-10 rounded-full bg-black/50 border border-white/20 text-white flex items-center justify-center tactile-press"
+                aria-label="Fechar câmera"
+              >
+                <X size={20} weight="bold" />
+              </button>
+
+              <div className="text-center">
+                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-white/90 bg-white/10 px-3 py-1 rounded-full border border-white/20">
+                  {CATEGORIAS.find((c) => c.key === liveCameraCat)?.label}
+                </span>
+                <p className="text-[11px] text-white/60 font-mono mt-1">{bloco} — {apartamento}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {hasTorch && (
+                  <button
+                    onClick={toggleTorch}
+                    className={`w-10 h-10 rounded-full border flex items-center justify-center tactile-press transition-colors ${
+                      torchActive ? 'bg-warn text-black border-warn' : 'bg-black/50 border-white/20 text-white'
+                    }`}
+                    aria-label={torchActive ? 'Desligar lanterna' : 'Ligar lanterna'}
+                    title={torchActive ? 'Desligar lanterna' : 'Ligar lanterna'}
+                  >
+                    {torchActive ? <Lightning size={20} weight="fill" /> : <LightningSlash size={20} weight="bold" />}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Área do vídeo com retículo central */}
+            <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+
+              {/* Retículo do Hidrômetro & Cyble sobreposto ao vídeo */}
+              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                {/* 4 cantoneiras guias */}
+                <div className="relative w-72 h-80 sm:w-80 sm:h-96 flex flex-col items-center justify-center">
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-accent" />
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-accent" />
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-accent" />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-accent" />
+
+                  {/* Linhas de mira cruzada */}
+                  <div className="absolute inset-x-0 top-1/2 h-[1px] bg-accent/20" />
+                  <div className="absolute inset-y-0 left-1/2 w-[1px] bg-accent/20" />
+
+                  {/* Mostrador do Hidrômetro (Círculo) */}
+                  <div className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full border-2 border-dashed border-accent flex flex-col items-center justify-center bg-accent/5 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+                    <span className="absolute top-2 px-2 py-0.5 rounded bg-black/70 text-[9px] font-mono font-semibold text-accent border border-accent/40 uppercase tracking-wider">
+                      Mostrador / Relojaria
+                    </span>
+                    <div className="w-2 h-2 rounded-full bg-accent" />
+                  </div>
+
+                  {/* Slot do Módulo Cyble (Retângulo inferior) */}
+                  <div className="relative -mt-6 w-44 h-16 sm:w-52 sm:h-20 rounded-xl border-2 border-dashed border-amber-400 flex items-center justify-center bg-amber-400/10 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
+                    <span className="absolute bottom-1 px-2 py-0.5 rounded bg-black/70 text-[9px] font-mono font-semibold text-amber-300 border border-amber-400/40 uppercase tracking-wider">
+                      Encaixe Módulo Cyble
+                    </span>
+                  </div>
+
+                  <p className="absolute -bottom-8 text-[11px] font-medium text-white/90 bg-black/70 px-3 py-1 rounded-full border border-white/15 tracking-wide text-center whitespace-nowrap">
+                    Alinhe mostrador e presilha do Cyble
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Barra inferior de disparo */}
+            <div className="w-full z-10 p-6 pb-8 flex items-center justify-center bg-gradient-to-t from-black/90 to-transparent">
+              <button
+                onClick={captureLiveFrame}
+                className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center tactile-press active:scale-95 shadow-[0_0_25px_rgba(255,255,255,0.4)]"
+                aria-label="Capturar foto com retículo"
+              >
+                <div className="w-16 h-16 rounded-full bg-white transition-transform" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Alerta Anti-Erro de Foto Duplicada (Antes vs Depois) */}
+      <ConfirmDialog
+        open={!!similarWarning}
+        title="Foto Potencialmente Idêntica"
+        message={`A foto capturada para "Depois" apresenta ${similarWarning?.similarity}% de similaridade visual com a foto de "Antes".\n\nO hidrômetro/módulo Cyble já foi realmente substituído neste apartamento?`}
+        confirmLabel="Salvar mesmo assim"
+        cancelLabel="Refazer foto"
+        variant="warning"
+        onConfirm={async () => {
+          if (!similarWarning) return;
+          const { blob, categoria } = similarWarning;
+          setSimilarWarning(null);
+          await salvarDireto(blob, categoria);
+        }}
+        onCancel={() => {
+          if (!similarWarning) return;
+          const cat = similarWarning.categoria;
+          const input = inputsRef.current[cat];
+          if (input) input.value = '';
+          setSimilarWarning(null);
+        }}
+      />
     </main>
   );
 }

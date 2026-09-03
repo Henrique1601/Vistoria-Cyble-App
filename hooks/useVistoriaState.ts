@@ -134,21 +134,54 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
   }, [lista, fotosOnlineMap]);
 
   const progressoMap = useMemo(() => {
-    const map = new Map<string, { texto: string; pct: number }>();
+    const map = new Map<
+      string,
+      {
+        texto: string;
+        pct: number;
+        total: number;
+        completos: number;
+        emAndamento: number;
+        pendentes: number;
+        pctCompletos: number;
+        pctAndamento: number;
+      }
+    >();
     for (const b of blocos) {
       const codigosLocais = (lista?.[b] || []).map(normApto);
       const entry = fotosOnlineMap.get(b);
       const aptosOnline = entry?.aptos ?? new Set<string>();
       const allAptos = new Set<string>([...codigosLocais, ...aptosOnline]);
       const total = allAptos.size;
-      const completos = [...allAptos].filter((c) => {
+
+      let completos = 0;
+      let emAndamento = 0;
+
+      for (const c of allAptos) {
         const st = statusMap.get(`${b}__${c}`);
         const feitoLocal = st && st.cybleAntesFeito && st.cybleDepoisFeito;
         const feitoOnline = aptosOnline.has(c);
-        return feitoLocal || feitoOnline;
-      }).length;
-      const pct = total > 0 ? Math.round((completos / total) * 100) : 0;
-      map.set(b, { texto: `${completos}/${total}`, pct });
+        if (feitoLocal || feitoOnline) {
+          completos++;
+        } else if (st && (st.cybleAntesFeito || st.cybleDepoisFeito || st.qtdFotos > 0)) {
+          emAndamento++;
+        }
+      }
+
+      const pendentes = Math.max(0, total - completos - emAndamento);
+      const pctCompletos = total > 0 ? Math.round((completos / total) * 100) : 0;
+      const pctAndamento = total > 0 ? Math.round((emAndamento / total) * 100) : 0;
+
+      map.set(b, {
+        texto: `${completos}/${total}`,
+        pct: pctCompletos,
+        total,
+        completos,
+        emAndamento,
+        pendentes,
+        pctCompletos,
+        pctAndamento,
+      });
     }
     return map;
   }, [blocos, lista, fotosOnlineMap, statusMap]);

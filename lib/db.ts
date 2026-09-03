@@ -15,6 +15,8 @@ export interface ApartamentoStatus {
   qtdFotos: number;
   notas?: string[];
   isConcluido?: boolean;
+  qtdPendentes?: number;
+  qtdSynced?: number;
 }
 
 export interface FotoRecord {
@@ -331,15 +333,19 @@ export async function statusDeTodosApartamentos(
       const fotos = fotosMap.get(key) || [];
       const isConcluido = concluidosBloco.has(apto);
       const notas = fotos.map((f) => f.nota).filter((n): n is string => !!n && n.trim().length > 0);
+      const qtdPendentes = fotos.filter((f) => !f.synced).length;
+      const qtdSynced = fotos.filter((f) => f.synced).length;
       result.push({
         bloco,
         apartamento: apto,
         cybleAntesFeito: isConcluido || fotos.some((f) => f.categoria === 'cyble_antes'),
         cybleDepoisFeito: isConcluido || fotos.some((f) => f.categoria === 'cyble_depois'),
         qtdDocumentos: fotos.filter((f) => f.categoria === 'documento').length,
-        qtdFotos: isConcluido ? 0 : fotos.length,
+        qtdFotos: fotos.length,
         notas: notas.length > 0 ? notas : undefined,
         isConcluido,
+        qtdPendentes,
+        qtdSynced,
       });
     }
   }

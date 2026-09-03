@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning } from '@phosphor-icons/react';
+import { CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning, CloudCheck, CloudArrowUp } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { normApto, emAndamento } from '@/lib/utils';
@@ -215,21 +215,36 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           statusGradient(s)
         } ${modoCompacto ? 'px-3 py-2' : 'px-4 py-3.5'}`}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <span className={`font-mono font-medium ${modoCompacto ? 'text-xs' : 'text-sm'}`}>{s.apartamento}</span>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className={`badge-mono-pill px-2.5 py-0.5 font-bold tracking-tight text-content ${modoCompacto ? 'text-xs' : 'text-sm'}`}>
+            {s.apartamento}
+          </span>
           {isFavorited && <Star size={12} weight="fill" className="text-warn flex-shrink-0" />}
-          {s.qtdFotos > 0 && (
-            <span className={`font-mono text-content-tertiary bg-base-overlay px-2 py-0.5 rounded-md flex-shrink-0 ${modoCompacto ? 'text-[9px]' : 'text-[11px]'}`}>
+
+          {/* Indicador de Sincronização em Nuvem / Local */}
+          {(s.qtdPendentes ?? 0) > 0 ? (
+            <span
+              className="flex items-center gap-1 text-[10px] font-mono text-warn bg-warn/10 border border-warn/20 px-2 py-0.5 rounded-full flex-shrink-0"
+              title={`${s.qtdPendentes} foto(s) pendente(s) de envio para a nuvem`}
+            >
+              <CloudArrowUp size={12} weight="duotone" className="animate-pulse" />
+              <span>{s.qtdPendentes}</span>
+            </span>
+          ) : ((s.qtdSynced ?? 0) > 0 || aptosOnlineDoBloco.has(normApto(s.apartamento))) ? (
+            <span
+              className="flex items-center gap-1 text-[10px] font-mono text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full flex-shrink-0"
+              title="Fotos salvas e sincronizadas na nuvem"
+            >
+              <CloudCheck size={12} weight="duotone" />
+              <span className="hidden sm:inline text-[9px]">nuvem</span>
+            </span>
+          ) : s.qtdFotos > 0 ? (
+            <span className={`font-mono text-content-tertiary bg-base-overlay px-2 py-0.5 rounded-full flex-shrink-0 ${modoCompacto ? 'text-[9px]' : 'text-[10px]'}`}>
               {s.qtdFotos} foto{s.qtdFotos > 1 ? 's' : ''}
             </span>
-          )}
-          {aptosOnlineDoBloco.has(normApto(s.apartamento)) && s.qtdFotos === 0 && (
-            <span className="text-[11px] font-mono text-success bg-success/10 px-2 py-0.5 rounded-md flex-shrink-0">
-              online
-            </span>
-          )}
+          ) : null}
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <StatusDot done={s.cybleAntesFeito} partial={isInProgress} label="Antes" />
           <StatusDot done={s.cybleDepoisFeito} partial={isInProgress} label="Depois" />
           <StatusDot done={s.qtdDocumentos > 0} label="Doc" />
@@ -242,21 +257,21 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           {/* Agendar */}
           <div
             data-action="agendar"
-            className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors ml-1 cursor-pointer"
+            className="tactile-press flex items-center justify-center w-8 h-8 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors ml-0.5 cursor-pointer"
             role="button"
             aria-label={`Agendar ${s.apartamento}`}
           >
-            <CalendarDots size={14} weight="bold" />
+            <CalendarDots size={16} weight="bold" />
           </div>
           {/* Comentario */}
           {onComentario && (
             <div
               data-action="comentario"
-              className="tactile-press relative flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors cursor-pointer"
+              className="tactile-press relative flex items-center justify-center w-8 h-8 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent-dim transition-colors cursor-pointer"
               role="button"
               aria-label={`Comentarios de ${s.apartamento}`}
             >
-              <ChatText size={14} weight="bold" />
+              <ChatText size={16} weight="bold" />
               {comentarioCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-accent text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                   {comentarioCount > 9 ? '9+' : comentarioCount}
@@ -268,12 +283,12 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           {isComplete && onDesmarcar && userRole === 'admin' && (
             <div
               data-action="desmarcar"
-              className="tactile-press flex items-center justify-center w-7 h-7 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors cursor-pointer"
+              className="tactile-press flex items-center justify-center w-8 h-8 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger-dim transition-colors cursor-pointer"
               role="button"
               aria-label={`Desmarcar conclusao de ${s.apartamento}`}
               title="Desmarcar como concluido"
             >
-              <Warning size={14} weight="bold" />
+              <Warning size={16} weight="bold" />
             </div>
           )}
         </div>

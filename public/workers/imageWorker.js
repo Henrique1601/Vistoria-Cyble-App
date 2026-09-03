@@ -117,7 +117,7 @@ async function analyzeBlur(file) {
       const top = gray[idx - thumbW];
       const bottom = gray[idx + thumbW];
       const left = gray[idx - 1];
-      const right = gray[idx + thumbW];
+      const right = gray[idx + 1];
       laplacianSum += Math.abs(center + top + bottom + left + right);
     }
   }
