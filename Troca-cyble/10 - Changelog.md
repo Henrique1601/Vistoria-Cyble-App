@@ -1,5 +1,16 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.1 (04/09/2026)
+
+### Padronização de Nome dos Arquivos de Fotos no Download
+- **`lib/utils.ts` (`formatarNomeFotoDownload`)** — Criada função para formatar os nomes de arquivos salvos/baixados no padrão legível `Torre_A_Apto_101_Cyble_Antes.jpg`, `Torre_A_Apto_101_Cyble_Depois.jpg` e `Torre_A_Apto_101_Documento.jpg`.
+  - Normaliza torres com espaços (`Torre A` -> `Torre_A`).
+  - Normaliza apartamentos adicionando prefixo `Apto_` e limpando zeros à esquerda (`0101` -> `Apto_101`).
+  - Normaliza categorias (`cyble_antes` -> `Cyble_Antes`, `cyble_depois` -> `Cyble_Depois`, `documento` -> `Documento`).
+- **`app/CapturaScreen.tsx`** — Atualizado o auto-download de fotos (`salvarDireto` e `handleEditorSalvar`) e o download manual (`handleDownload` e `handleCompartilhar`) para usar `formatarNomeFotoDownload`.
+- **Prevenção de Nomes Genéricos em Celulares (`dispararDownloadBlob`)** — Introduzido atraso controlado na revogação do `ObjectURL` (`setTimeout(() => URL.revokeObjectURL(url), 1500)`) garantindo que navegadores móveis (Android Chrome e iOS Safari) não descartem o nome do arquivo antes do início do download.
+- **Testes Unitários (`tests/utils.test.ts`)** — Adicionada cobertura de testes para a nova função com 100% de aprovação.
+
 ## v3.8.0 (03/09/2026)
 
 ### Pacote de 8 Melhorias (Design, UX, Câmera e Engenharia)

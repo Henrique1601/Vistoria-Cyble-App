@@ -57,6 +57,20 @@ import { spring, stagger, item } from '@/lib/motion';
 import { detectBlur } from '@/lib/blurDetect';
 import { processarFotoCompleta, compararFotosSimilares } from '@/lib/imageProcessor';
 import { TOUCH_SENSOR_DELAY, TOUCH_SENSOR_TOLERANCE, GPS_TIMEOUT_MS, GPS_MAX_AGE_MS } from '@/lib/constants';
+import { formatarNomeFotoDownload } from '@/lib/utils';
+
+function dispararDownloadBlob(blob: Blob, nomeArquivo: string) {
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch { /* silent */ }
+}
 
 const CATEGORIAS: { key: Categoria; label: string; icon: React.ReactNode; multi: boolean }[] = [
   { key: 'cyble_antes', label: 'Cyble — Antes', icon: <Camera size={16} weight="duotone" />, multi: false },
@@ -432,16 +446,12 @@ export default function CapturaScreen({
     setCompartilhando(f.id);
     try {
       const blob = f.blob.size > 0 ? f.blob : await fetch(f.uploadUrl || '').then((r) => r.blob());
-      const file = new File([blob], `${f.categoria}_${f.apartamento}.jpg`, { type: 'image/jpeg' });
+      const nomeArquivo = formatarNomeFotoDownload(bloco, apartamento, f.categoria);
+      const file = new File([blob], nomeArquivo, { type: 'image/jpeg' });
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ title: `${bloco} - ${apartamento} - ${f.categoria}`, files: [file] });
       } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${bloco}_${apartamento}_${f.categoria}.jpg`;
-        a.click();
-        URL.revokeObjectURL(url);
+        dispararDownloadBlob(blob, nomeArquivo);
       }
     } catch { /* user cancelled */ }
     setCompartilhando(null);
@@ -453,14 +463,8 @@ export default function CapturaScreen({
     haptic('light');
     try {
       const blob = f.blob.size > 0 ? f.blob : await fetch(f.uploadUrl || '').then((r) => r.blob());
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${bloco}_${apartamento}_${f.categoria}_${f.id}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const nomeArquivo = formatarNomeFotoDownload(bloco, apartamento, f.categoria);
+      dispararDownloadBlob(blob, nomeArquivo);
     } catch { /* silent */ }
   }
 
@@ -627,16 +631,7 @@ export default function CapturaScreen({
       // Auto-download to device if setting is 'dispositivo' or 'ambos'
       const salvarEm = getSalvarEm();
       if (salvarEm === 'dispositivo' || salvarEm === 'ambos') {
-        try {
-          const url = URL.createObjectURL(finalBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${bloco}_${apartamento}_${cat}_${Date.now()}.jpg`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } catch { /* silent */ }
+        dispararDownloadBlob(finalBlob, formatarNomeFotoDownload(bloco, apartamento, cat));
       }
 
       const gps = await gpsPromise;
@@ -692,16 +687,7 @@ export default function CapturaScreen({
       // Auto-download to device if setting is 'dispositivo' or 'ambos'
       const salvarEm = getSalvarEm();
       if (salvarEm === 'dispositivo' || salvarEm === 'ambos') {
-        try {
-          const url = URL.createObjectURL(finalBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${bloco}_${apartamento}_${cat}_${Date.now()}.jpg`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } catch { /* silent */ }
+        dispararDownloadBlob(finalBlob, formatarNomeFotoDownload(bloco, apartamento, cat));
       }
 
       haptic('success');

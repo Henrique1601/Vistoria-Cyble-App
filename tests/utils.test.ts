@@ -8,6 +8,7 @@ import {
   formatarDataDisplay,
   estaNoIntervalo,
   obterPeriodoAtalho,
+  formatarNomeFotoDownload,
 } from '@/lib/utils';
 
 describe('normApto', () => {
@@ -154,5 +155,28 @@ describe('obterPeriodoAtalho', () => {
   it('retorna periodo do trimestre', () => {
     const { inicio, fim } = obterPeriodoAtalho('trimestre');
     expect(inicio <= fim).toBe(true);
+  });
+});
+
+describe('formatarNomeFotoDownload', () => {
+  it('formata corretamente para Cyble Antes', () => {
+    expect(formatarNomeFotoDownload('Torre A', '101', 'cyble_antes')).toBe('Torre_A_Apto_101_Cyble_Antes.jpg');
+    expect(formatarNomeFotoDownload('A', '101', 'cyble_antes')).toBe('Torre_A_Apto_101_Cyble_Antes.jpg');
+    expect(formatarNomeFotoDownload('torre a', '0101', 'cyble antes')).toBe('Torre_A_Apto_101_Cyble_Antes.jpg');
+  });
+
+  it('formata corretamente para Cyble Depois', () => {
+    expect(formatarNomeFotoDownload('Torre B', '202', 'cyble_depois')).toBe('Torre_B_Apto_202_Cyble_Depois.jpg');
+    expect(formatarNomeFotoDownload('b', '0202', 'depois')).toBe('Torre_B_Apto_202_Cyble_Depois.jpg');
+  });
+
+  it('formata corretamente para Documento', () => {
+    expect(formatarNomeFotoDownload('Torre C', '303', 'documento')).toBe('Torre_C_Apto_303_Documento.jpg');
+    expect(formatarNomeFotoDownload('Torre C', 'Apto 303', 'documento')).toBe('Torre_C_Apto_303_Documento.jpg');
+    expect(formatarNomeFotoDownload('c', '303', 'doc')).toBe('Torre_C_Apto_303_Documento.jpg');
+  });
+
+  it('suporta outras extensoes e blocos', () => {
+    expect(formatarNomeFotoDownload('Bloco 1', '404', 'documento', 'png')).toBe('Bloco_1_Apto_404_Documento.png');
   });
 });

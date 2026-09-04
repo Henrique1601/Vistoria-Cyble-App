@@ -85,3 +85,35 @@ export function emAndamento(s: ApartamentoStatus): boolean {
   const completo = s.cybleAntesFeito && s.cybleDepoisFeito;
   return temFoto && !completo;
 }
+
+/** Formata o nome do arquivo de foto para download no padrão: Torre_A_Apto_101_Documento.jpg */
+export function formatarNomeFotoDownload(
+  bloco: string,
+  apartamento: string,
+  categoria: string,
+  extensao = 'jpg'
+): string {
+  const blocoNorm = normalizeBloco(bloco || 'Torre');
+  const blocoFormatado = blocoNorm.trim().replace(/\s+/g, '_');
+
+  const aptoLimpo = normApto(apartamento || '0').replace(/^apto[_\s-]*/i, '');
+  const aptoFormatado = `Apto_${aptoLimpo}`;
+
+  let catFormatada = 'Foto';
+  const c = (categoria || '').toLowerCase().trim();
+  if (c === 'cyble_antes' || c === 'cyble antes' || c === 'antes') {
+    catFormatada = 'Cyble_Antes';
+  } else if (c === 'cyble_depois' || c === 'cyble depois' || c === 'depois') {
+    catFormatada = 'Cyble_Depois';
+  } else if (c === 'documento' || c === 'doc') {
+    catFormatada = 'Documento';
+  } else {
+    catFormatada = (categoria || 'Foto')
+      .trim()
+      .replace(/[\s-]+/g, '_')
+      .replace(/^([a-z])/, (_, letter) => letter.toUpperCase());
+  }
+
+  const extLimpa = extensao.replace(/^\.+/, '');
+  return `${blocoFormatado}_${aptoFormatado}_${catFormatada}.${extLimpa}`;
+}
