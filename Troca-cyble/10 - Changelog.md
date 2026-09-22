@@ -11,6 +11,12 @@
 - **Consolidação de Agendamentos Concluídos (`lib/db.ts` & `hooks/useVistoriaState.ts`)**:
   - Apartamentos com vistoria marcada como concluída na agenda (`concluido === true`) agora alimentam diretamente o cálculo de progresso geral e a lista consolidada de vistorias concluídas (elevando o total auditado para 811 apartamentos).
   - Hook `useVistoriaState` atualizado para carregar os agendamentos remotos e expor `refreshAgendamentos` e `agendamentosConcluidos`.
+- **Modularização de Alta Performance de `app/page.tsx`**:
+  - `app/page.tsx` reduzido e refatorado para operar como um roteador declarativo leve.
+  - Criado `components/views/BlocosView.tsx` encapsulando o dashboard, busca global, grid de blocos, fotos recentes e links inferiores.
+  - Criados `components/views/HeatmapView.tsx` e `components/views/ComparativoView.tsx` para exibição modular e isolada.
+  - Criado `hooks/usePullToRefresh.ts` para isolar gestos táteis e controle de atualização.
+  - Adicionado `Troca-cyble/11 - Guia de Uso do AI-Memory.md` documentando o subsistema de memória persistente local.
 
 ## v3.8.1 (04/09/2026)
 

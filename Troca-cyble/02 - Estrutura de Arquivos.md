@@ -59,10 +59,20 @@ vistoria-cyble-app/
 │   ├── StatusDot.tsx           # Indicador de status visual
 │   ├── ContextMenu.tsx         # Menu de contexto (long press)
 │   ├── OnboardingTour.tsx      # Tour guiado de 7 passos
-│   └── CommentsModal.tsx       # Modal de comentários por apartamento
+│   ├── CommentsModal.tsx       # Modal de comentários por apartamento
+│   └── views/                  # Telas e views modulares desacopladas
+│       ├── BlocosView.tsx      # Visão principal com dashboard, grid de torres e busca
+│       ├── ApartamentosView.tsx# Visão paginada de apartamentos da torre
+│       ├── ExportarView.tsx    # Visão de exportação multiformato
+│       ├── HeatmapView.tsx     # Visão do mapa térmico de progresso
+│       └── ComparativoView.tsx # Visão de comparativo lado a lado
 ├── hooks/
 │   ├── useKeyboardShortcuts.ts # Atalhos de teclado genéricos
-│   └── useRealTimeStatus.ts    # Polling de status a cada 30s
+│   ├── useRealTimeStatus.ts    # Polling de status a cada 30s
+│   ├── useVistoriaState.ts     # Gerenciamento de estado de vistorias e progresso
+│   ├── useApartamentosFilter.ts# Filtro e paginação de apartamentos
+│   ├── useAppLifecycle.ts      # Ciclo de vida, PWA install, storage e auto-sync
+│   └── usePullToRefresh.ts     # Gestos táteis e controle de pull-to-refresh
 ├── lib/
 │   ├── db.ts                   # Abstração IndexedDB (v4, ~750 linhas)
 │   ├── auth.ts                 # Server-side PIN auth (requireAdmin/requireAnyPin)

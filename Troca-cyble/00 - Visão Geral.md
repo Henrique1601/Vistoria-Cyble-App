@@ -142,3 +142,4 @@ PIN (Admin ou Viewer) → Selecionar Bloco → Selecionar Apartamento → Tirar 
 - [[08 - Checklist de Manutenção]]
 - [[09 - Roadmap de Funcionalidades]]
 - [[10 - Changelog]]
+- [[11 - Guia de Uso do AI-Memory]]

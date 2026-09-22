@@ -1,0 +1,3 @@
+# ai-memory project configuration
+workspace = "default"
+project = "vistoria-cyble-app"
