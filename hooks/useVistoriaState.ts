@@ -23,6 +23,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
   const [pendentes, setPendentes] = useState(0);
   const [loadingSkeleton, setLoadingSkeleton] = useState(true);
   const [comentarioCounts, setComentarioCounts] = useState<Record<string, number>>({});
+  const [agendamentosConcluidos, setAgendamentosConcluidos] = useState<Set<string>>(new Set());
 
   // Carregar lista de apartamentos inicial
   useEffect(() => {
@@ -40,9 +41,29 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       .catch(() => {});
   }, [pin]);
 
+  // Carregar agendamentos concluídos da API
+  const refreshAgendamentos = useCallback(() => {
+    if (!pin) return;
+    fetch('/api/agendamentos', { headers: { 'x-app-pin': pin } })
+      .then((r) => r.json())
+      .then((data: Array<{ bloco: string; apartamento: string; concluido: boolean }>) => {
+        const set = new Set<string>();
+        if (Array.isArray(data)) {
+          data.forEach((ag) => {
+            if (ag.concluido) {
+              set.add(`${normalizeBloco(ag.bloco)}__${normApto(ag.apartamento)}`);
+            }
+          });
+        }
+        setAgendamentosConcluidos(set);
+      })
+      .catch(() => {});
+  }, [pin]);
+
   useEffect(() => {
     refreshFotosOnline();
-  }, [refreshFotosOnline]);
+    refreshAgendamentos();
+  }, [refreshFotosOnline, refreshAgendamentos]);
 
   // Atualizar status de todos os apartamentos
   const refreshStatus = useCallback(async () => {
@@ -158,10 +179,12 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       let emAndamento = 0;
 
       for (const c of allAptos) {
-        const st = statusMap.get(`${b}__${c}`);
-        const feitoLocal = st && st.cybleAntesFeito && st.cybleDepoisFeito;
+        const key = `${b}__${c}`;
+        const st = statusMap.get(key);
+        const feitoLocal = st && ((st.cybleAntesFeito && st.cybleDepoisFeito) || st.isConcluido);
         const feitoOnline = aptosOnline.has(c);
-        if (feitoLocal || feitoOnline) {
+        const feitoAgenda = agendamentosConcluidos.has(key);
+        if (feitoLocal || feitoOnline || feitoAgenda) {
           completos++;
         } else if (st && (st.cybleAntesFeito || st.cybleDepoisFeito || st.qtdFotos > 0)) {
           emAndamento++;
@@ -184,7 +207,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       });
     }
     return map;
-  }, [blocos, lista, fotosOnlineMap, statusMap]);
+  }, [blocos, lista, fotosOnlineMap, statusMap, agendamentosConcluidos]);
 
   const aptosEsquecidos = useMemo(() => {
     const cutoff = Date.now() - diasAlerta * MS_PER_DAY;
@@ -234,12 +257,37 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
             cybleDepoisFeito: true,
             qtdDocumentos: 0,
             qtdFotos: fotosCountMap.get(key) || 0,
+            isConcluido: true,
           });
         } else {
           const existing = merged.get(key)!;
           existing.cybleAntesFeito = true;
           existing.cybleDepoisFeito = true;
+          existing.isConcluido = true;
         }
+      }
+    }
+
+    // 3. Mesclar agendamentos concluídos
+    for (const key of agendamentosConcluidos) {
+      const [bloco, apto] = key.split('__');
+      if (!merged.has(key)) {
+        merged.set(key, {
+          bloco,
+          apartamento: apto,
+          cybleAntesFeito: true,
+          cybleDepoisFeito: true,
+          qtdDocumentos: 0,
+          qtdFotos: fotosCountMap.get(key) || 0,
+          isConcluido: true,
+          qtdPendentes: 0,
+          qtdSynced: 0,
+        });
+      } else {
+        const existing = merged.get(key)!;
+        existing.cybleAntesFeito = true;
+        existing.cybleDepoisFeito = true;
+        existing.isConcluido = true;
       }
     }
 
@@ -251,7 +299,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     }
 
     return [...merged.values()];
-  }, [status, blocos, fotosOnlineMap, fotosCountMap]);
+  }, [status, blocos, fotosOnlineMap, fotosCountMap, agendamentosConcluidos]);
 
   return {
     lista,
@@ -271,6 +319,8 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     refreshStatus,
     refreshFotosOnline,
     refreshCommentCounts,
+    refreshAgendamentos,
+    agendamentosConcluidos,
     statusMap,
     fotosOnlineMap,
     fotosCountMap,

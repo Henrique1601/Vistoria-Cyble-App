@@ -36,6 +36,34 @@ async function refreshAccessToken(refreshToken: string): Promise<{ access_token:
   }
 }
 
+// --- Ensure folder exists in OneDrive (creates path chain) ---
+async function ensureFolderExists(folderPath: string, token: string) {
+  const parts = folderPath.split('/').filter(Boolean);
+  let parentUrl = `${GRAPH_BASE}/me/drive/root`;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    try {
+      await fetch(`${parentUrl}/children`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: part,
+          folder: {},
+          '@microsoft.graph.conflictBehavior': 'ignore',
+        }),
+      });
+    } catch {
+      // Ignore if folder already exists
+    }
+    const currentPath = parts.slice(0, i + 1).map(encodeURIComponent).join('/');
+    parentUrl = `${GRAPH_BASE}/me/drive/root:/${currentPath}:`;
+  }
+}
+
 // --- Upload to OneDrive ---
 async function uploadToOneDrive(
   accessToken: string,
@@ -43,6 +71,14 @@ async function uploadToOneDrive(
   fileBuffer: ArrayBuffer,
   contentType: string,
 ): Promise<{ url: string; id: string }> {
+  // Ensure parent folders exist before upload
+  const pathParts = filePath.split('/');
+  pathParts.pop(); // Remove filename
+  const folderPath = pathParts.join('/');
+  if (folderPath) {
+    await ensureFolderExists(folderPath, accessToken);
+  }
+
   const encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
   const uploadUrl = `${GRAPH_BASE}/me/drive/root:/${encodedPath}:/content`;
 

@@ -1,5 +1,17 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.2 (22/09/2026)
+
+### Resiliência de Upload no OneDrive, Validação por 3 Categorias e Agendamentos Concluídos
+- **Criação Automática de Pastas no OneDrive (`app/api/upload/route.ts`)**:
+  - Implementada a função recursiva `ensureFolderExists` para provisionar toda a cadeia de diretórios (`Vistoria-Cyble/Torre X/Apto Y`) via Microsoft Graph API antes do envio do arquivo, resolvendo falhas de upload `404 itemNotFound` e conflitos `409`.
+  - No modo híbrido (`'ambos'`), caso o OneDrive reporte erro ou token expirado, o upload no Vercel Blob é preservado com status de sucesso e alerta informativo no payload.
+- **Validação de Apartamento Concluído por 3 Categorias (`lib/db.ts`)**:
+  - A lógica de `statusDeTodosApartamentos` e `carregarTodosConcluidosConsolidados` agora valida automaticamente apartamentos que contêm as 3 categorias completas de fotos (`cyble_antes`, `cyble_depois` e `documento`), sem depender exclusivamente de marcação manual.
+- **Consolidação de Agendamentos Concluídos (`lib/db.ts` & `hooks/useVistoriaState.ts`)**:
+  - Apartamentos com vistoria marcada como concluída na agenda (`concluido === true`) agora alimentam diretamente o cálculo de progresso geral e a lista consolidada de vistorias concluídas (elevando o total auditado para 811 apartamentos).
+  - Hook `useVistoriaState` atualizado para carregar os agendamentos remotos e expor `refreshAgendamentos` e `agendamentosConcluidos`.
+
 ## v3.8.1 (04/09/2026)
 
 ### Padronização de Nome dos Arquivos de Fotos no Download

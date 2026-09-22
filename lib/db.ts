@@ -325,22 +325,40 @@ export async function statusDeTodosApartamentos(
     cursor = await cursor.continue();
   }
 
+  // Carregar agendamentos concluídos locais
+  const agendamentosConcluidos = new Set<string>();
+  try {
+    const ags = await db.getAll('agendamentos');
+    for (const ag of ags) {
+      if (ag.concluido) {
+        agendamentosConcluidos.add(`${normalizeBloco(ag.bloco)}__${normApto(ag.apartamento)}`);
+      }
+    }
+  } catch {}
+
   const result: ApartamentoStatus[] = [];
   for (const bloco of Object.keys(lista)) {
-    const concluidosBloco = new Set(concluidos[bloco] || []);
+    const concluidosBloco = new Set((concluidos[bloco] || []).map(normApto));
     for (const apto of lista[bloco]) {
-      const key = `${bloco}__${normApto(apto)}`;
+      const aptoNorm = normApto(apto);
+      const key = `${bloco}__${aptoNorm}`;
       const fotos = fotosMap.get(key) || [];
-      const isConcluido = concluidosBloco.has(apto);
+      const temAntes = fotos.some((f) => f.categoria === 'cyble_antes');
+      const temDepois = fotos.some((f) => f.categoria === 'cyble_depois');
+      const qtdDocs = fotos.filter((f) => f.categoria === 'documento').length;
+      const tem3Categorias = temAntes && temDepois && qtdDocs > 0;
+      const concluidoNaAgenda = agendamentosConcluidos.has(key);
+      const isConcluido = concluidosBloco.has(aptoNorm) || concluidoNaAgenda || tem3Categorias || (temAntes && temDepois);
+
       const notas = fotos.map((f) => f.nota).filter((n): n is string => !!n && n.trim().length > 0);
       const qtdPendentes = fotos.filter((f) => !f.synced).length;
       const qtdSynced = fotos.filter((f) => f.synced).length;
       result.push({
         bloco,
         apartamento: apto,
-        cybleAntesFeito: isConcluido || fotos.some((f) => f.categoria === 'cyble_antes'),
-        cybleDepoisFeito: isConcluido || fotos.some((f) => f.categoria === 'cyble_depois'),
-        qtdDocumentos: fotos.filter((f) => f.categoria === 'documento').length,
+        cybleAntesFeito: isConcluido || temAntes,
+        cybleDepoisFeito: isConcluido || temDepois,
+        qtdDocumentos: qtdDocs,
         qtdFotos: fotos.length,
         notas: notas.length > 0 ? notas : undefined,
         isConcluido,
@@ -1050,9 +1068,10 @@ export async function carregarTodosConcluidosConsolidados(): Promise<Record<stri
     }
   }
 
-  // 2. Concluídos via fotos (tem cyble_antes e cyble_depois)
+  // 2. Concluídos via fotos (tem cyble_antes e cyble_depois, OU tem as 3 categorias)
   const antesMap = new Set<string>();
   const depoisMap = new Set<string>();
+  const docMap = new Set<string>();
 
   let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
   while (cursor) {
@@ -1063,23 +1082,44 @@ export async function carregarTodosConcluidosConsolidados(): Promise<Record<stri
       const key = `${bNorm}__${aNorm}`;
       if (f.categoria === 'cyble_antes') antesMap.add(key);
       if (f.categoria === 'cyble_depois') depoisMap.add(key);
+      if (f.categoria === 'documento') docMap.add(key);
     }
     cursor = await cursor.continue();
   }
 
-  // Se tem antes e depois, inclui nos concluídos
+  // Se tem antes e depois, OU se tem as 3 categorias
   for (const key of antesMap) {
-    if (depoisMap.has(key)) {
+    const temDepois = depoisMap.has(key);
+    const temDoc = docMap.has(key);
+    const tem3Categorias = temDepois && temDoc;
+    if (temDepois || tem3Categorias) {
       const [bloco, apto] = key.split('__');
       if (!mapa[bloco]) mapa[bloco] = new Set();
       mapa[bloco].add(apto);
     }
   }
 
-  // 3. Concluídos via fotos na nuvem (API /api/fotos)
+  // 3. Concluídos via agendamentos locais (IndexedDB)
+  try {
+    const agsLocais = await db.getAll('agendamentos');
+    for (const ag of agsLocais) {
+      if (ag.concluido) {
+        const bNorm = normalizeBloco(ag.bloco);
+        const aNorm = normApto(ag.apartamento);
+        if (bNorm && aNorm) {
+          if (!mapa[bNorm]) mapa[bNorm] = new Set();
+          mapa[bNorm].add(aNorm);
+        }
+      }
+    }
+  } catch {}
+
+  // 4. Concluídos via fotos e agendamentos na nuvem (APIs /api/fotos e /api/agendamentos)
   if (typeof navigator !== 'undefined' && navigator.onLine) {
     try {
       const { authFetch } = await import('@/lib/api');
+      
+      // Fotos na nuvem
       const resp = await authFetch('/api/fotos');
       if (resp.ok) {
         const data = await resp.json();
@@ -1090,6 +1130,22 @@ export async function carregarTodosConcluidosConsolidados(): Promise<Record<stri
           if (bNorm && aNorm) {
             if (!mapa[bNorm]) mapa[bNorm] = new Set();
             mapa[bNorm].add(aNorm);
+          }
+        }
+      }
+
+      // Agendamentos na nuvem
+      const respAg = await authFetch('/api/agendamentos');
+      if (respAg.ok) {
+        const agendamentos: Array<{ bloco: string; apartamento: string; concluido: boolean }> = await respAg.json();
+        for (const ag of agendamentos) {
+          if (ag.concluido) {
+            const bNorm = normalizeBloco(ag.bloco);
+            const aNorm = normApto(ag.apartamento);
+            if (bNorm && aNorm) {
+              if (!mapa[bNorm]) mapa[bNorm] = new Set();
+              mapa[bNorm].add(aNorm);
+            }
           }
         }
       }
