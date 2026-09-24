@@ -106,7 +106,9 @@ export default function Home() {
     refreshFotosOnline,
     refreshCommentCounts,
     statusMap,
+    statusMergedMap,
     fotosOnlineMap,
+    fotosOnlineDetalhadoMap,
     fotosCountMap,
     blocos,
     progressoMap,
@@ -137,9 +139,10 @@ export default function Home() {
   } = useApartamentosFilter({
     blocoAtual,
     lista,
-    statusMap,
+    statusMap: statusMergedMap,
     fotosOnlineMap,
     fotosCountMap,
+    fotosOnlineDetalhadoMap,
   });
 
   // Função unificada de sincronização com Vercel Blob e OneDrive

@@ -86,6 +86,15 @@ describe('emAndamento', () => {
   it('retorna false se ambos foram feitos (concluido)', () => {
     expect(emAndamento({ cybleAntesFeito: true, cybleDepoisFeito: true })).toBe(false);
   });
+
+  it('retorna false se isConcluido for true mesmo com fotos parciais', () => {
+    expect(emAndamento({ cybleAntesFeito: true, cybleDepoisFeito: false, isConcluido: true })).toBe(false);
+  });
+
+  it('retorna true se tem fotos parciais ou documento sem estar concluido', () => {
+    expect(emAndamento({ cybleAntesFeito: false, cybleDepoisFeito: false, qtdFotos: 1 })).toBe(true);
+    expect(emAndamento({ cybleAntesFeito: false, cybleDepoisFeito: false, qtdDocumentos: 1 })).toBe(true);
+  });
 });
 
 describe('formatarDataParaInput', () => {

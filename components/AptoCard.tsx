@@ -10,8 +10,8 @@ import StatusDot from '@/components/StatusDot';
 import type { ApartamentoStatus } from '@/lib/db';
 
 function statusGradient(s: ApartamentoStatus): string {
-  if (s.cybleAntesFeito && s.cybleDepoisFeito) return 'bg-gradient-to-r from-success/5 to-transparent';
-  if (s.cybleAntesFeito || s.cybleDepoisFeito) return 'bg-gradient-to-r from-warn/5 to-transparent';
+  if (s.isConcluido || (s.cybleAntesFeito && s.cybleDepoisFeito)) return 'bg-gradient-to-r from-success/5 to-transparent';
+  if (s.cybleAntesFeito || s.cybleDepoisFeito || (s.qtdFotos ?? 0) > 0 || (s.qtdDocumentos ?? 0) > 0) return 'bg-gradient-to-r from-warn/5 to-transparent';
   return '';
 }
 
@@ -61,8 +61,8 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
     };
   }, []);
 
-  const isComplete = s.cybleAntesFeito && s.cybleDepoisFeito;
-  const isInProgress = emAndamento(s);
+  const isComplete = Boolean(s.isConcluido || (s.cybleAntesFeito && s.cybleDepoisFeito));
+  const isInProgress = !isComplete && emAndamento(s);
 
   /** Dispatch action based on data-action attribute */
   const dispatchAction = useCallback((action: string | null) => {
@@ -245,8 +245,8 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           ) : null}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <StatusDot done={s.cybleAntesFeito} partial={isInProgress} label="Antes" />
-          <StatusDot done={s.cybleDepoisFeito} partial={isInProgress} label="Depois" />
+          <StatusDot done={isComplete || s.cybleAntesFeito} partial={isInProgress && !s.cybleAntesFeito} label="Antes" />
+          <StatusDot done={isComplete || s.cybleDepoisFeito} partial={isInProgress && !s.cybleDepoisFeito} label="Depois" />
           <StatusDot done={s.qtdDocumentos > 0} label="Doc" />
           {s.notas && s.notas.length > 0 && (
             <span className="flex items-center gap-0.5 text-[9px] text-accent" title={s.notas.join(' | ')}>

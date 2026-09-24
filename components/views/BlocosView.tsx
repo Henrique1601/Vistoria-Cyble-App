@@ -378,7 +378,7 @@ export function BlocosView({
         </motion.div>
 
         <Dashboard
-          status={status}
+          status={statusMerged && statusMerged.length > 0 ? statusMerged : status}
           pendentes={pendentes}
           fotosOnline={fotosOnline}
           datasDisponiveis={datasDisponiveis}

@@ -14,6 +14,7 @@ interface UseApartamentosFilterProps {
   statusMap: Map<string, ApartamentoStatus>;
   fotosOnlineMap: Map<string, { count: number; aptos: Set<string> }>;
   fotosCountMap: Map<string, number>;
+  fotosOnlineDetalhadoMap?: Map<string, { temAntes: boolean; temDepois: boolean; temDoc: boolean; count: number }>;
 }
 
 export function useApartamentosFilter({
@@ -22,6 +23,7 @@ export function useApartamentosFilter({
   statusMap,
   fotosOnlineMap,
   fotosCountMap,
+  fotosOnlineDetalhadoMap,
 }: UseApartamentosFilterProps) {
   const [busca, setBusca] = useState('');
   const [ordem, setOrdem] = useState<OrdemTipo>('original');
@@ -57,16 +59,25 @@ export function useApartamentosFilter({
 
     const result = [...allAptos]
       .map((c) => {
-        const local = statusMap.get(`${resolvedBloco}__${c}`);
+        const key = `${resolvedBloco}__${c}`;
+        const local = statusMap.get(key);
         if (local) return { ...local, apartamento: c };
-        const temFotoOnline = aptosOnlineDoBloco.has(c);
+
+        const onlineInfo = fotosOnlineDetalhadoMap?.get(key);
+        const temAntes = onlineInfo?.temAntes ?? false;
+        const temDepois = onlineInfo?.temDepois ?? false;
+        const temDoc = onlineInfo?.temDoc ?? false;
+        const onlineCount = onlineInfo?.count ?? (fotosCountMap.get(key) || 0);
+        const concluido = (temAntes && temDepois) || (temAntes && temDepois && temDoc);
+
         return {
           bloco: resolvedBloco,
           apartamento: c,
-          cybleAntesFeito: temFotoOnline,
-          cybleDepoisFeito: temFotoOnline,
-          qtdDocumentos: 0,
-          qtdFotos: fotosCountMap.get(`${resolvedBloco}__${c}`) || 0,
+          cybleAntesFeito: temAntes,
+          cybleDepoisFeito: temDepois,
+          qtdDocumentos: temDoc ? 1 : 0,
+          qtdFotos: onlineCount,
+          isConcluido: concluido,
         };
       })
       .filter((s) => s.apartamento.toLowerCase().includes(busca.toLowerCase()));
@@ -74,9 +85,11 @@ export function useApartamentosFilter({
     // Filtragem por status
     const statusFiltered = result.filter((s) => {
       if (statusFilter === 'todos') return true;
-      const st = s.cybleAntesFeito && s.cybleDepoisFeito
+      const isConc = Boolean(s.isConcluido || (s.cybleAntesFeito && s.cybleDepoisFeito));
+      const isAndam = !isConc && Boolean(s.cybleAntesFeito || s.cybleDepoisFeito || (s.qtdDocumentos ?? 0) > 0 || (s.qtdFotos ?? 0) > 0);
+      const st = isConc
         ? 'concluido'
-        : (s.cybleAntesFeito || s.cybleDepoisFeito || s.qtdDocumentos > 0)
+        : isAndam
         ? 'em_andamento'
         : 'pendente';
       return st === statusFilter;
@@ -84,8 +97,8 @@ export function useApartamentosFilter({
 
     if (ordem === 'pendentes') {
       statusFiltered.sort((a, b) => {
-        const aC = a.cybleAntesFeito && a.cybleDepoisFeito;
-        const bC = b.cybleAntesFeito && b.cybleDepoisFeito;
+        const aC = Boolean(a.isConcluido || (a.cybleAntesFeito && a.cybleDepoisFeito));
+        const bC = Boolean(b.isConcluido || (b.cybleAntesFeito && b.cybleDepoisFeito));
         if (aC === bC) return 0;
         return aC ? 1 : -1;
       });
@@ -94,7 +107,7 @@ export function useApartamentosFilter({
     }
 
     return statusFiltered;
-  }, [blocoAtual, lista, statusMap, busca, ordem, statusFilter, aptosOnlineDoBloco, fotosCountMap]);
+  }, [blocoAtual, lista, statusMap, busca, ordem, statusFilter, aptosOnlineDoBloco, fotosCountMap, fotosOnlineDetalhadoMap]);
 
   // Paginação
   const totalPaginas = itensPagina === 999 ? 1 : Math.ceil(aptosDoBloco.length / itensPagina);

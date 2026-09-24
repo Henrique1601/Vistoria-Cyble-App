@@ -1119,17 +1119,36 @@ export async function carregarTodosConcluidosConsolidados(): Promise<Record<stri
     try {
       const { authFetch } = await import('@/lib/api');
       
-      // Fotos na nuvem
+      // Fotos na nuvem (apenas conclui se possuir Antes E Depois, ou as 3 categorias)
       const resp = await authFetch('/api/fotos');
       if (resp.ok) {
         const data = await resp.json();
-        const fotos: Array<{ bloco: string; apartamento: string }> = data.fotos || [];
+        const fotos: Array<{ bloco: string; apartamento: string; foto_index?: number; foto_url?: string }> = data.fotos || [];
+        const antesOnline = new Set<string>();
+        const depoisOnline = new Set<string>();
+        const docOnline = new Set<string>();
+
         for (const f of fotos) {
           const bNorm = normalizeBloco(f.bloco);
           const aNorm = normApto(f.apartamento);
           if (bNorm && aNorm) {
-            if (!mapa[bNorm]) mapa[bNorm] = new Set();
-            mapa[bNorm].add(aNorm);
+            const k = `${bNorm}__${aNorm}`;
+            const isAntes = f.foto_index === 0 || f.foto_url?.includes('cyble_antes') || f.foto_url?.includes('antes');
+            const isDepois = f.foto_index === 1 || f.foto_url?.includes('cyble_depois') || f.foto_url?.includes('depois');
+            const isDoc = f.foto_index === 2 || f.foto_url?.includes('documento') || f.foto_url?.includes('doc');
+            if (isAntes) antesOnline.add(k);
+            if (isDepois) depoisOnline.add(k);
+            if (isDoc) docOnline.add(k);
+          }
+        }
+
+        for (const k of antesOnline) {
+          const temDepois = depoisOnline.has(k);
+          const temDoc = docOnline.has(k);
+          if (temDepois || (temDepois && temDoc)) {
+            const [b, a] = k.split('__');
+            if (!mapa[b]) mapa[b] = new Set();
+            mapa[b].add(a);
           }
         }
       }

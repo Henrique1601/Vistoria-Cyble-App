@@ -1,5 +1,23 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.3 (24/09/2026)
+
+### Correção de Status de Apartamentos em Andamento vs. Concluídos (Online & Local)
+- **Granularidade de Fotos Online (`hooks/useVistoriaState.ts`)**:
+  - Criado `fotosOnlineDetalhadoMap` mapeando explicitamente se cada apartamento possui `temAntes`, `temDepois`, `temDoc` e `count` a partir dos metadados remotos (`foto_index`: 0=antes, 1=depois, 2=doc).
+  - Eliminada a sobrescrita cega em `statusMerged` que forçava `isConcluido: true` e `cybleDepoisFeito: true` para qualquer foto na nuvem.
+  - O cálculo de `progressoMap` agora valida a completude real (Antes E Depois, ou 3 categorias, ou concluído auditado/agenda) antes de somar em `completos++`, direcionando apartamentos com fotos parciais para `emAndamento++`.
+- **Filtro de Apartamentos & Roteamento (`hooks/useApartamentosFilter.ts` & `app/page.tsx`)**:
+  - Conectado `statusMergedMap` consolidado ao `useApartamentosFilter`, garantindo que filtros de status (`em_andamento`) e busca reflitam com fidelidade o progresso remoto e local.
+- **Estatísticas do Painel (`components/Dashboard.tsx` & `components/views/BlocosView.tsx`)**:
+  - `aptosCompletos` e `aptosAndamento` corrigidos para não absorver indiscriminadamente todos os apartamentos com foto online, preservando a contagem visual de apartamentos em andamento.
+  - Passagem de `statusMerged` para o componente `Dashboard` em `BlocosView.tsx`.
+- **Consolidação em Relatórios (`lib/db.ts`)**:
+  - `carregarTodosConcluidosConsolidados` agora exige Fotos de Antes E Depois (ou as 3 categorias) para fotos online, evitando falsos positivos de conclusão nas exportações.
+- **Feedback Visual Aprimorado (`components/AptoCard.tsx` & `lib/utils.ts`)**:
+  - A função `emAndamento(s)` agora abrange apartamentos com `qtdDocumentos > 0` ou `qtdFotos > 0` não concluídos.
+  - `StatusDot` de apartamentos em andamento exibe a categoria tirada em verde (`done`) e a categoria faltante em amarelo pulsante/alerta (`partial`).
+
 ## v3.8.2 (22/09/2026)
 
 ### Resiliência de Upload no OneDrive, Validação por 3 Categorias e Agendamentos Concluídos

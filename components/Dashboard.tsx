@@ -29,28 +29,25 @@ export const Dashboard = memo(function Dashboard({
   onFiltroDataChange,
   onFiltroInicioChange,
 }: DashboardProps) {
-  const aptosComFotoOnline = useMemo(() => {
-    const set = new Set<string>();
-    fotosOnline.forEach((f) => set.add(`${f.bloco}__${normApto(f.apartamento)}`));
-    return set;
-  }, [fotosOnline]);
-
   const totalAptos = status.length;
 
   const aptosCompletos = useMemo(() => {
     const set = new Set<string>();
-    status.filter((s) => s.cybleAntesFeito && s.cybleDepoisFeito).forEach((s) => {
-      set.add(`${s.bloco}__${normApto(s.apartamento)}`);
+    status.forEach((s) => {
+      if (s.isConcluido || (s.cybleAntesFeito && s.cybleDepoisFeito)) {
+        set.add(`${s.bloco}__${normApto(s.apartamento)}`);
+      }
     });
-    aptosComFotoOnline.forEach((key) => set.add(key));
     return set;
-  }, [status, aptosComFotoOnline]);
+  }, [status]);
 
   const aptosAndamento = useMemo(() => {
     const set = new Set<string>();
-    status.filter((s) => emAndamento(s)).forEach((s) => {
+    status.forEach((s) => {
       const key = `${s.bloco}__${normApto(s.apartamento)}`;
-      if (!aptosCompletos.has(key)) set.add(key);
+      if (!aptosCompletos.has(key) && emAndamento(s)) {
+        set.add(key);
+      }
     });
     return set;
   }, [status, aptosCompletos]);

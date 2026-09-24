@@ -123,6 +123,25 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     return map;
   }, [fotosOnline]);
 
+  const fotosOnlineDetalhadoMap = useMemo(() => {
+    const map = new Map<string, { temAntes: boolean; temDepois: boolean; temDoc: boolean; count: number }>();
+    fotosOnline.forEach((f) => {
+      const key = `${normalizeBloco(f.bloco)}__${normApto(f.apartamento)}`;
+      if (!map.has(key)) {
+        map.set(key, { temAntes: false, temDepois: false, temDoc: false, count: 0 });
+      }
+      const entry = map.get(key)!;
+      entry.count++;
+      const isAntes = f.foto_index === 0 || f.foto_url.includes('cyble_antes') || f.foto_url.includes('antes');
+      const isDepois = f.foto_index === 1 || f.foto_url.includes('cyble_depois') || f.foto_url.includes('depois');
+      const isDoc = f.foto_index === 2 || f.foto_url.includes('documento') || f.foto_url.includes('doc');
+      if (isAntes) entry.temAntes = true;
+      if (isDepois) entry.temDepois = true;
+      if (isDoc) entry.temDoc = true;
+    });
+    return map;
+  }, [fotosOnline]);
+
   const fotosCountMap = useMemo(() => {
     const map = new Map<string, number>();
     fotosOnline.forEach((f) => {
@@ -181,12 +200,22 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       for (const c of allAptos) {
         const key = `${b}__${c}`;
         const st = statusMap.get(key);
-        const feitoLocal = st && ((st.cybleAntesFeito && st.cybleDepoisFeito) || st.isConcluido);
-        const feitoOnline = aptosOnline.has(c);
+        const onlineInfo = fotosOnlineDetalhadoMap.get(key);
+
+        const temAntes = Boolean((st && st.cybleAntesFeito) || onlineInfo?.temAntes);
+        const temDepois = Boolean((st && st.cybleDepoisFeito) || onlineInfo?.temDepois);
+        const temDoc = Boolean((st && (st.qtdDocumentos ?? 0) > 0) || onlineInfo?.temDoc);
+        const qtdFotosTotal = (st?.qtdFotos ?? 0) + (onlineInfo?.count ?? 0);
+
+        const feitoLocal = Boolean(st && (st.isConcluido || (st.cybleAntesFeito && st.cybleDepoisFeito)));
         const feitoAgenda = agendamentosConcluidos.has(key);
-        if (feitoLocal || feitoOnline || feitoAgenda) {
+        const fotosConcluidas = (temAntes && temDepois) || (temAntes && temDepois && temDoc);
+
+        const isConcluido = feitoLocal || feitoAgenda || fotosConcluidas;
+
+        if (isConcluido) {
           completos++;
-        } else if (st && (st.cybleAntesFeito || st.cybleDepoisFeito || st.qtdFotos > 0)) {
+        } else if (temAntes || temDepois || temDoc || qtdFotosTotal > 0) {
           emAndamento++;
         }
       }
@@ -207,7 +236,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       });
     }
     return map;
-  }, [blocos, lista, fotosOnlineMap, statusMap, agendamentosConcluidos]);
+  }, [blocos, lista, fotosOnlineMap, fotosOnlineDetalhadoMap, statusMap, agendamentosConcluidos]);
 
   const aptosEsquecidos = useMemo(() => {
     const cutoff = Date.now() - diasAlerta * MS_PER_DAY;
@@ -240,29 +269,40 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     const merged = new Map<string, ApartamentoStatus>();
 
     for (const s of status) {
-      const key = `${s.bloco}__${normApto(s.apartamento)}`;
-      merged.set(key, { ...s, apartamento: normApto(s.apartamento) });
+      const key = `${normalizeBloco(s.bloco)}__${normApto(s.apartamento)}`;
+      merged.set(key, { ...s, bloco: normalizeBloco(s.bloco), apartamento: normApto(s.apartamento) });
     }
 
-    for (const b of blocos) {
-      const entry = fotosOnlineMap.get(b);
-      const aptosOnline = entry?.aptos ?? new Set<string>();
-      for (const apto of aptosOnline) {
-        const key = `${b}__${apto}`;
-        if (!merged.has(key)) {
-          merged.set(key, {
-            bloco: b,
-            apartamento: apto,
-            cybleAntesFeito: true,
-            cybleDepoisFeito: true,
-            qtdDocumentos: 0,
-            qtdFotos: fotosCountMap.get(key) || 0,
-            isConcluido: true,
-          });
-        } else {
-          const existing = merged.get(key)!;
-          existing.cybleAntesFeito = true;
-          existing.cybleDepoisFeito = true;
+    // 2. Mesclar fotos online detalhadas com precisão
+    for (const [key, onlineInfo] of fotosOnlineDetalhadoMap) {
+      const [bloco, apto] = key.split('__');
+      const onlineCount = onlineInfo.count;
+      const temAntes = onlineInfo.temAntes;
+      const temDepois = onlineInfo.temDepois;
+      const temDoc = onlineInfo.temDoc;
+      const concluidoOnline = (temAntes && temDepois) || (temAntes && temDepois && temDoc);
+
+      if (!merged.has(key)) {
+        merged.set(key, {
+          bloco,
+          apartamento: apto,
+          cybleAntesFeito: temAntes,
+          cybleDepoisFeito: temDepois,
+          qtdDocumentos: temDoc ? 1 : 0,
+          qtdFotos: onlineCount,
+          isConcluido: concluidoOnline,
+          qtdPendentes: 0,
+          qtdSynced: onlineCount,
+        });
+      } else {
+        const existing = merged.get(key)!;
+        if (temAntes) existing.cybleAntesFeito = true;
+        if (temDepois) existing.cybleDepoisFeito = true;
+        if (temDoc && (existing.qtdDocumentos ?? 0) === 0) existing.qtdDocumentos = 1;
+        if (onlineCount > (existing.qtdFotos ?? 0)) {
+          existing.qtdFotos = onlineCount;
+        }
+        if (concluidoOnline || (existing.cybleAntesFeito && existing.cybleDepoisFeito)) {
           existing.isConcluido = true;
         }
       }
@@ -299,7 +339,15 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     }
 
     return [...merged.values()];
-  }, [status, blocos, fotosOnlineMap, fotosCountMap, agendamentosConcluidos]);
+  }, [status, fotosOnlineDetalhadoMap, fotosCountMap, agendamentosConcluidos]);
+
+  const statusMergedMap = useMemo(() => {
+    const map = new Map<string, ApartamentoStatus>();
+    for (const s of statusMerged) {
+      map.set(`${normalizeBloco(s.bloco)}__${normApto(s.apartamento)}`, s);
+    }
+    return map;
+  }, [statusMerged]);
 
   return {
     lista,
@@ -322,7 +370,9 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     refreshAgendamentos,
     agendamentosConcluidos,
     statusMap,
+    statusMergedMap,
     fotosOnlineMap,
+    fotosOnlineDetalhadoMap,
     fotosCountMap,
     blocos,
     progressoMap,

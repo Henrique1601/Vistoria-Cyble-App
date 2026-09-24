@@ -78,12 +78,21 @@ export function fotosMapKey(bloco: string, apartamento: string): string {
 export interface ApartamentoStatus {
   cybleAntesFeito: boolean;
   cybleDepoisFeito: boolean;
+  qtdDocumentos?: number;
+  qtdFotos?: number;
+  isConcluido?: boolean;
 }
 
 export function emAndamento(s: ApartamentoStatus): boolean {
-  const temFoto = s.cybleAntesFeito || s.cybleDepoisFeito;
+  if (s.isConcluido) return false;
   const completo = s.cybleAntesFeito && s.cybleDepoisFeito;
-  return temFoto && !completo;
+  if (completo) return false;
+  const temFoto =
+    s.cybleAntesFeito ||
+    s.cybleDepoisFeito ||
+    (s.qtdDocumentos ?? 0) > 0 ||
+    (s.qtdFotos ?? 0) > 0;
+  return temFoto;
 }
 
 /** Formata o nome do arquivo de foto para download no padrão: Torre_A_Apto_101_Documento.jpg */
