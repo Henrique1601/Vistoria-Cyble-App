@@ -66,7 +66,10 @@ export async function POST(req: NextRequest) {
       // Cleanup non-critical
     }
 
-    return NextResponse.json({ ok: true, url: blob.url });
+    return NextResponse.json(
+      { ok: true, url: blob.url },
+      { headers: { 'X-Robots-Tag': 'noindex, nofollow' } }
+    );
   } catch (err) {
     return NextResponse.json({ erro: String(err) }, { status: 500 });
   }

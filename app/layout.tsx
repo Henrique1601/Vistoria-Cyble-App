@@ -63,6 +63,10 @@ export const metadata: Metadata = {
   },
   description: 'Registro fotografico de vistorias de troca de Cyble em apartamentos. PWA offline-first com sincronizacao automatica.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

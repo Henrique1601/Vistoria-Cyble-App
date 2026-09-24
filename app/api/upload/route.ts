@@ -97,7 +97,8 @@ async function uploadToOneDrive(
   }
 
   const data = await resp.json();
-  return { url: data.webUrl || '', id: data.id || '' };
+  const directUrl = data['@microsoft.graph.downloadUrl'] || data.webUrl || '';
+  return { url: directUrl, id: data.id || '' };
 }
 
 export async function POST(req: NextRequest) {

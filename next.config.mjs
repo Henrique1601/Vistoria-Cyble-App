@@ -4,6 +4,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 const nextConfig = {
   experimental: {
     optimizePackageImports: ['@phosphor-icons/react'],
+    instrumentationHook: true,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
@@ -23,9 +24,9 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // unsafe-inline: Next.js inline styles + next/script; unsafe-eval: Next.js dev HMR
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "img-src 'self' https://*.blob.vercel-storage.com data: blob:",
+              "img-src 'self' https://*.blob.vercel-storage.com https://onedrive.live.com https://*.live.com https://*.1drv.ms https://*.sharepoint.com https://*.microsoft.com https://graph.microsoft.com data: blob:",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https://*.blob.vercel-storage.com https://*.neon.tech wss:",
+              "connect-src 'self' https://*.blob.vercel-storage.com https://*.neon.tech https://login.microsoftonline.com https://graph.microsoft.com https://*.live.com https://*.1drv.ms https://*.sharepoint.com https://*.microsoft.com wss:",
               "media-src 'self' blob:",
               "object-src 'none'",
               "frame-ancestors 'none'",

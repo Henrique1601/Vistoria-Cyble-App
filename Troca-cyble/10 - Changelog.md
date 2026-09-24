@@ -14,9 +14,16 @@
   - Passagem de `statusMerged` para o componente `Dashboard` em `BlocosView.tsx`.
 - **Consolidação em Relatórios (`lib/db.ts`)**:
   - `carregarTodosConcluidosConsolidados` agora exige Fotos de Antes E Depois (ou as 3 categorias) para fotos online, evitando falsos positivos de conclusão nas exportações.
-- **Feedback Visual Aprimorado (`components/AptoCard.tsx` & `lib/utils.ts`)**:
-  - A função `emAndamento(s)` agora abrange apartamentos com `qtdDocumentos > 0` ou `qtdFotos > 0` não concluídos.
-  - `StatusDot` de apartamentos em andamento exibe a categoria tirada em verde (`done`) e a categoria faltante em amarelo pulsante/alerta (`partial`).
+- **Segurança & CSP OneDrive (`next.config.mjs` & `app/api/upload/route.ts`)**:
+  - Liberados os domínios do Microsoft OneDrive (`onedrive.live.com`, `*.live.com`, `*.1drv.ms`, `*.sharepoint.com`, `*.microsoft.com`, `graph.microsoft.com`) nas diretivas `img-src` e `connect-src` do Content Security Policy, eliminando o erro de bloqueio de imagens no upload.
+  - O retorno de `uploadToOneDrive` agora prioriza a URL direta de download `@microsoft.graph.downloadUrl` quando disponível.
+- **PWA Icons & Manifest (`public/manifest.json`, `app/layout.tsx` & `scripts/generate-icons.js`)**:
+  - Gerados e configurados ícones PNG dedicados (`icon-192.png`, `icon-512.png` com `"purpose": "any maskable"` e `apple-touch-icon.png`), habilitando a instalação completa e geração do WebAPK no Android e iOS.
+- **Privacidade em Relatórios Temporários (`app/api/share-report/route.ts` & `lib/export/html.ts`)**:
+  - Adicionado cabeçalho HTTP `X-Robots-Tag: noindex, nofollow` e tag meta `<meta name="robots" content="noindex, nofollow" />` nos laudos HTML gerados.
+- **Clean Code & Sentry (`instrumentation.ts` & `package.json`)**:
+  - Implementada a API moderna `instrumentation.ts` do Next.js 14+ para inicialização limpa do Sentry sem warnings de servidor/edge.
+  - Removida dependência residual `"claude": "^0.1.1"` do `package.json`.
 
 ## v3.8.2 (22/09/2026)
 
