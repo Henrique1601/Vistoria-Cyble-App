@@ -257,28 +257,7 @@ export async function fotosPendentesMetadados(): Promise<FotoMetadata[]> {
   const result: FotoMetadata[] = [];
   try {
     const tx = db.transaction('fotos', 'readonly');
-    const index = tx.store.index('by-synced');
-    let cursor = await index.openCursor(IDBKeyRange.only(false));
-    while (cursor) {
-      const f = cursor.value;
-      if (f && f.id != null) {
-        result.push({
-          id: f.id,
-          bloco: f.bloco,
-          apartamento: f.apartamento,
-          categoria: f.categoria,
-          timestamp: f.timestamp,
-          synced: f.synced,
-          uploadUrl: f.uploadUrl,
-          nota: f.nota,
-          gps: f.gps,
-        });
-      }
-      cursor = await cursor.continue();
-    }
-    return result;
-  } catch {
-    let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+    let cursor = await tx.store.openCursor();
     while (cursor) {
       const f = cursor.value;
       if (!f.synced && f.id != null) {
@@ -288,7 +267,7 @@ export async function fotosPendentesMetadados(): Promise<FotoMetadata[]> {
           apartamento: f.apartamento,
           categoria: f.categoria,
           timestamp: f.timestamp,
-          synced: f.synced,
+          synced: false,
           uploadUrl: f.uploadUrl,
           nota: f.nota,
           gps: f.gps,
@@ -296,45 +275,43 @@ export async function fotosPendentesMetadados(): Promise<FotoMetadata[]> {
       }
       cursor = await cursor.continue();
     }
-    return result;
+  } catch (err) {
+    console.warn('fotosPendentesMetadados error:', err);
   }
+  return result;
 }
 
 export async function fotosPendentes() {
   const db = await getDb();
-  // Use cursor to avoid loading ALL photo blobs into memory
   const result: FotoRecord[] = [];
-  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
-  while (cursor) {
-    if (!cursor.value.synced) {
-      result.push(cursor.value);
+  try {
+    let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+    while (cursor) {
+      if (!cursor.value.synced) {
+        result.push(cursor.value);
+      }
+      cursor = await cursor.continue();
     }
-    cursor = await cursor.continue();
+  } catch (err) {
+    console.warn('fotosPendentes error:', err);
   }
   return result;
 }
 
 export async function fotosPendentesCount(): Promise<number> {
   const db = await getDb();
+  let count = 0;
   try {
     const tx = db.transaction('fotos', 'readonly');
-    const index = tx.store.index('by-synced');
-    let count = 0;
-    let cursor = await index.openKeyCursor(IDBKeyRange.only(false));
-    while (cursor) {
-      count++;
-      cursor = await cursor.continue();
-    }
-    return count;
-  } catch {
-    let count = 0;
-    let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+    let cursor = await tx.store.openCursor();
     while (cursor) {
       if (!cursor.value.synced) count++;
       cursor = await cursor.continue();
     }
-    return count;
+  } catch (err) {
+    console.warn('fotosPendentesCount error:', err);
   }
+  return count;
 }
 
 export async function deletarFoto(id: number) {

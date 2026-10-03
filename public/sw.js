@@ -1,7 +1,7 @@
-const CACHE_SHELL = 'vistoria-shell-v17';
+const CACHE_SHELL = 'vistoria-shell-v18';
 const CACHE_API = 'vistoria-api-v1';
 const CACHE_FOTOS = 'vistoria-fotos-v1';
-const APP_VERSION = '3.8.4';
+const APP_VERSION = '3.8.5';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -43,19 +43,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation (app shell): stale-while-revalidate
+  // Navigation (app shell): network-first quando online para nunca prender tela quebrada
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.open(CACHE_SHELL).then(async (cache) => {
-        const cached = await cache.match(event.request);
-        const fetchPromise = fetch(event.request)
-          .then((resp) => {
-            if (resp.ok) cache.put(event.request, resp.clone());
-            return resp;
-          })
-          .catch(() => cached || new Response(offlinePage(), { headers: { 'Content-Type': 'text/html' } }));
-        return cached || fetchPromise;
-      })
+      fetch(event.request)
+        .then((resp) => {
+          if (resp.ok) {
+            const clone = resp.clone();
+            caches.open(CACHE_SHELL).then((cache) => cache.put(event.request, clone));
+          }
+          return resp;
+        })
+        .catch(async () => {
+          const cache = await caches.open(CACHE_SHELL);
+          const cached = await cache.match(event.request);
+          return cached || new Response(offlinePage(), { headers: { 'Content-Type': 'text/html' } });
+        })
     );
     return;
   }

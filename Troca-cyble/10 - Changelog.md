@@ -1,5 +1,20 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.5 (03/10/2026)
+
+### Prevenção de Renderer Crash ("Ah, não!"), Service Worker Network-First e Desafogamento de Boot
+- **Service Worker Network-First para Navegação (`public/sw.js` - `vistoria-shell-v18`):**
+  - O Service Worker agora utiliza estratégia *Network-First* para requisições de navegação quando conectado, impedindo que telas com falhas anteriores ou caches antigos fiquem aprisionados em loop no celular do usuário.
+  - O fallback offline (`CACHE_SHELL`) continua 100% preservado para áreas sem conectividade.
+- **Eliminação de DataError em Consultas IndexedDB (`lib/db.ts`):**
+  - Removido o uso de `IDBKeyRange.only(false)` que gerava `DataError: The parameter is not a valid key` no motor V8/Chromium (já que valores booleanos não são chaves indexáveis válidas no padrão W3C).
+  - Consulta de fotos pendentes estabilizada com cursores limpos e sem lançar exceções.
+- **Desafogamento de Inicialização e Cálculo em $O(1)$ (`hooks/useVistoriaState.ts`):**
+  - `refreshStatus()` agora calcula o total de pendências diretamente a partir da agregação de `newStatus`, eliminando a varredura redundante de banco imediatamente após o cálculo do condomínio.
+  - Desacoplamento da sincronização em background: `useAppLifecycle` e `syncQueue` agora aguardam a estabilização completa da interface (4s) antes de iniciar uploads automáticos pesados.
+- **Proteção de Memória de Miniaturas Recentes (`components/FotosRecentes.tsx`):**
+  - Exibição de fotos recentes limitada a 6 miniaturas leves com proteção de tamanho de Blob para evitar pressão súbita no pipeline gráfico (GPU/RAM) de navegadores móveis.
+
 ## v3.8.4 (03/10/2026)
 
 ### Correção Crítica de Memória RAM (OOM Crash Fix) & Fila de Sincronização em Lote

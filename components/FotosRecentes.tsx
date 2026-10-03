@@ -18,14 +18,18 @@ export function FotosRecentes({ fotos, onSelect }: FotosRecentesProps) {
     const urls = new Map<number, string>();
     const createdBlobUrls: string[] = [];
 
-    for (const f of fotos) {
+    const exibidas = fotos.slice(0, 6);
+
+    for (const f of exibidas) {
       if (!f.id) continue;
       if (f.synced && f.uploadUrl) {
         urls.set(f.id, f.uploadUrl);
-      } else if (f.blob && f.blob.size > 0) {
-        const url = URL.createObjectURL(f.blob);
-        createdBlobUrls.push(url);
-        urls.set(f.id, url);
+      } else if (f.blob && f.blob.size > 0 && f.blob.size < 10 * 1024 * 1024) {
+        try {
+          const url = URL.createObjectURL(f.blob);
+          createdBlobUrls.push(url);
+          urls.set(f.id, url);
+        } catch {}
       }
     }
 

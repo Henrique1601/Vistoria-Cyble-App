@@ -73,7 +73,8 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
         const newStatus = await statusDeTodosApartamentos(lista);
         setStatus(newStatus);
         setLoadingSkeleton(false);
-        setPendentes(await fotosPendentesCount());
+        const totalPendentes = newStatus.reduce((acc, s) => acc + (s.qtdPendentes ?? 0), 0);
+        setPendentes(totalPendentes);
         return newStatus;
       }
       setPendentes(await fotosPendentesCount());

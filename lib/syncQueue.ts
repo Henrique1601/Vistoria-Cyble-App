@@ -471,11 +471,11 @@ export function startOfflineAutoRetry(getPin: () => string | null) {
   };
   window.addEventListener('online', onlineListener);
 
-  // Se já estiver online ao inicializar, dispara o auto-retry após breve estabilização
+  // Se já estiver online ao inicializar, dispara o auto-retry após breve estabilização (4s)
   if (typeof navigator !== 'undefined' && navigator.onLine) {
     const pin = getPin();
     if (pin && !isRunning) {
-      setTimeout(() => syncAll(pin), 1500);
+      setTimeout(() => syncAll(pin), 4000);
     }
   }
 }

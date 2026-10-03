@@ -96,13 +96,10 @@ export function useAppLifecycle({ pin, onLogout, onAutoSync }: UseAppLifecyclePr
       setOnline(navigator.onLine);
       if (navigator.onLine) {
         fetch('/api/version', { method: 'HEAD', cache: 'no-store' })
-          .then(() => {
-            setOnline(true);
-            onAutoSync?.();
-          })
+          .then(() => setOnline(true))
           .catch(() => setOnline(false));
       }
-    }, 500);
+    }, 1000);
 
     const on = () => {
       setOnline(true);
