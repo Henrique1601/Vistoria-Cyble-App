@@ -102,7 +102,13 @@ async function uploadToOneDrive(
 }
 
 export async function POST(req: NextRequest) {
-  // Rate limit
+  // 1. Autenticação obrigatória antes do rate limit
+  const auth = requireAdmin(req);
+  if (!auth.ok) {
+    return NextResponse.json({ erro: 'Acesso restrito a administradores' }, { status: 401 });
+  }
+
+  // 2. Rate limit (180 uploads/min por IP) para proteger contra loops anômalos
   const ip = getClientIp(req);
   const rl = checkRateLimit(`upload:${ip}`, RATE_LIMITS.upload);
   if (!rl.allowed) {
@@ -110,11 +116,6 @@ export async function POST(req: NextRequest) {
       status: 429,
       headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
     });
-  }
-
-  const auth = requireAdmin(req);
-  if (!auth.ok) {
-    return NextResponse.json({ erro: 'Acesso restrito a administradores' }, { status: 401 });
   }
 
   const form = await req.formData();

@@ -7,7 +7,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **Framework:** Next.js 14.2.35 (App Router)
 - **Linguagem:** TypeScript 5.5
 - **UI:** React 18.3 + Framer Motion + Tailwind CSS
-- **Armazenamento local:** IndexedDB via `idb` (v4 — FotoRecord com `anotacoes`, `gps`, `nota`, `capturedAt`; stores: `notas`, `comentarios`)
+- **Armazenamento local:** IndexedDB via `idb` (v5 — FotoRecord com índices `by-timestamp`, `by-synced`, `by-bloco-apto`, `by-categoria`; stores: `notas`, `comentarios`)
 - **Armazenamento nuvem:** Vercel Blob (`@vercel/blob`) + Neon PostgreSQL
 - **Ícones:** @phosphor-icons/react
 - **Drag-and-drop:** @dnd-kit/core + @dnd-kit/sortable
@@ -15,7 +15,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **Virtualização:** @tanstack/react-virtual (disponível)
 - **Fonts:** Geist (display + mono)
 - **Deploy:** Vercel (auto-deploy do GitHub)
-- **Versão atual:** 3.8.3
+- **Versão atual:** 3.8.4
 
 ## Sistema de PIN
 - **`ADMIN_PIN`** — Acesso total: editar, excluir fotos, selecionar múltiplas, agendar, configurar

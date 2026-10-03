@@ -65,8 +65,8 @@ export function checkRateLimit(
 export const RATE_LIMITS = {
   /** Auth endpoints (PIN validation) — stricter */
   auth: { windowMs: 60_000, max: 10 }, // 10 attempts per minute
-  /** Upload endpoints — moderate */
-  upload: { windowMs: 60_000, max: 30 }, // 30 uploads per minute
+  /** Upload endpoints — elevado para suportar sincronização em lote de fotos */
+  upload: { windowMs: 60_000, max: 180 }, // 180 uploads per minute (3 fotos/seg)
   /** Read endpoints — lenient */
   read: { windowMs: 60_000, max: 120 }, // 120 reads per minute
   /** Write endpoints (POST/PUT/DELETE) — moderate */

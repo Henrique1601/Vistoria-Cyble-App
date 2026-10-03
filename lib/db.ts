@@ -76,6 +76,12 @@ interface VistoriaDB extends DBSchema {
   fotos: {
     key: number;
     value: FotoRecord;
+    indexes: {
+      'by-timestamp': number;
+      'by-synced': any;
+      'by-bloco-apto': [string, string];
+      'by-categoria': string;
+    };
   };
   syncLog: {
     key: number;
@@ -105,8 +111,8 @@ let dbPromise: Promise<IDBPDatabase<VistoriaDB>> | null = null;
 
 export function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<VistoriaDB>('vistoria-cyble', 4, {
-      upgrade(db, oldVersion) {
+    dbPromise = openDB<VistoriaDB>('vistoria-cyble', 5, {
+      upgrade(db, oldVersion, _newVersion, transaction) {
         if (oldVersion < 1) {
           db.createObjectStore('fotos', { keyPath: 'id', autoIncrement: true });
           db.createObjectStore('config');
@@ -122,6 +128,21 @@ export function getDb() {
           notasStore.createIndex('by-bloco-apto', ['bloco', 'apartamento']);
           const comentariosStore = db.createObjectStore('comentarios', { keyPath: 'id', autoIncrement: true });
           comentariosStore.createIndex('by-bloco-apto', ['bloco', 'apartamento']);
+        }
+        if (oldVersion < 5) {
+          const fotosStore = transaction.objectStore('fotos');
+          if (!fotosStore.indexNames.contains('by-timestamp')) {
+            fotosStore.createIndex('by-timestamp', 'timestamp');
+          }
+          if (!fotosStore.indexNames.contains('by-synced')) {
+            fotosStore.createIndex('by-synced', 'synced');
+          }
+          if (!fotosStore.indexNames.contains('by-bloco-apto')) {
+            fotosStore.createIndex('by-bloco-apto', ['bloco', 'apartamento']);
+          }
+          if (!fotosStore.indexNames.contains('by-categoria')) {
+            fotosStore.createIndex('by-categoria', 'categoria');
+          }
         }
       },
     });
@@ -170,12 +191,41 @@ export async function atualizarGpsFoto(bloco: string, apartamento: string, categ
   }
 }
 
-export async function fotosDoApartamento(bloco: string, apartamento: string) {
+export async function obterFotoPorId(id: number): Promise<FotoRecord | undefined> {
+  const db = await getDb();
+  return db.get('fotos', id);
+}
+
+export async function fotosDoApartamento(bloco: string, apartamento: string): Promise<FotoRecord[]> {
   const db = await getDb();
   const normA = normApto(apartamento);
   const letter = bloco.replace(/^Torre\s+/i, '').trim().toUpperCase();
   const isSingleLetter = letter.length === 1 && /^[A-H]$/.test(letter);
-  // Use cursor to avoid loading ALL photos into memory
+
+  try {
+    const tx = db.transaction('fotos', 'readonly');
+    const index = tx.store.index('by-bloco-apto');
+    const exact = await index.getAll([bloco, apartamento]);
+    const result = exact;
+    if (isSingleLetter) {
+      const alt1 = await index.getAll([letter, apartamento]);
+      const alt2 = await index.getAll([`Torre ${letter}`, apartamento]);
+      const setIds = new Set(result.map((f) => f.id));
+      for (const f of [...alt1, ...alt2]) {
+        if (f.id && !setIds.has(f.id)) {
+          setIds.add(f.id);
+          result.push(f);
+        }
+      }
+    }
+    if (result.length > 0) {
+      return result;
+    }
+  } catch {
+    // Fallback if index not ready or empty
+  }
+
+  // Fallback cursor scan
   const result: FotoRecord[] = [];
   let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
   while (cursor) {
@@ -188,6 +238,66 @@ export async function fotosDoApartamento(bloco: string, apartamento: string) {
     cursor = await cursor.continue();
   }
   return result;
+}
+
+export interface FotoMetadata {
+  id: number;
+  bloco: string;
+  apartamento: string;
+  categoria: Categoria;
+  timestamp: number;
+  synced: boolean;
+  uploadUrl?: string;
+  nota?: string;
+  gps?: { lat: number; lng: number };
+}
+
+export async function fotosPendentesMetadados(): Promise<FotoMetadata[]> {
+  const db = await getDb();
+  const result: FotoMetadata[] = [];
+  try {
+    const tx = db.transaction('fotos', 'readonly');
+    const index = tx.store.index('by-synced');
+    let cursor = await index.openCursor(IDBKeyRange.only(false));
+    while (cursor) {
+      const f = cursor.value;
+      if (f && f.id != null) {
+        result.push({
+          id: f.id,
+          bloco: f.bloco,
+          apartamento: f.apartamento,
+          categoria: f.categoria,
+          timestamp: f.timestamp,
+          synced: f.synced,
+          uploadUrl: f.uploadUrl,
+          nota: f.nota,
+          gps: f.gps,
+        });
+      }
+      cursor = await cursor.continue();
+    }
+    return result;
+  } catch {
+    let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+    while (cursor) {
+      const f = cursor.value;
+      if (!f.synced && f.id != null) {
+        result.push({
+          id: f.id,
+          bloco: f.bloco,
+          apartamento: f.apartamento,
+          categoria: f.categoria,
+          timestamp: f.timestamp,
+          synced: f.synced,
+          uploadUrl: f.uploadUrl,
+          nota: f.nota,
+          gps: f.gps,
+        });
+      }
+      cursor = await cursor.continue();
+    }
+    return result;
+  }
 }
 
 export async function fotosPendentes() {
@@ -206,13 +316,25 @@ export async function fotosPendentes() {
 
 export async function fotosPendentesCount(): Promise<number> {
   const db = await getDb();
-  let count = 0;
-  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
-  while (cursor) {
-    if (!cursor.value.synced) count++;
-    cursor = await cursor.continue();
+  try {
+    const tx = db.transaction('fotos', 'readonly');
+    const index = tx.store.index('by-synced');
+    let count = 0;
+    let cursor = await index.openKeyCursor(IDBKeyRange.only(false));
+    while (cursor) {
+      count++;
+      cursor = await cursor.continue();
+    }
+    return count;
+  } catch {
+    let count = 0;
+    let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+    while (cursor) {
+      if (!cursor.value.synced) count++;
+      cursor = await cursor.continue();
+    }
+    return count;
   }
-  return count;
 }
 
 export async function deletarFoto(id: number) {
@@ -596,16 +718,27 @@ export async function aplicarMarcaDagua(
 // --- Ultimas fotos (para acesso rapido) ---
 export async function ultimasFotos(limite = 10): Promise<FotoRecord[]> {
   const db = await getDb();
-  // Use cursor to avoid loading all blobs into memory; collect all, sort, take top N
-  // Note: without a timestamp index, we must scan all records
   const result: FotoRecord[] = [];
-  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
-  while (cursor) {
-    result.push(cursor.value);
-    cursor = await cursor.continue();
+  try {
+    const tx = db.transaction('fotos', 'readonly');
+    const index = tx.store.index('by-timestamp');
+    let cursor = await index.openCursor(null, 'prev');
+    while (cursor && result.length < limite) {
+      result.push(cursor.value);
+      cursor = await cursor.continue();
+    }
+    return result;
+  } catch {
+    // Fallback if index not ready
+    let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+    const temp: FotoRecord[] = [];
+    while (cursor) {
+      temp.push(cursor.value);
+      cursor = await cursor.continue();
+    }
+    temp.sort((a, b) => b.timestamp - a.timestamp);
+    return temp.slice(0, limite);
   }
-  result.sort((a, b) => b.timestamp - a.timestamp);
-  return result.slice(0, limite);
 }
 
 // --- Todas as fotos (para relatorios) ---

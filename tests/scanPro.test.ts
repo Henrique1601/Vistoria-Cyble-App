@@ -23,8 +23,8 @@ vi.hoisted(() => {
   }
   // @ts-expect-error — mocking AudioContext for jsdom
   globalThis.AudioContext = MockAudioContext;
-  // @ts-expect-error — mocking navigator.vibrate for jsdom
-  globalThis.navigator.vibrate = vi.fn();
+  // mocking navigator.vibrate for jsdom
+  (globalThis.navigator as any).vibrate = vi.fn();
 });
 
 import {

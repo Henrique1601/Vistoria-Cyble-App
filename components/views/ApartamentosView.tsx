@@ -55,7 +55,9 @@ interface ApartamentosViewProps {
   userRole: string;
   online: boolean;
   pendentes: number;
+  isSyncing?: boolean;
   onSyncBannerClick: () => void;
+  onSyncNow?: () => void;
   ctxMenu: any;
   ctxClose: () => void;
   agendamentoRapido: { bloco: string; apto: string } | null;
@@ -96,7 +98,9 @@ export function ApartamentosView({
   userRole,
   online,
   pendentes,
+  isSyncing,
   onSyncBannerClick,
+  onSyncNow,
   ctxMenu,
   ctxClose,
   agendamentoRapido,
@@ -427,7 +431,13 @@ export function ApartamentosView({
         )}
       </div>
 
-      <SyncBanner online={online} pendentes={pendentes} onClick={onSyncBannerClick} />
+      <SyncBanner
+        online={online}
+        pendentes={pendentes}
+        isSyncing={isSyncing}
+        onClick={onSyncBannerClick}
+        onSyncNow={onSyncNow}
+      />
 
       <AnimatePresence>
         {agendamentoRapido && (

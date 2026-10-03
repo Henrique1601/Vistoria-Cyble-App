@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Camera } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { spring } from '@/lib/motion';
@@ -11,6 +12,34 @@ interface FotosRecentesProps {
 }
 
 export function FotosRecentes({ fotos, onSelect }: FotosRecentesProps) {
+  const [photoUrls, setPhotoUrls] = useState<Map<number, string>>(new Map());
+
+  useEffect(() => {
+    const urls = new Map<number, string>();
+    const createdBlobUrls: string[] = [];
+
+    for (const f of fotos) {
+      if (!f.id) continue;
+      if (f.synced && f.uploadUrl) {
+        urls.set(f.id, f.uploadUrl);
+      } else if (f.blob && f.blob.size > 0) {
+        const url = URL.createObjectURL(f.blob);
+        createdBlobUrls.push(url);
+        urls.set(f.id, url);
+      }
+    }
+
+    setPhotoUrls(urls);
+
+    return () => {
+      createdBlobUrls.forEach((u) => {
+        try {
+          URL.revokeObjectURL(u);
+        } catch {}
+      });
+    };
+  }, [fotos]);
+
   if (fotos.length === 0) return null;
 
   return (
@@ -26,7 +55,7 @@ export function FotosRecentes({ fotos, onSelect }: FotosRecentesProps) {
       </div>
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
         {fotos.map((f) => {
-          const src = f.synced && f.uploadUrl ? f.uploadUrl : (f.blob.size > 0 ? URL.createObjectURL(f.blob) : '');
+          const src = f.id ? photoUrls.get(f.id) : '';
           return (
             <button
               key={f.id}

@@ -340,7 +340,7 @@ export default function SyncQueueScreen({ onVoltar }: { onVoltar: () => void }) 
                   >
                     {/* Thumbnail */}
                     <div className="w-10 h-10 rounded-lg bg-base-overlay border border-base-border flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {item.foto.blob?.size > 0 ? (
+                      {(item.foto.blob?.size ?? 0) > 0 ? (
                         <div className="w-full h-full flex items-center justify-center">
                           {CAT_ICONS[item.foto.categoria]}
                         </div>

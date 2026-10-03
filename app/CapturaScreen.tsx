@@ -376,38 +376,34 @@ export default function CapturaScreen({
     };
   }, []);
 
-  // Revoke blob URLs when fotos change to prevent memory leaks
-  useEffect(() => {
-    const urls: string[] = [];
-    for (const f of fotos) {
-      if (!f.synced && f.blob.size > 0) {
-        urls.push(URL.createObjectURL(f.blob));
-      }
-    }
-    return () => { urls.forEach(URL.revokeObjectURL); };
-  }, [fotos]);
+  // Stable blob URL mapping com gerenciamento estrito de ciclo de vida e liberação de memória RAM
+  const [fotoUrls, setFotoUrls] = useState<Map<number, string>>(new Map());
 
-  // Stable blob URL mapping - revokes old URLs when fotos change
-  const fotoUrls = useMemo(() => {
-    const map = new Map<number, string>();
+  useEffect(() => {
+    const newMap = new Map<number, string>();
+    const createdBlobUrls: string[] = [];
+
     for (const f of fotos) {
+      if (!f.id) continue;
       if (f.synced && f.uploadUrl) {
-        map.set(f.id!, f.uploadUrl);
-      } else if (f.blob.size > 0) {
-        map.set(f.id!, URL.createObjectURL(f.blob));
+        newMap.set(f.id, f.uploadUrl);
+      } else if (f.blob && f.blob.size > 0) {
+        const url = URL.createObjectURL(f.blob);
+        createdBlobUrls.push(url);
+        newMap.set(f.id, url);
       }
     }
-    return map;
-  }, [fotos]);
 
-  // Cleanup blob URLs on unmount
-  useEffect(() => {
+    setFotoUrls(newMap);
+
     return () => {
-      fotoUrls.forEach((url) => {
-        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      createdBlobUrls.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {}
       });
     };
-  }, [fotoUrls]);
+  }, [fotos]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),

@@ -206,6 +206,19 @@ export default function Home() {
     onAutoSync: tentarSincronizar,
   });
 
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    import('@/lib/syncQueue').then(({ subscribe, isSyncing }) => {
+      setSyncing(isSyncing());
+      unsub = subscribe(() => {
+        setSyncing(isSyncing());
+      });
+    });
+    return () => unsub?.();
+  }, []);
+
   // Inicialização do PIN e listeners de background
   useEffect(() => {
     const saved = sessionStorage.getItem('vistoria_pin');
@@ -600,7 +613,13 @@ export default function Home() {
               normApto(f.apartamento) === normApto(aptoAtual)
           )}
         />
-        <SyncBanner online={online} pendentes={pendentes} onClick={() => setView('syncQueue')} />
+        <SyncBanner
+          online={online}
+          pendentes={pendentes}
+          isSyncing={syncing}
+          onClick={() => setView('syncQueue')}
+          onSyncNow={tentarSincronizar}
+        />
       </>
     );
   }
@@ -669,7 +688,9 @@ export default function Home() {
           userRole={userRole}
           online={online}
           pendentes={pendentes}
+          isSyncing={syncing}
           onSyncBannerClick={() => setView('syncQueue')}
+          onSyncNow={tentarSincronizar}
           ctxMenu={ctxMenu}
           ctxClose={ctxClose}
           agendamentoRapido={agendamentoRapido}
@@ -756,6 +777,8 @@ export default function Home() {
         onDesmarcarConfirm={(bloco, apto) => setDesmarcarConfirm({ bloco, apto })}
         toast={toast}
         refreshCommentCounts={refreshCommentCounts}
+        isSyncing={syncing}
+        onSyncNow={tentarSincronizar}
       />
 
       <ConfirmDialog

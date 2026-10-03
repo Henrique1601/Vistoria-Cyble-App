@@ -78,6 +78,8 @@ interface BlocosViewProps {
   onDesmarcarConfirm: (bloco: string, apto: string) => void;
   toast: (msg: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   refreshCommentCounts: (bloco?: string) => void;
+  isSyncing?: boolean;
+  onSyncNow?: () => void;
 }
 
 export function BlocosView({
@@ -123,6 +125,8 @@ export function BlocosView({
   onDesmarcarConfirm,
   toast,
   refreshCommentCounts,
+  isSyncing,
+  onSyncNow,
 }: BlocosViewProps) {
   const [buscaGlobal, setBuscaGlobal] = useState('');
   const [dataFiltro, setDataFiltro] = useState('');
@@ -535,7 +539,13 @@ export function BlocosView({
         />
       )}
 
-      <SyncBanner online={online} pendentes={pendentes} onClick={() => onNavigate('syncQueue')} />
+      <SyncBanner
+        online={online}
+        pendentes={pendentes}
+        isSyncing={isSyncing}
+        onClick={() => onNavigate('syncQueue')}
+        onSyncNow={onSyncNow}
+      />
     </motion.main>
   );
 }

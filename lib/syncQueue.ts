@@ -1,4 +1,10 @@
-import { FotoRecord, fotosPendentes, marcarSincronizada, registrarSync } from './db';
+import {
+  Categoria,
+  fotosPendentesMetadados,
+  obterFotoPorId,
+  marcarSincronizada,
+  registrarSync,
+} from './db';
 import { getSalvarEm } from './settings';
 import { SYNC_CONCURRENCY } from './constants';
 import { logAudit } from './auditLog';
@@ -8,11 +14,28 @@ import { addNotification, autoDismiss } from './notifications';
 export type SyncStatus = 'pending' | 'uploading' | 'success' | 'failed';
 
 export interface SyncQueueItem {
-  foto: FotoRecord;
+  id: number;
+  bloco: string;
+  apartamento: string;
+  categoria: Categoria;
+  timestamp: number;
   status: SyncStatus;
   attempts: number;
   lastError?: string;
   nextRetryAt?: number;
+  /**
+   * Retrocompatibilidade com componentes (SyncQueueScreen) sem carregar blob
+   */
+  foto: {
+    id: number;
+    bloco: string;
+    apartamento: string;
+    categoria: Categoria;
+    timestamp: number;
+    synced?: boolean;
+    uploadUrl?: string;
+    blob?: { size: number };
+  };
 }
 
 export interface SyncOptions {
@@ -58,25 +81,46 @@ export function getQueueStats() {
 }
 
 export async function loadQueue(): Promise<SyncQueueItem[]> {
-  const pendentes = await fotosPendentes();
-  const existingIds = new Set(queue.map((i) => i.foto.id));
+  const pendentes = await fotosPendentesMetadados();
+  const existingIds = new Set(queue.map((i) => i.id));
   const pendentesMap = new Map(pendentes.map((f) => [f.id, f]));
 
-  // Update existing items with fresh photo data (may have GPS, notes, etc.)
+  // Update existing items with fresh photo data (GPS, timestamp, etc.)
   for (const item of queue) {
-    const freshFoto = pendentesMap.get(item.foto.id);
+    const freshFoto = pendentesMap.get(item.id);
     if (freshFoto) {
-      item.foto = freshFoto;
+      item.bloco = freshFoto.bloco;
+      item.apartamento = freshFoto.apartamento;
+      item.categoria = freshFoto.categoria;
+      item.timestamp = freshFoto.timestamp;
+      item.foto.bloco = freshFoto.bloco;
+      item.foto.apartamento = freshFoto.apartamento;
+      item.foto.categoria = freshFoto.categoria;
+      item.foto.timestamp = freshFoto.timestamp;
     }
   }
 
-  // Add new pending photos not already in queue
-  for (const foto of pendentes) {
-    if (!existingIds.has(foto.id)) {
+  // Add new pending photos not already in queue (zero heavy Blobs in memory)
+  for (const f of pendentes) {
+    if (!existingIds.has(f.id)) {
       queue.push({
-        foto,
+        id: f.id,
+        bloco: f.bloco,
+        apartamento: f.apartamento,
+        categoria: f.categoria,
+        timestamp: f.timestamp,
         status: 'pending',
         attempts: 0,
+        foto: {
+          id: f.id,
+          bloco: f.bloco,
+          apartamento: f.apartamento,
+          categoria: f.categoria,
+          timestamp: f.timestamp,
+          synced: f.synced,
+          uploadUrl: f.uploadUrl,
+          blob: { size: 1 },
+        },
       });
     }
   }
@@ -85,7 +129,7 @@ export async function loadQueue(): Promise<SyncQueueItem[]> {
   const pendingIds = new Set(pendentes.map((f) => f.id));
   for (let i = queue.length - 1; i >= 0; i--) {
     const item = queue[i];
-    if (item.status === 'success' || item.status === 'uploading' || !pendingIds.has(item.foto.id)) {
+    if (item.status === 'success' || item.status === 'uploading' || !pendingIds.has(item.id)) {
       queue.splice(i, 1);
     }
   }
@@ -110,21 +154,27 @@ function shouldRetry(item: SyncQueueItem): boolean {
 }
 
 async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
+  // Load photo on-demand from IndexedDB right before uploading (RAM efficient)
+  const fullFoto = await obterFotoPorId(item.id);
+  if (!fullFoto) {
+    return false;
+  }
+
   // Skip if already synced
-  if (item.foto.synced && item.foto.uploadUrl) {
-    if (item.foto.id != null) {
-      await marcarSincronizada(item.foto.id, item.foto.uploadUrl);
+  if (fullFoto.synced && fullFoto.uploadUrl) {
+    if (fullFoto.id != null) {
+      await marcarSincronizada(fullFoto.id, fullFoto.uploadUrl);
     }
     return true;
   }
 
   // Skip empty blobs (failed compression)
-  if (!item.foto.blob || item.foto.blob.size === 0) {
+  if (!fullFoto.blob || fullFoto.blob.size === 0) {
     await registrarSync({
       timestamp: Date.now(),
-      bloco: item.foto.bloco,
-      apartamento: item.foto.apartamento,
-      categoria: item.foto.categoria,
+      bloco: fullFoto.bloco,
+      apartamento: fullFoto.apartamento,
+      categoria: fullFoto.categoria,
       url: '',
       ok: false,
       erro: 'Blob vazio (compressao falhou)',
@@ -139,14 +189,14 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
 
   // Se o upload na nuvem estiver desativado ou configurado apenas para dispositivo, conclui localmente
   if (salvarEm === 'dispositivo' || provedorNuvem === 'desativado') {
-    if (item.foto.id != null) {
-      await marcarSincronizada(item.foto.id, 'local');
+    if (fullFoto.id != null) {
+      await marcarSincronizada(fullFoto.id, 'local');
     }
     await registrarSync({
       timestamp: Date.now(),
-      bloco: item.foto.bloco,
-      apartamento: item.foto.apartamento,
-      categoria: item.foto.categoria,
+      bloco: fullFoto.bloco,
+      apartamento: fullFoto.apartamento,
+      categoria: fullFoto.categoria,
       url: 'local',
       ok: true,
     });
@@ -154,11 +204,11 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
   }
 
   const form = new FormData();
-  form.append('file', item.foto.blob, `${item.foto.categoria}.jpg`);
-  form.append('bloco', item.foto.bloco);
-  form.append('apartamento', item.foto.apartamento);
-  form.append('categoria', item.foto.categoria);
-  form.append('timestamp', String(item.foto.timestamp));
+  form.append('file', fullFoto.blob, `${fullFoto.categoria}.jpg`);
+  form.append('bloco', fullFoto.bloco);
+  form.append('apartamento', fullFoto.apartamento);
+  form.append('categoria', fullFoto.categoria);
+  form.append('timestamp', String(fullFoto.timestamp));
   form.append('provedor_nuvem', provedorNuvem);
 
   // Incluir tokens do OneDrive se necessário
@@ -192,28 +242,37 @@ async function uploadOne(item: SyncQueueItem, pin: string): Promise<boolean> {
         }
       } catch { /* ignore */ }
     }
-    if (item.foto.id != null) {
-      await marcarSincronizada(item.foto.id, data.url);
+    if (fullFoto.id != null) {
+      await marcarSincronizada(fullFoto.id, data.url);
     }
     await registrarSync({
       timestamp: Date.now(),
-      bloco: item.foto.bloco,
-      apartamento: item.foto.apartamento,
-      categoria: item.foto.categoria,
+      bloco: fullFoto.bloco,
+      apartamento: fullFoto.apartamento,
+      categoria: fullFoto.categoria,
       url: data.url,
       ok: true,
     });
     return true;
   }
 
+  // Handle HTTP 429 with Retry-After header
+  if (resp.status === 429) {
+    const retrySec = parseInt(resp.headers.get('Retry-After') || '10', 10);
+    item.nextRetryAt = Date.now() + retrySec * 1000;
+    item.lastError = `Limite atingido (aguarde ${retrySec}s)`;
+  } else {
+    item.lastError = `HTTP ${resp.status}`;
+  }
+
   await registrarSync({
     timestamp: Date.now(),
-    bloco: item.foto.bloco,
-    apartamento: item.foto.apartamento,
-    categoria: item.foto.categoria,
+    bloco: fullFoto.bloco,
+    apartamento: fullFoto.apartamento,
+    categoria: fullFoto.categoria,
     url: '',
     ok: false,
-    erro: `HTTP ${resp.status}`,
+    erro: item.lastError,
   });
   return false;
 }
@@ -285,10 +344,12 @@ export async function syncAll(
               uploadedCount++;
             } else {
               item.status = 'failed';
-              item.lastError = 'Upload failed';
+              item.lastError = item.lastError || 'Upload failed';
               failedCount++;
               if (item.attempts < MAX_ATTEMPTS) {
-                item.nextRetryAt = Date.now() + getDelay(item.attempts);
+                if (!item.nextRetryAt || item.nextRetryAt <= Date.now()) {
+                  item.nextRetryAt = Date.now() + getDelay(item.attempts);
+                }
               }
             }
           } catch (e: unknown) {
@@ -409,6 +470,14 @@ export function startOfflineAutoRetry(getPin: () => string | null) {
     }
   };
   window.addEventListener('online', onlineListener);
+
+  // Se já estiver online ao inicializar, dispara o auto-retry após breve estabilização
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    const pin = getPin();
+    if (pin && !isRunning) {
+      setTimeout(() => syncAll(pin), 1500);
+    }
+  }
 }
 
 export function stopOfflineAutoRetry() {

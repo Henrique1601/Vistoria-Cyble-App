@@ -1,5 +1,27 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.4 (03/10/2026)
+
+### Correção Crítica de Memória RAM (OOM Crash Fix) & Fila de Sincronização em Lote
+- **Atualização do IndexedDB para v5 com Índices (`lib/db.ts`):**
+  - Criação de índices dedicados na store `fotos`: `by-timestamp`, `by-synced`, `by-bloco-apto`, `by-categoria`.
+  - `ultimasFotos(10)` otimizada para carregar apenas os últimos 10 registros em O(1) com cursor reverso, eliminando a varredura completa da tabela e o carregamento de centenas de Blobs na memória.
+  - `fotosPendentesCount()` otimizada com `openKeyCursor` no índice `by-synced` sem deserializar objetos pesados.
+- **Fila de Sincronização Ultraleve Sem Retenção de Blobs (`lib/syncQueue.ts`):**
+  - `SyncQueueItem` e `loadQueue()` refatorados para armazenar apenas metadados leves em RAM.
+  - `uploadOne()` carrega o `Blob` sob demanda do IndexedDB via `obterFotoPorId(id)` no instante do envio e o descarta imediatamente após a transmissão.
+- **Eliminação de Memory Leaks de Blob URLs (`app/CapturaScreen.tsx` & `components/FotosRecentes.tsx`):**
+  - Substituição de alocações soltas e `useMemo` não descartáveis por gerenciamento estrito de ciclo de vida com `useState` + `useEffect` e liberação obrigatória via `URL.revokeObjectURL`.
+  - Extinção do colapso de memória móvel ("A página precisou ser recarregada").
+- **Elevação do Rate Limit de Uploads (`lib/rateLimit.ts` & `app/api/upload/route.ts`):**
+  - Limite de uploads aumentado de 30 para 180 requisições/minuto (3 fotos/segundo), suportando vistorias de alta velocidade em campo.
+  - Autenticação de administrador verificada antes do consumo de cota por IP, e tratamento de cabeçalho `Retry-After` (HTTP 429) no `item.lastError`.
+- **SyncBanner Fidedigno de 3 Estados (`components/SyncBanner.tsx`, `ApartamentosView.tsx` & `app/page.tsx`):**
+  - O banner agora reflete o estado real `isSyncing` da fila, eliminando a falsa indicação permanente de "Sincronizando...".
+  - Novo estado quando online e ocioso: "Fotos salvas no aparelho • Toque para enviar" com botão direto "Enviar".
+- **Auto-Sync Confiável na Inicialização (`hooks/useAppLifecycle.ts` & `lib/syncQueue.ts`):**
+  - Disparo automático de sincronização assim que o app confirma conectividade na abertura.
+
 ## v3.8.3 (24/09/2026)
 
 ### Correção de Status de Apartamentos em Andamento vs. Concluídos (Online & Local)
