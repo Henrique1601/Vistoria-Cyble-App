@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
       { headers: { 'X-Robots-Tag': 'noindex, nofollow' } }
     );
   } catch (err) {
-    return NextResponse.json({ erro: String(err) }, { status: 500 });
+    console.error('Erro ao compartilhar relatorio:', err);
+    return NextResponse.json({ erro: 'Falha ao gerar o relatorio compartilhado no servidor' }, { status: 500 });
   }
 }

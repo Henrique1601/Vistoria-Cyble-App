@@ -1,5 +1,5 @@
 import type { ApartamentoStatus } from '../db';
-import { statusApto, shareFile, normApto } from './utils';
+import { statusApto, shareFile } from './utils';
 
 export interface ExportJSON {
   version: string;
@@ -60,16 +60,4 @@ export async function exportarJSON(status: ApartamentoStatus[], titulo: string) 
   const blob = new Blob([json], { type: 'application/json' });
   const filename = `vistoria-${new Date().toISOString().slice(0, 10)}.json`;
   await shareFile(blob, filename, `Exportacao Vistoria Cyble - ${titulo}`);
-}
-
-export function parseImportJSON(jsonStr: string): ExportJSON | null {
-  try {
-    const data = JSON.parse(jsonStr);
-    if (data.version && data.apartments && Array.isArray(data.apartments)) {
-      return data as ExportJSON;
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }

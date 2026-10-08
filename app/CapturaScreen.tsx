@@ -45,7 +45,20 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { salvarFoto, deletarFoto, fotosDoApartamento, comprimirImagem, comprimirImagemLocal, atualizarNota, moverFotoCategoria, reordenarFotos, FotoRecord, Categoria } from '@/lib/db';
+import {
+  salvarFoto,
+  deletarFoto,
+  fotosDoApartamento,
+  comprimirImagem,
+  comprimirImagemLocal,
+  atualizarNota,
+  moverFotoCategoria,
+  reordenarFotos,
+  aplicarMarcaDagua,
+  atualizarGpsFoto,
+  FotoRecord,
+  Categoria,
+} from '@/lib/db';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { getSalvarEm } from '@/lib/settings';
@@ -616,7 +629,6 @@ export default function CapturaScreen({
   async function salvarDireto(blob: Blob, categoria: Categoria) {
     const cat = categoria;
     try {
-      const { aplicarMarcaDagua } = await import('@/lib/db');
       const watermarkLabel = WATERMARK_LABELS[cat] || cat;
       const finalBlob = await aplicarMarcaDagua(blob, watermarkLabel, bloco, apartamento);
       const gpsPromise = getGPS();
@@ -633,7 +645,6 @@ export default function CapturaScreen({
       const gps = await gpsPromise;
       if (gps) {
         try {
-          const { atualizarGpsFoto } = await import('@/lib/db');
           await atualizarGpsFoto(bloco, apartamento, cat, gps);
         } catch { /* silent */ }
       }
@@ -663,7 +674,6 @@ export default function CapturaScreen({
     const cat = editingPhoto.categoria;
     try {
       // Apply watermark to final output
-      const { aplicarMarcaDagua } = await import('@/lib/db');
       const watermarkLabel = WATERMARK_LABELS[cat] || cat;
       const finalBlob = await aplicarMarcaDagua(blob, watermarkLabel, bloco, apartamento);
       // Start GPS in parallel — don't block save
@@ -675,7 +685,6 @@ export default function CapturaScreen({
       const gps = await gpsPromise;
       if (gps) {
         try {
-          const { atualizarGpsFoto } = await import('@/lib/db');
           await atualizarGpsFoto(bloco, apartamento, cat, gps);
         } catch { /* silent — GPS is nice-to-have */ }
       }

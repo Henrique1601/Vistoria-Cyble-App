@@ -85,22 +85,6 @@ export async function comprimirImagemComWorker(file: File, fallbackFn: (file: Fi
   }
 }
 
-/**
- * Executa a análise de blur utilizando Web Worker em background.
- * Se o Worker falhar ou não estiver disponível, faz fallback automático.
- */
-export async function detectBlurComWorker(file: File): Promise<BlurResult> {
-  try {
-    const result = await callWorker<{ blurResult: BlurResult }>('detectBlur', file, 0.75);
-    if (result.blurResult) {
-      return result.blurResult;
-    }
-    throw new Error('BlurResult nulo');
-  } catch (err) {
-    console.warn('Worker detectBlur fallback:', err);
-    return detectBlurFallback(file);
-  }
-}
 
 /**
  * Executa simultaneamente compressão e detecção de blur em uma única passada no Web Worker.

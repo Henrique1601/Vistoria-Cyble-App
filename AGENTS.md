@@ -1,7 +1,7 @@
 # AGENTS.md — Vistoria Cyble App
 
 > **Manual de Instruções, Governança, Arquitetura e Diretrizes para Agentes de IA**  
-> **Versão do App:** 3.8.0 | **Framework:** Next.js 14.2.35 (App Router) | **Linguagem:** TypeScript 5.5
+> **Versão do App:** 3.8.6 | **Framework:** Next.js 14.2.35 (App Router) | **Linguagem:** TypeScript 5.5
 
 ---
 
@@ -23,8 +23,8 @@ O **Vistoria Cyble App** é um **Progressive Web App (PWA) de alta resiliência 
 - **Interface & Estilização:** React 18.3 + Tailwind CSS 3.4 + Framer Motion 12
 - **Tipografia:** Geist Sans / Geist Mono (`geist`)
 - **Ícones:** `@phosphor-icons/react` 2.1
-- **Banco de Dados Local (Cliente):** IndexedDB v4 via biblioteca `idb` 8.0
-- **Banco de Dados Remoto (Nuvem):** Neon Serverless PostgreSQL via `@neondatabase/serverless` 1.1
+- **Banco de Dados Local (Cliente):** IndexedDB v5 via biblioteca `idb` 8.0
+- **Banco de Dados Remoto (Nuvem):** Neon Serverless PostgreSQL via driver `postgres` 3.4
 - **Armazenamento de Arquivos:** `@vercel/blob` 0.27
 - **Virtualização & Drag-and-Drop:** `@tanstack/react-virtual` 3.14 + `@dnd-kit/core` 6.3 + `@dnd-kit/sortable` 10.0
 - **Exportações:** `jspdf` 4.2 + `jspdf-autotable` 5.0 + `xlsx` (SheetJS) 0.18 + `jszip` 3.10
@@ -73,13 +73,12 @@ O **Vistoria Cyble App** é um **Progressive Web App (PWA) de alta resiliência 
 │   ├── drawing.ts                # Motor de desenho em canvas para o editor de anotações
 │   ├── scanPro.ts                # Feedback sonoro (Web Audio API) e tátil para modo escaneamento
 │   ├── haptic.ts                 # Padrões de vibração tátil (Haptic API)
-│   ├── autoBackup.ts             # Timer configurável de backup periódico em background
 │   ├── backup.ts                 # Rotinas de backup manual/automático e restauração
 │   ├── googleCalendar.ts         # Integração de agendamentos com Google Calendar (.ics e links)
 │   ├── googleDrive.ts            # Integração OAuth2 para backup direto no Google Drive
 │   ├── notifications.ts          # Sistema pub/sub de notificações internas
 │   ├── notificationsPush.ts      # Notificações Push do navegador
-│   ├── version.ts                # Constante da versão atual da aplicação (3.5.0)
+│   ├── version.ts                # Constante da versão atual da aplicação (3.8.6)
 │   └── export/                   # Motores de exportação modularizados
 │       ├── index.ts              # Barrel export dos geradores
 │       ├── pdf.ts                # Relatórios técnicos em PDF com gráficos e fotos embutidas

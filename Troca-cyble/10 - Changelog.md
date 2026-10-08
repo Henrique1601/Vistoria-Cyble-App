@@ -1,5 +1,25 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.6 (08/10/2026)
+
+### Limpeza de Código Morto, Blindagem de Segurança OWASP e Clean Code
+- **Remoção de Código Morto & Dependências Fantasmas:**
+  - Excluído o arquivo obsoleto `lib/autoBackup.ts` (122 linhas), integralmente substituído por `lib/backup.ts` e `hooks/useAppLifecycle.ts`.
+  - Desinstalada a dependência `@neondatabase/serverless` do `package.json` (o projeto utiliza `postgres` nativo com pooling via `lib/sql.ts`).
+  - Removidos exports e funções órfãs: `parseImportJSON` em `lib/export/json.ts`, `detectBlurComWorker` em `lib/imageProcessor.ts`.
+- **Blindagem de Segurança e Correções OWASP:**
+  - **Prevenção de Information Leakage (OWASP A04/A09):** Sanitizadas as respostas de erro nas rotas `/api/backup` e `/api/share-report`, evitando o vazamento de exceções e caminhos internos do servidor.
+  - **Eliminação de PIN em Query String (`/api/status`):** O endpoint `GET /api/status` agora exige autenticação estritamente via header seguro `x-app-pin`, eliminando a passagem de credenciais em parâmetros de URL (`?pin=...`).
+  - **Suporte Dual-Role Real (Admin vs. Viewer) em `/api/status`:** `POST /api/status` agora permite autenticação com `VIEWER_PIN` para verificação de credenciais no `PinGate`, restringindo apenas operações de mutação de dados para `ADMIN_PIN`.
+  - **Centralização de Client ID OAuth:** Atualizadas as rotas `/api/onedrive-callback`, `/api/upload` e `lib/onedrive.ts` para ler prioritariamente de `process.env.ONEDRIVE_CLIENT_ID` / `NEXT_PUBLIC_ONEDRIVE_CLIENT_ID`.
+  - **Desafogamento do Event Loop (`lib/rateLimit.ts`):** Adicionado `.unref()` no temporizador de limpeza do rate limiter para evitar reter o runtime Node.js.
+- **Clean Code & Performance na Captura de Câmera (`app/CapturaScreen.tsx`):**
+  - Unificação de importações estáticas para `aplicarMarcaDagua` e `atualizarGpsFoto`, eliminando `await import('@/lib/db')` repetidos a cada disparo de foto.
+- **Ampliação da Suíte de Testes Automatizados:**
+  - Criados 25 novos testes unitários cobrindo autenticação com `timingSafeEqual` (`tests/auth.test.ts`), sanitização e validação contra SQL injection/XSS (`tests/validation.test.ts`) e rate limiting (`tests/rateLimit.test.ts`). Total de testes: **108/108 aprovados**.
+- **Atualização do Service Worker:**
+  - Cache shell promovido para `vistoria-shell-v19` e versão sincronizada para `3.8.6`.
+
 ## v3.8.5 (03/10/2026)
 
 ### Prevenção de Renderer Crash ("Ah, não!"), Service Worker Network-First e Desafogamento de Boot

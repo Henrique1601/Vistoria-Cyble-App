@@ -84,7 +84,6 @@ vistoria-cyble-app/
 │   ├── notificationsPush.ts    # Browser push notifications + fallback in-app
 │   ├── auditLog.ts             # Log de auditoria via IndexedDB
 │   ├── backup.ts               # Backup manual/automático
-│   ├── autoBackup.ts           # Timer de backup automático configurável
 │   ├── scanPro.ts              # Feedback sonoro + vibração
 │   ├── drawing.ts              # Canvas API para anotações
 │   ├── haptic.ts               # Vibração em ações (6 padrões)

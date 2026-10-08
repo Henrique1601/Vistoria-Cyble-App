@@ -69,8 +69,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, url: blob.url, path });
   } catch (err) {
+    console.error('Erro ao processar backup:', err);
     return NextResponse.json(
-      { erro: String(err) },
+      { erro: 'Falha ao salvar o backup no servidor' },
       { status: 500 }
     );
   }

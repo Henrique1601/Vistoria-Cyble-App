@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth';
+import { requireAdmin, requireAnyPin } from '@/lib/auth';
 import { getSql } from '@/lib/sql';
 import { checkRateLimit, RATE_LIMITS, getClientIp } from '@/lib/rateLimit';
 import { validateBloco, validateApartamento, isValidationError } from '@/lib/validation';
@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const pin = req.headers.get('x-app-pin') || req.nextUrl.searchParams.get('pin') || '';
-  if (!pin) return NextResponse.json({ status: {}, lastUpdate: Date.now() });
+  const auth = requireAnyPin(req);
+  if (!auth.ok) return NextResponse.json({ status: {}, lastUpdate: Date.now() });
 
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ status: {}, lastUpdate: Date.now() });
@@ -87,31 +87,38 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Admin only
-  const auth = requireAdmin(req);
+  // Permite autenticação de qualquer PIN (Admin ou Viewer)
+  const auth = requireAnyPin(req);
   if (!auth.ok) return auth.error!;
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ ok: false, error: 'DATABASE_URL not configured' }, { status: 500 });
-  }
-
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { bloco, apartamento, concluido } = body;
 
-    if (concluido && bloco && apartamento) {
-      const b = validateBloco(bloco);
-      const a = validateApartamento(apartamento);
-      if (!isValidationError(b) && !isValidationError(a)) {
-        const sql = getSql();
-        await sql`
-          INSERT INTO concluidos (bloco, apartamentos)
-          VALUES (${b}, ARRAY[${a}]::text[])
-          ON CONFLICT (bloco) DO UPDATE
-          SET apartamentos = ARRAY(
-            SELECT DISTINCT unnest(concluidos.apartamentos || EXCLUDED.apartamentos)
-          )
-        `;
+    // Mutação de conclusão é ação restrita a administradores
+    if (concluido || bloco || apartamento) {
+      if (auth.role !== 'admin') {
+        return NextResponse.json({ ok: false, error: 'Acesso restrito a administradores' }, { status: 403 });
+      }
+
+      if (!process.env.DATABASE_URL) {
+        return NextResponse.json({ ok: false, error: 'DATABASE_URL not configured' }, { status: 500 });
+      }
+
+      if (concluido && bloco && apartamento) {
+        const b = validateBloco(bloco);
+        const a = validateApartamento(apartamento);
+        if (!isValidationError(b) && !isValidationError(a)) {
+          const sql = getSql();
+          await sql`
+            INSERT INTO concluidos (bloco, apartamentos)
+            VALUES (${b}, ARRAY[${a}]::text[])
+            ON CONFLICT (bloco) DO UPDATE
+            SET apartamentos = ARRAY(
+              SELECT DISTINCT unnest(concluidos.apartamentos || EXCLUDED.apartamentos)
+            )
+          `;
+        }
       }
     }
 
