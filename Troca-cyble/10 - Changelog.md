@@ -1,5 +1,26 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.7 (13/10/2026)
+
+### Agenda Bidirecional Offline/Online, Redesign Retrátil com Limites e Conclusão Multi-Aparelho Sem Fotos Online
+- **Agenda Bidirecional 100% Offline-First (`lib/db.ts` & `components/AgendaScreen.tsx`):**
+  - **Persistência Completa no IndexedDB:** Todos os agendamentos carregados da nuvem são gravados e sincronizados no IndexedDB local (`salvarAgendamentosRemotos`), garantindo acesso total offline em subsolos e poços sem conectividade.
+  - **Sincronização de Pendências Criadas Offline:** Agendamentos criados, editados, concluídos ou excluídos offline recebem flag `synced: false` ou fila de deleção remota (`agendamentosDeletadosQueue`) e são automaticamente reconciliados com o Neon PostgreSQL (`/api/agendamentos`) ao reconectar.
+  - **Listener Automático de Reconexão:** Ao restabelecer a conexão com a internet (`window.ononline`), a agenda sincroniza em segundo plano e notifica o usuário via toast discreto.
+- **Redesign da Agenda — Acordeão Retrátil & Limites Ajustáveis de Exibição (`components/AgendaScreen.tsx` & `lib/settings.ts`):**
+  - **Seções em Acordeão com Framer Motion:** Grupos (*Atrasados*, *Hoje*, *Futuros*, *Concluídos*) agora possuem cabeçalhos colapsáveis com indicador animado (`CaretRight`), títulos com cores semânticas e badges de contagem de itens.
+  - **Estado Padrão Otimizado:** *Atrasados* e *Hoje* iniciam expandidos por padrão; *Futuros* e *Concluídos* iniciam recolhidos para economizar espaço de tela em celulares.
+  - **Controle Global de Expansão:** Botão de ação rápida no topo para "Expandir todos" / "Recolher todos".
+  - **Seletor de Limite de Visualização:** Seletor rápido de densidade (*5 | 10 | Todos*) salvo nas preferências locais (`getLimiteAgenda` / `setLimiteAgenda`), com botão tátil *"Ver mais (+X)"* e *"Ver menos"* em cada grupo.
+- **Status de Conclusão Multi-Aparelho Sem Fotos Online (`lib/db.ts` & `hooks/useVistoriaState.ts`):**
+  - **Mesclagem Não-Destrutiva por União de Conjuntos:** `carregarConcluidos()` corrigido para mesclar a lista do servidor Neon com a lista local por união (`Set`), evitando que um celular sobrescreva ou apague apartamentos concluídos registrados por outros técnicos.
+  - **Tombstones de Desmarcação:** Apartamentos desmarcados localmente são gravados com timestamp em `config.desmarcados` para prevenir que caches remotos ressuscitem itens desmarcados intencionalmente.
+  - **Integração no Painel em Tempo Real:** `useVistoriaState` agora consome periodicamente os concluídos remotos (`/api/concluidos`) e a resposta estruturada de `/api/agendamentos`, marcando apartamentos como concluídos no dashboard e nos cards mesmo sem nenhuma foto hospedada na nuvem.
+  - **Auto-Conclusão com Fotos Locais Baixadas:** Ao salvar fotos obrigatórias (`cyble_antes` e `cyble_depois`) no IndexedDB do aparelho, o apartamento é registrado automaticamente na tabela de concluídos e propagado para a nuvem.
+- **Service Worker & Testes Automatizados:**
+  - Cache shell promovido para `vistoria-shell-v20` e versão 3.8.7 registrada em `lib/version.ts` e `package.json`.
+  - Novos testes unitários criados para a agenda offline-first e limites de exibição (`tests/agendaSync.test.ts` e `tests/settings.test.ts`). Total de testes: **113/113 aprovados**.
+
 ## v3.8.6 (08/10/2026)
 
 ### Limpeza de Código Morto, Blindagem de Segurança OWASP e Clean Code

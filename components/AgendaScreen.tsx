@@ -16,6 +16,9 @@ import {
   MagnifyingGlass,
   X,
   GoogleLogo,
+  CaretRight,
+  ArrowsInSimple,
+  ArrowsOutSimple,
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
@@ -32,7 +35,9 @@ import {
   excluirAgendamento,
   carregarConcluidos,
   salvarConcluidos,
+  sincronizarAgendamentos,
 } from '@/lib/db';
+import { getLimiteAgenda, setLimiteAgenda, LimiteAgenda } from '@/lib/settings';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -95,41 +100,63 @@ export default function AgendaScreen({
   const [showShareModal, setShowShareModal] = useState(false);
   const [busca, setBusca] = useState('');
   const [exportandoPdf, setExportandoPdf] = useState(false);
+  const [limite, setLimite] = useState<LimiteAgenda>(() => getLimiteAgenda());
+  const [expandidos, setExpandidos] = useState<Record<string, boolean>>({
+    atrasados: true,
+    hoje: true,
+    futuros: false,
+    concluidos: false,
+  });
+  const [verMais, setVerMais] = useState<Record<string, boolean>>({});
   const today = hoje();
+
+  const toggleGrupo = useCallback((chave: string) => {
+    haptic('light');
+    setExpandidos((prev) => ({ ...prev, [chave]: !prev[chave] }));
+  }, []);
+
+  const expandirTodos = useCallback(() => {
+    haptic('light');
+    setExpandidos({ atrasados: true, hoje: true, futuros: true, concluidos: true });
+  }, []);
+
+  const recolherTodos = useCallback(() => {
+    haptic('light');
+    setExpandidos({ atrasados: false, hoje: false, futuros: false, concluidos: false });
+  }, []);
+
+  const handleMudarLimite = useCallback((novoLimite: LimiteAgenda) => {
+    haptic('selection');
+    setLimite(novoLimite);
+    setLimiteAgenda(novoLimite);
+  }, []);
+
+  const toggleVerMais = useCallback((chave: string) => {
+    haptic('light');
+    setVerMais((prev) => ({ ...prev, [chave]: !prev[chave] }));
+  }, []);
 
   const carregar = useCallback(async () => {
     try {
-      // 1. Load from IndexedDB first (works offline)
+      // 1. Carrega do IndexedDB primeiro (offline instantâneo)
       const local = await listarAgendamentos();
       setAgendamentos(local.map(toScreenAgendamento));
-      // Check for reminders
       requestNotificationPermission().then(() => {
         verificarLembretes(local);
       });
     } catch {
-      // IndexedDB read failed — continue
+      // Falha de leitura do IndexedDB
     } finally {
       setLoading(false);
     }
-    // 2. If online, sync from server and MERGE (don't overwrite local)
+
+    // 2. Se online, sincroniza bidirecionalmente com o Neon PostgreSQL
     if (navigator.onLine) {
       try {
-        const resp = await authFetch('/api/agendamentos');
-        const data = await resp.json();
-        if (data.agendamentos && Array.isArray(data.agendamentos)) {
-          const serverList = data.agendamentos.map(toScreenAgendamento);
-          setAgendamentos((prev) => {
-            // Merge: keep local items not on server, add server items not local
-            const localIds = new Set(prev.map((a: Agendamento) => a.id));
-            const serverIds = new Set(serverList.map((a: Agendamento) => a.id));
-            const localOnly = prev.filter((a: Agendamento) => !serverIds.has(a.id));
-            const serverOnly = serverList.filter((a: Agendamento) => !localIds.has(a.id));
-            const both = serverList.filter((a: Agendamento) => localIds.has(a.id));
-            return [...localOnly, ...serverOnly, ...both].sort(compararAgendamentos);
-          });
-        }
+        const synced = await sincronizarAgendamentos();
+        setAgendamentos(synced.map(toScreenAgendamento).sort(compararAgendamentos));
       } catch {
-        // offline fallback — keep what we have from IndexedDB
+        // Mantém dados do IndexedDB em fallback offline
       }
     }
   }, []);
@@ -137,6 +164,20 @@ export default function AgendaScreen({
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Listener para sincronização automática quando a rede for restabelecida
+  useEffect(() => {
+    function onOnline() {
+      sincronizarAgendamentos()
+        .then((synced) => {
+          setAgendamentos(synced.map(toScreenAgendamento).sort(compararAgendamentos));
+          toast('Agenda sincronizada com a nuvem', 'info');
+        })
+        .catch(() => {});
+    }
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [toast]);
 
   const handleToggle = useCallback(async (ag: Agendamento) => {
     haptic('light');
@@ -268,90 +309,162 @@ export default function AgendaScreen({
   const futuros = agendamentosFiltrados.filter((a) => !a.concluido && a.data > today).sort(compararAgendamentos);
   const concluidos = agendamentosFiltrados.filter((a) => a.concluido).sort(compararAgendamentos);
 
-  function renderGrupo(titulo: string, items: Agendamento[], cor: string) {
+  const todosAbertos = useMemo(() => {
+    return expandidos.atrasados && expandidos.hoje && expandidos.futuros && expandidos.concluidos;
+  }, [expandidos]);
+
+  function renderGrupo(
+    chave: 'atrasados' | 'hoje' | 'futuros' | 'concluidos',
+    titulo: string,
+    items: Agendamento[],
+    cor: string,
+    badgeBg: string,
+  ) {
     if (items.length === 0) return null;
+    const isAberto = Boolean(expandidos[chave]);
+    const estaVerMais = Boolean(verMais[chave]);
+    const total = items.length;
+    const itensExibidos = (limite === 0 || estaVerMais) ? items : items.slice(0, limite);
+    const temMais = limite > 0 && total > limite;
+
     return (
-      <div className="mb-5">
-        <h3 className={`text-xs font-bold uppercase tracking-widest ${cor} mb-2 px-1`}>
-          {titulo} ({items.length})
-        </h3>
-        <div className="space-y-2">
-          {items.map((ag) => (
+      <div className="mb-4 bg-base-raised border border-base-border rounded-2xl overflow-hidden transition-all shadow-sm">
+        {/* Cabeçalho Retrátil com Indicador Animado e Badges */}
+        <button
+          onClick={() => toggleGrupo(chave)}
+          className="w-full px-4 py-3 flex items-center justify-between hover:bg-base-overlay/40 transition-colors tactile-press select-none text-left"
+          aria-expanded={isAberto}
+        >
+          <div className="flex items-center gap-2.5">
             <motion.div
-              key={ag.id}
-              layout
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={spring}
-              className={`flex items-center gap-3 bg-base-raised border border-base-border rounded-xl px-4 py-3 ${
-                ag.concluido ? 'opacity-60' : ''
-              }`}
+              animate={{ rotate: isAberto ? 90 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-content-tertiary"
             >
-              <button
-                onClick={() => handleToggle(ag)}
-                className="shrink-0"
-                aria-label={ag.concluido ? 'Marcar como pendente' : 'Marcar como concluido'}
-              >
-                {ag.concluido ? (
-                  <CheckCircle size={22} weight="fill" className="text-success" />
-                ) : (
-                  <Circle size={22} weight="regular" className="text-content-tertiary" />
+              <CaretRight size={15} weight="bold" />
+            </motion.div>
+            <h3 className={`text-xs font-bold uppercase tracking-widest ${cor}`}>
+              {titulo}
+            </h3>
+            <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${badgeBg} font-semibold`}>
+              {total}
+            </span>
+          </div>
+
+          <span className="text-[11px] text-content-tertiary font-medium">
+            {isAberto ? 'Recolher' : 'Expandir'}
+          </span>
+        </button>
+
+        {/* Lista de Itens do Grupo */}
+        <AnimatePresence initial={false}>
+          {isAberto && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="p-3 pt-1 space-y-2 border-t border-base-border/50">
+                {itensExibidos.map((ag) => (
+                  <motion.div
+                    key={ag.id}
+                    layout
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={spring}
+                    className={`flex items-center gap-3 bg-base border border-base-border/70 rounded-xl px-3.5 py-2.5 ${
+                      ag.concluido ? 'opacity-60' : ''
+                    }`}
+                  >
+                    <button
+                      onClick={() => handleToggle(ag)}
+                      className="shrink-0"
+                      aria-label={ag.concluido ? 'Marcar como pendente' : 'Marcar como concluido'}
+                    >
+                      {ag.concluido ? (
+                        <CheckCircle size={22} weight="fill" className="text-success" />
+                      ) : (
+                        <Circle size={22} weight="regular" className="text-content-tertiary" />
+                      )}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-content truncate">{ag.bloco}</span>
+                        <span className="text-sm text-content-secondary font-mono">{ag.apartamento}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[11px] font-mono text-content-tertiary">
+                          {formatarDataBR(ag.data)}
+                          {ag.hora && <span className="ml-1.5 text-accent font-semibold">{ag.hora}</span>}
+                        </span>
+                        {ag.observacao && (
+                          <span className="text-[11px] text-content-tertiary truncate">— {ag.observacao}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => {
+                          haptic('light');
+                          abrirGoogleCalendar(ag);
+                        }}
+                        className="tactile-press flex items-center justify-center w-8 h-8 rounded-lg text-content-tertiary hover:text-[#4285F4] hover:bg-[#4285F4]/10 transition-colors"
+                        aria-label="Abrir no Google Calendar"
+                      >
+                        <GoogleLogo size={14} weight="bold" />
+                      </button>
+                      <button
+                        onClick={() => onNavegarPara(ag.bloco, ag.apartamento)}
+                        className="tactile-press flex items-center justify-center w-8 h-8 rounded-lg bg-accent-dim text-accent hover:bg-accent/20 transition-colors"
+                        aria-label={`Ir para ${ag.bloco} ${ag.apartamento}`}
+                      >
+                        <ArrowRight size={15} weight="bold" />
+                      </button>
+                      <button
+                        onClick={() => onEditar(ag)}
+                        className="tactile-press flex items-center justify-center w-8 h-8 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent/10 transition-colors"
+                        aria-label="Editar agendamento"
+                      >
+                        <PencilSimple size={14} weight="bold" />
+                      </button>
+                      <button
+                        onClick={() => handleExcluir(ag.id)}
+                        className="tactile-press flex items-center justify-center w-8 h-8 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
+                        aria-label="Excluir agendamento"
+                      >
+                        <Trash size={14} weight="bold" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+
+                {/* Botão Ver mais / Ver menos */}
+                {temMais && (
+                  <div className="pt-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleVerMais(chave);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-base-overlay hover:bg-base-overlay/80 border border-base-border text-xs text-content-secondary hover:text-content font-medium transition-colors flex items-center justify-center gap-1.5 tactile-press"
+                    >
+                      {estaVerMais ? (
+                        <>Ver menos ({limite})</>
+                      ) : (
+                        <>Ver mais (+{total - limite})</>
+                      )}
+                    </button>
+                  </div>
                 )}
-              </button>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-content truncate">{ag.bloco}</span>
-                  <span className="text-sm text-content-secondary font-mono">{ag.apartamento}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[11px] font-mono text-content-tertiary">
-                    {formatarDataBR(ag.data)}
-                    {ag.hora && <span className="ml-1.5 text-accent font-semibold">{ag.hora}</span>}
-                  </span>
-                  {ag.observacao && (
-                    <span className="text-[11px] text-content-tertiary truncate">— {ag.observacao}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => {
-                    haptic('light');
-                    abrirGoogleCalendar(ag);
-                  }}
-                  className="tactile-press flex items-center justify-center w-9 h-9 rounded-lg text-content-tertiary hover:text-[#4285F4] hover:bg-[#4285F4]/10 transition-colors"
-                  aria-label="Abrir no Google Calendar"
-                >
-                  <GoogleLogo size={14} weight="bold" />
-                </button>
-                <button
-                  onClick={() => onNavegarPara(ag.bloco, ag.apartamento)}
-                  className="tactile-press flex items-center justify-center w-9 h-9 rounded-lg bg-accent-dim text-accent hover:bg-accent/20 transition-colors"
-                  aria-label={`Ir para ${ag.bloco} ${ag.apartamento}`}
-                >
-                  <ArrowRight size={16} weight="bold" />
-                </button>
-                <button
-                  onClick={() => onEditar(ag)}
-                  className="tactile-press flex items-center justify-center w-9 h-9 rounded-lg text-content-tertiary hover:text-accent hover:bg-accent/10 transition-colors"
-                  aria-label="Editar agendamento"
-                >
-                  <PencilSimple size={14} weight="bold" />
-                </button>
-                <button
-                  onClick={() => handleExcluir(ag.id)}
-                  className="tactile-press flex items-center justify-center w-9 h-9 rounded-lg text-content-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
-                  aria-label="Excluir agendamento"
-                >
-                  <Trash size={14} weight="bold" />
-                </button>
               </div>
             </motion.div>
-          ))}
-        </div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -488,6 +601,45 @@ export default function AgendaScreen({
         </motion.div>
       )}
 
+      {/* Barra de Controles Rápidos: Expandir/Recolher e Seletor de Limite */}
+      {agendamentos.length > 0 && !loading && (
+        <div className="flex items-center justify-between mb-3 px-1">
+          <button
+            onClick={todosAbertos ? recolherTodos : expandirTodos}
+            className="tactile-press flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-base-raised border border-base-border text-xs text-content-secondary hover:text-content transition-colors font-medium shadow-sm"
+          >
+            {todosAbertos ? (
+              <>
+                <ArrowsInSimple size={14} weight="bold" />
+                <span>Recolher todos</span>
+              </>
+            ) : (
+              <>
+                <ArrowsOutSimple size={14} weight="bold" />
+                <span>Expandir todos</span>
+              </>
+            )}
+          </button>
+
+          <div className="flex items-center gap-1 bg-base-raised border border-base-border p-1 rounded-xl shadow-sm">
+            <span className="text-[11px] text-content-tertiary px-1 font-medium">Exibir:</span>
+            {([5, 10, 0] as LimiteAgenda[]).map((lim) => (
+              <button
+                key={lim}
+                onClick={() => handleMudarLimite(lim)}
+                className={`tactile-press px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all ${
+                  limite === lim
+                    ? 'bg-accent text-base shadow-sm'
+                    : 'text-content-tertiary hover:text-content'
+                }`}
+              >
+                {lim === 0 ? 'Todos' : lim}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Conteudo */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -507,10 +659,10 @@ export default function AgendaScreen({
         </motion.div>
       ) : (
         <div>
-          {renderGrupo('Atrasados', atrasados, 'text-danger')}
-          {renderGrupo('Hoje', hojeLista, 'text-accent')}
-          {renderGrupo('Futuros', futuros, 'text-content-secondary')}
-          {renderGrupo('Concluidos', concluidos, 'text-success')}
+          {renderGrupo('atrasados', 'Atrasados', atrasados, 'text-danger', 'bg-danger/15 text-danger')}
+          {renderGrupo('hoje', 'Hoje', hojeLista, 'text-accent', 'bg-accent/15 text-accent')}
+          {renderGrupo('futuros', 'Futuros', futuros, 'text-content-secondary', 'bg-base-border text-content-secondary')}
+          {renderGrupo('concluidos', 'Concluidos', concluidos, 'text-success', 'bg-success/15 text-success')}
         </div>
       )}
       <ConfirmDialog

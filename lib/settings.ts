@@ -130,3 +130,16 @@ export function isFavorito(bloco: string, apto: string): boolean {
   const key = `${bloco}__${apto}`;
   return getFavoritos().has(key);
 }
+
+export type LimiteAgenda = 5 | 10 | 0;
+
+export function getLimiteAgenda(): LimiteAgenda {
+  const val = Number(get('limite_agenda', '5'));
+  if (val === 10) return 10;
+  if (val === 0) return 0;
+  return 5;
+}
+
+export function setLimiteAgenda(limite: LimiteAgenda) {
+  set('limite_agenda', String(limite));
+}

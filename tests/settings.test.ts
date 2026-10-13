@@ -21,6 +21,8 @@ import {
   getFavoritos,
   toggleFavorito,
   isFavorito,
+  getLimiteAgenda,
+  setLimiteAgenda,
 } from '@/lib/settings';
 
 beforeEach(() => {
@@ -173,5 +175,20 @@ describe('Favoritos', () => {
     expect(raw).toBeTruthy();
     const parsed = JSON.parse(raw!);
     expect(parsed).toContain('Torre A__42');
+  });
+});
+
+describe('LimiteAgenda', () => {
+  it('retorna 5 por padrao', () => {
+    expect(getLimiteAgenda()).toBe(5);
+  });
+
+  it('salva e recupera limite de 10 e Todos (0)', () => {
+    setLimiteAgenda(10);
+    expect(getLimiteAgenda()).toBe(10);
+    setLimiteAgenda(0);
+    expect(getLimiteAgenda()).toBe(0);
+    setLimiteAgenda(5);
+    expect(getLimiteAgenda()).toBe(5);
   });
 });

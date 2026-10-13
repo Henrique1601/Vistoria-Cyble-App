@@ -24,6 +24,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
   const [loadingSkeleton, setLoadingSkeleton] = useState(true);
   const [comentarioCounts, setComentarioCounts] = useState<Record<string, number>>({});
   const [agendamentosConcluidos, setAgendamentosConcluidos] = useState<Set<string>>(new Set());
+  const [concluidosRemotos, setConcluidosRemotos] = useState<Set<string>>(new Set());
 
   // Carregar lista de apartamentos inicial
   useEffect(() => {
@@ -46,10 +47,11 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     if (!pin) return;
     fetch('/api/agendamentos', { headers: { 'x-app-pin': pin } })
       .then((r) => r.json())
-      .then((data: Array<{ bloco: string; apartamento: string; concluido: boolean }>) => {
+      .then((data: unknown) => {
         const set = new Set<string>();
-        if (Array.isArray(data)) {
-          data.forEach((ag) => {
+        const list = Array.isArray(data) ? data : ((data as { agendamentos?: Array<{ bloco: string; apartamento: string; concluido: boolean }> })?.agendamentos || []);
+        if (Array.isArray(list)) {
+          list.forEach((ag: { bloco: string; apartamento: string; concluido: boolean }) => {
             if (ag.concluido) {
               set.add(`${normalizeBloco(ag.bloco)}__${normApto(ag.apartamento)}`);
             }
@@ -60,10 +62,30 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       .catch(() => {});
   }, [pin]);
 
+  // Carregar apartamentos concluídos da nuvem/IndexedDB (sem fotos)
+  const refreshConcluidos = useCallback(async () => {
+    try {
+      const { carregarConcluidos } = await import('@/lib/db');
+      const c = await carregarConcluidos();
+      const set = new Set<string>();
+      for (const [bloco, aptos] of Object.entries(c)) {
+        const bNorm = normalizeBloco(bloco);
+        if (Array.isArray(aptos)) {
+          for (const a of aptos) {
+            const aNorm = normApto(a);
+            if (aNorm) set.add(`${bNorm}__${aNorm}`);
+          }
+        }
+      }
+      setConcluidosRemotos(set);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     refreshFotosOnline();
     refreshAgendamentos();
-  }, [refreshFotosOnline, refreshAgendamentos]);
+    refreshConcluidos();
+  }, [refreshFotosOnline, refreshAgendamentos, refreshConcluidos]);
 
   // Atualizar status de todos os apartamentos
   const refreshStatus = useCallback(async () => {
@@ -210,9 +232,10 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
 
         const feitoLocal = Boolean(st && (st.isConcluido || (st.cybleAntesFeito && st.cybleDepoisFeito)));
         const feitoAgenda = agendamentosConcluidos.has(key);
+        const feitoRemoto = concluidosRemotos.has(key);
         const fotosConcluidas = (temAntes && temDepois) || (temAntes && temDepois && temDoc);
 
-        const isConcluido = feitoLocal || feitoAgenda || fotosConcluidas;
+        const isConcluido = feitoLocal || feitoAgenda || feitoRemoto || fotosConcluidas;
 
         if (isConcluido) {
           completos++;
@@ -237,7 +260,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       });
     }
     return map;
-  }, [blocos, lista, fotosOnlineMap, fotosOnlineDetalhadoMap, statusMap, agendamentosConcluidos]);
+  }, [blocos, lista, fotosOnlineMap, fotosOnlineDetalhadoMap, statusMap, agendamentosConcluidos, concluidosRemotos]);
 
   const aptosEsquecidos = useMemo(() => {
     const cutoff = Date.now() - diasAlerta * MS_PER_DAY;
@@ -332,6 +355,29 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       }
     }
 
+    // 4. Mesclar apartamentos concluídos remotos (Neon DB / IndexedDB sem fotos)
+    for (const key of concluidosRemotos) {
+      const [bloco, apto] = key.split('__');
+      if (!merged.has(key)) {
+        merged.set(key, {
+          bloco,
+          apartamento: apto,
+          cybleAntesFeito: true,
+          cybleDepoisFeito: true,
+          qtdDocumentos: 0,
+          qtdFotos: fotosCountMap.get(key) || 0,
+          isConcluido: true,
+          qtdPendentes: 0,
+          qtdSynced: 0,
+        });
+      } else {
+        const existing = merged.get(key)!;
+        existing.cybleAntesFeito = true;
+        existing.cybleDepoisFeito = true;
+        existing.isConcluido = true;
+      }
+    }
+
     for (const [key, s] of merged) {
       const onlineCount = fotosCountMap.get(key) || 0;
       if (onlineCount > s.qtdFotos) {
@@ -340,7 +386,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     }
 
     return [...merged.values()];
-  }, [status, fotosOnlineDetalhadoMap, fotosCountMap, agendamentosConcluidos]);
+  }, [status, fotosOnlineDetalhadoMap, fotosCountMap, agendamentosConcluidos, concluidosRemotos]);
 
   const statusMergedMap = useMemo(() => {
     const map = new Map<string, ApartamentoStatus>();

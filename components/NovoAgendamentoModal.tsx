@@ -102,28 +102,41 @@ export default function NovoAgendamentoModal({ blocos, statusList, onFechar, onS
     setSalvando(true);
     try {
       // 1. Save to IndexedDB first (works offline)
-      await criarAgendamento({
+      const localId = await criarAgendamento({
         bloco,
         apartamento: apto,
         data,
         hora: hora || undefined,
         concluido: false,
         observacao: obs || undefined,
+        synced: false,
       });
       // 2. Sync to server if online
       if (navigator.onLine) {
-        await authFetch('/api/agendamentos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bloco,
-            apartamento: apto,
-            data,
-            hora: hora || null,
-            concluido: false,
-            observacao: obs || null,
-          }),
-        });
+        try {
+          const resp = await authFetch('/api/agendamentos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bloco,
+              apartamento: apto,
+              data,
+              hora: hora || null,
+              concluido: false,
+              observacao: obs || null,
+            }),
+          });
+          if (resp.ok) {
+            const dataResp = await resp.json();
+            const serverId = dataResp?.agendamento?.id;
+            if (serverId) {
+              const { atualizarIdAgendamento } = await import('@/lib/db');
+              await atualizarIdAgendamento(localId, serverId);
+            }
+          }
+        } catch {
+          // Mantém localId salvo no IndexedDB como pendente
+        }
       }
     } catch {
       // offline — salva localmente

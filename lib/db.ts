@@ -53,6 +53,7 @@ export interface Agendamento {
   concluido: boolean;
   observacao?: string;
   criadoEm: number;
+  synced?: boolean;
 }
 
 export interface NotaApto {
@@ -164,7 +165,28 @@ export async function carregarListaApartamentos(): Promise<Record<string, string
 // --- Fotos ---
 export async function salvarFoto(rec: Omit<FotoRecord, 'id'>) {
   const db = await getDb();
-  return db.add('fotos', rec as FotoRecord);
+  const id = await db.add('fotos', rec as FotoRecord);
+
+  // Se tiver antes e depois no dispositivo, registra automaticamente em concluídos
+  try {
+    const fotos = await fotosDoApartamento(rec.bloco, rec.apartamento);
+    const temAntes = fotos.some((f) => f.categoria === 'cyble_antes');
+    const temDepois = fotos.some((f) => f.categoria === 'cyble_depois');
+    if (temAntes && temDepois) {
+      const bNorm = normalizeBloco(rec.bloco);
+      const aNorm = normApto(rec.apartamento);
+      const concluidos = await carregarConcluidos();
+      const aptosBloco = concluidos[bNorm] || [];
+      if (!aptosBloco.includes(aNorm)) {
+        await salvarConcluidos({
+          ...concluidos,
+          [bNorm]: [...aptosBloco, aNorm].sort((a, b) => Number(a) - Number(b)),
+        });
+      }
+    }
+  } catch {}
+
+  return id;
 }
 
 export async function atualizarGpsFoto(bloco: string, apartamento: string, categoria: string, gps: { lat: number; lng: number }) {
@@ -733,7 +755,20 @@ export async function registrarSync(entry: Omit<SyncLogEntry, 'id'>) {
 // --- Agendamentos ---
 export async function criarAgendamento(ag: Omit<Agendamento, 'id' | 'criadoEm'>): Promise<number> {
   const db = await getDb();
-  return db.add('agendamentos', { ...ag, criadoEm: Date.now() } as Agendamento);
+  return db.add('agendamentos', {
+    ...ag,
+    criadoEm: Date.now(),
+    synced: ag.synced ?? false,
+  } as Agendamento);
+}
+
+export async function atualizarIdAgendamento(idAntigo: number, idNovo: number) {
+  const db = await getDb();
+  const ag = await db.get('agendamentos', idAntigo);
+  if (ag) {
+    await db.delete('agendamentos', idAntigo);
+    await db.put('agendamentos', { ...ag, id: idNovo, synced: true });
+  }
 }
 
 export async function listarAgendamentos(): Promise<Agendamento[]> {
@@ -746,13 +781,51 @@ export async function toggleConcluidoAgendamento(id: number) {
   const ag = await db.get('agendamentos', id);
   if (ag) {
     ag.concluido = !ag.concluido;
+    ag.synced = false;
     await db.put('agendamentos', ag);
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const { authFetch } = await import('@/lib/api');
+        const resp = await authFetch('/api/agendamentos', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ag.id, concluido: ag.concluido }),
+        });
+        if (resp.ok) {
+          ag.synced = true;
+          await db.put('agendamentos', ag);
+        }
+      } catch {}
+    }
   }
 }
 
 export async function excluirAgendamento(id: number) {
   const db = await getDb();
   await db.delete('agendamentos', id);
+
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const { authFetch } = await import('@/lib/api');
+      await authFetch('/api/agendamentos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      return;
+    } catch {}
+  }
+
+  // Offline: enfileira para deleção remota futura se for ID já do servidor
+  if (id > 0) {
+    try {
+      const deletados: number[] = (await db.get('config', 'agendamentosDeletadosQueue')) || [];
+      if (!deletados.includes(id)) {
+        deletados.push(id);
+        await db.put('config', deletados, 'agendamentosDeletadosQueue');
+      }
+    } catch {}
+  }
 }
 
 export async function editarAgendamento(id: number, dados: { data?: string; observacao?: string; apartamento?: string; hora?: string }) {
@@ -763,8 +836,174 @@ export async function editarAgendamento(id: number, dados: { data?: string; obse
     if (dados.observacao !== undefined) ag.observacao = dados.observacao;
     if (dados.apartamento !== undefined) ag.apartamento = dados.apartamento;
     if (dados.hora !== undefined) ag.hora = dados.hora;
+    ag.synced = false;
     await db.put('agendamentos', ag);
+
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const { authFetch } = await import('@/lib/api');
+        const resp = await authFetch('/api/agendamentos', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: ag.id,
+            bloco: ag.bloco,
+            apartamento: ag.apartamento,
+            data: ag.data,
+            hora: ag.hora || null,
+            concluido: ag.concluido,
+            observacao: ag.observacao || null,
+          }),
+        });
+        if (resp.ok) {
+          ag.synced = true;
+          await db.put('agendamentos', ag);
+        }
+      } catch {}
+    }
   }
+}
+
+export async function salvarAgendamentosRemotos(serverList: Array<{
+  id: number;
+  bloco: string;
+  apartamento: string;
+  data: string;
+  hora?: string;
+  concluido: boolean;
+  observacao?: string | null;
+  criado_em?: string;
+}>): Promise<void> {
+  const db = await getDb();
+  const tx = db.transaction('agendamentos', 'readwrite');
+  const store = tx.store;
+  const locais = await store.getAll();
+  const serverIdSet = new Set(serverList.map((s) => s.id));
+
+  // Remove locais previamente sincronizados que foram deletados no servidor
+  for (const loc of locais) {
+    if (loc.id !== undefined && loc.synced && !serverIdSet.has(loc.id)) {
+      await store.delete(loc.id);
+    }
+  }
+
+  // Grava/atualiza agendamentos do servidor
+  for (const s of serverList) {
+    const item: Agendamento = {
+      id: s.id,
+      bloco: s.bloco,
+      apartamento: s.apartamento,
+      data: s.data,
+      hora: s.hora || undefined,
+      concluido: Boolean(s.concluido),
+      observacao: s.observacao || undefined,
+      criadoEm: s.criado_em ? new Date(s.criado_em).getTime() : Date.now(),
+      synced: true,
+    };
+    await store.put(item);
+  }
+
+  await tx.done;
+}
+
+export async function sincronizarAgendamentos(): Promise<Agendamento[]> {
+  const db = await getDb();
+
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const { authFetch } = await import('@/lib/api');
+
+      // 1. Processar deleções pendentes feitas offline
+      const deletados: number[] = (await db.get('config', 'agendamentosDeletadosQueue')) || [];
+      if (deletados.length > 0) {
+        const restantes: number[] = [];
+        for (const delId of deletados) {
+          try {
+            const resp = await authFetch('/api/agendamentos', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: delId }),
+            });
+            if (!resp.ok) restantes.push(delId);
+          } catch {
+            restantes.push(delId);
+          }
+        }
+        await db.put('config', restantes, 'agendamentosDeletadosQueue');
+      }
+
+      // 2. Enviar agendamentos locais não sincronizados
+      const locais = await db.getAll('agendamentos');
+      for (const ag of locais) {
+        if (!ag.synced) {
+          if (ag.id !== undefined && ag.id > 0) {
+            try {
+              const resp = await authFetch('/api/agendamentos', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: ag.id,
+                  bloco: ag.bloco,
+                  apartamento: ag.apartamento,
+                  data: ag.data,
+                  hora: ag.hora || null,
+                  concluido: ag.concluido,
+                  observacao: ag.observacao || null,
+                }),
+              });
+              if (resp.ok) {
+                ag.synced = true;
+                await db.put('agendamentos', ag);
+              }
+            } catch {}
+          } else {
+            try {
+              const resp = await authFetch('/api/agendamentos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  bloco: ag.bloco,
+                  apartamento: ag.apartamento,
+                  data: ag.data,
+                  hora: ag.hora || null,
+                  concluido: ag.concluido,
+                  observacao: ag.observacao || null,
+                }),
+              });
+              if (resp.ok) {
+                const data = await resp.json();
+                const serverId = data?.agendamento?.id;
+                if (serverId) {
+                  if (ag.id !== undefined && ag.id !== serverId) {
+                    await db.delete('agendamentos', ag.id);
+                  }
+                  await db.put('agendamentos', {
+                    ...ag,
+                    id: serverId,
+                    synced: true,
+                  });
+                }
+              }
+            } catch {}
+          }
+        }
+      }
+
+      // 3. Puxar lista atualizada do servidor e salvar no IndexedDB
+      const respList = await authFetch('/api/agendamentos');
+      if (respList.ok) {
+        const raw = await respList.json();
+        const serverList = Array.isArray(raw) ? raw : (raw.agendamentos || []);
+        if (Array.isArray(serverList)) {
+          await salvarAgendamentosRemotos(serverList);
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao sincronizar agendamentos:', err);
+    }
+  }
+
+  return db.getAll('agendamentos');
 }
 
 export async function excluirAgendamentosConcluidos(): Promise<number> {
@@ -1080,6 +1319,12 @@ export async function desmarcarConcluidoLocal(bloco: string, apto: string) {
   const db = await getDb();
   const bNorm = normalizeBloco(bloco);
   const aNorm = normApto(apto);
+
+  // Registra desmarcado para não ressuscitar em merges imediatos
+  const desmarcados: Record<string, number> = (await db.get('config', 'desmarcados')) ?? {};
+  desmarcados[`${bNorm}__${aNorm}`] = Date.now();
+  await db.put('config', desmarcados, 'desmarcados');
+
   const concluidos = (await db.get('config', 'concluidos')) ?? {};
   if (concluidos[bNorm]) {
     concluidos[bNorm] = concluidos[bNorm].filter((a: string) => normApto(a) !== aNorm);
@@ -1098,7 +1343,10 @@ export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   }
 
   const db = await getDb();
-  const local = (await db.get('config', 'concluidos')) ?? {};
+  const local: Record<string, string[]> = (await db.get('config', 'concluidos')) ?? {};
+  const desmarcados: Record<string, number> = (await db.get('config', 'desmarcados')) ?? {};
+  const agora = Date.now();
+  const limiteDesmarcado = 24 * 60 * 60 * 1000; // 24h
 
   // When online, fetch remote and merge without resurrecting deleted local items
   if (typeof navigator !== 'undefined' && navigator.onLine) {
@@ -1106,12 +1354,34 @@ export async function carregarConcluidos(): Promise<Record<string, string[]>> {
       const { authFetch } = await import('@/lib/api');
       const resp = await authFetch('/api/concluidos');
       if (resp.ok) {
-        const remote = await resp.json();
-        const merged: Record<string, string[]> = { ...remote };
-        // If local has entries for blocks, local state takes precedence so unmarking is preserved
-        for (const [bloco, aptos] of Object.entries(local)) {
-          merged[bloco] = aptos as string[];
+        const remote: Record<string, string[]> = await resp.json();
+        const merged: Record<string, string[]> = {};
+
+        // Inicia com os blocos remotos
+        for (const [bloco, aptos] of Object.entries(remote)) {
+          if (Array.isArray(aptos)) {
+            merged[bloco] = [...aptos];
+          }
         }
+
+        // Une com conclusões locais sem sobrescrever os outros apartamentos do bloco
+        for (const [bloco, aptos] of Object.entries(local)) {
+          const set = new Set((merged[bloco] || []).map(normApto));
+          if (Array.isArray(aptos)) {
+            for (const a of aptos) {
+              const na = normApto(a);
+              const key = `${normalizeBloco(bloco)}__${na}`;
+              // Se foi desmarcado recentemente neste dispositivo, não re-adiciona
+              if (desmarcados[key] && agora - desmarcados[key] < limiteDesmarcado) {
+                set.delete(na);
+              } else if (na) {
+                set.add(na);
+              }
+            }
+          }
+          merged[bloco] = Array.from(set).sort((a, b) => Number(a) - Number(b));
+        }
+
         await db.put('config', merged, 'concluidos');
         _concluidosCache = merged;
         _concluidosCacheTime = Date.now();
@@ -1266,7 +1536,9 @@ export async function carregarTodosConcluidosConsolidados(): Promise<Record<stri
       // Agendamentos na nuvem
       const respAg = await authFetch('/api/agendamentos');
       if (respAg.ok) {
-        const agendamentos: Array<{ bloco: string; apartamento: string; concluido: boolean }> = await respAg.json();
+        const rawAg = await respAg.json();
+        const agendamentos: Array<{ bloco: string; apartamento: string; concluido: boolean }> =
+          Array.isArray(rawAg) ? rawAg : (rawAg?.agendamentos || []);
         for (const ag of agendamentos) {
           if (ag.concluido) {
             const bNorm = normalizeBloco(ag.bloco);
