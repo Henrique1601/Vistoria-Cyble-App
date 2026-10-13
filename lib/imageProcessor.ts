@@ -5,6 +5,12 @@ const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.
 const MAX_IMAGE_WIDTH_DEFAULT = 2560;
 const WORKER_TIMEOUT_MS = 15000;
 
+export interface WatermarkOptions {
+  texto: string;
+  bloco?: string;
+  apartamento?: string;
+}
+
 let workerInstance: Worker | null = null;
 let reqIdCounter = 0;
 const pendingRequests = new Map<number, { resolve: (val: any) => void; reject: (err: Error) => void; timer: NodeJS.Timeout }>();
@@ -46,7 +52,13 @@ function getWorker(): Worker | null {
   return workerInstance;
 }
 
-function callWorker<T>(type: 'compress' | 'detectBlur' | 'processAll', file: File, qualityNum: number, maxWidth = MAX_IMAGE_WIDTH_DEFAULT): Promise<T> {
+function callWorker<T>(
+  type: 'compress' | 'detectBlur' | 'processAll',
+  file: File,
+  qualityNum: number,
+  maxWidth = MAX_IMAGE_WIDTH_DEFAULT,
+  watermark?: WatermarkOptions
+): Promise<T> {
   const worker = getWorker();
   if (!worker) {
     return Promise.reject(new Error('Web Worker não disponível'));
@@ -60,7 +72,7 @@ function callWorker<T>(type: 'compress' | 'detectBlur' | 'processAll', file: Fil
     }, WORKER_TIMEOUT_MS);
 
     pendingRequests.set(id, { resolve, reject, timer });
-    worker.postMessage({ id, type, file, quality: qualityNum, maxWidth });
+    worker.postMessage({ id, type, file, quality: qualityNum, maxWidth, watermark });
   });
 }
 
@@ -68,12 +80,16 @@ function callWorker<T>(type: 'compress' | 'detectBlur' | 'processAll', file: Fil
  * Comprime a imagem utilizando Web Worker em background com autocorreção EXIF.
  * Se o Worker falhar ou não estiver disponível, faz fallback automático para canvas local.
  */
-export async function comprimirImagemComWorker(file: File, fallbackFn: (file: File) => Promise<Blob>): Promise<Blob> {
+export async function comprimirImagemComWorker(
+  file: File,
+  fallbackFn: (file: File) => Promise<Blob>,
+  watermark?: WatermarkOptions
+): Promise<Blob> {
   const qualidadeStr = getQualidadeFoto();
   const qualityNum = QUALIDADE_MAP[qualidadeStr] ?? 0.75;
 
   try {
-    const result = await callWorker<{ blob: Blob }>('compress', file, qualityNum);
+    const result = await callWorker<{ blob: Blob }>('compress', file, qualityNum, MAX_IMAGE_WIDTH_DEFAULT, watermark);
     if (result.blob && result.blob.size > 0) {
       return result.blob;
     }
@@ -81,30 +97,49 @@ export async function comprimirImagemComWorker(file: File, fallbackFn: (file: Fi
   } catch (err) {
     // Fallback gracioso para a thread principal
     console.warn('Worker compress fallback:', err);
-    return fallbackFn(file);
+    let blob = await fallbackFn(file);
+    if (watermark) {
+      const { aplicarMarcaDagua } = await import('./db');
+      blob = await aplicarMarcaDagua(blob, watermark.texto, watermark.bloco, watermark.apartamento);
+    }
+    return blob;
   }
 }
 
-
 /**
- * Executa simultaneamente compressão e detecção de blur em uma única passada no Web Worker.
+ * Executa simultaneamente compressão, marca d'água e detecção de blur em uma única passada no Web Worker.
  */
-export async function processarFotoCompleta(file: File, fallbackCompress: (file: File) => Promise<Blob>): Promise<{ blob: Blob; blur: BlurResult }> {
+export async function processarFotoCompleta(
+  file: File,
+  fallbackCompress: (file: File) => Promise<Blob>,
+  watermark?: WatermarkOptions
+): Promise<{ blob: Blob; blur: BlurResult }> {
   const qualidadeStr = getQualidadeFoto();
   const qualityNum = QUALIDADE_MAP[qualidadeStr] ?? 0.75;
 
   try {
-    const result = await callWorker<{ blob: Blob; blurResult: BlurResult }>('processAll', file, qualityNum);
+    const result = await callWorker<{ blob: Blob; blurResult: BlurResult }>(
+      'processAll',
+      file,
+      qualityNum,
+      MAX_IMAGE_WIDTH_DEFAULT,
+      watermark
+    );
     if (result.blob && result.blurResult) {
       return { blob: result.blob, blur: result.blurResult };
     }
     throw new Error('Resultado incompleto do worker');
   } catch (err) {
     console.warn('Worker processAll fallback:', err);
-    const [blob, blur] = await Promise.all([
+    const [rawBlob, blur] = await Promise.all([
       fallbackCompress(file),
       detectBlurFallback(file),
     ]);
+    let blob = rawBlob;
+    if (watermark) {
+      const { aplicarMarcaDagua } = await import('./db');
+      blob = await aplicarMarcaDagua(rawBlob, watermark.texto, watermark.bloco, watermark.apartamento);
+    }
     return { blob, blur };
   }
 }

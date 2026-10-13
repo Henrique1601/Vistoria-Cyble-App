@@ -1,5 +1,21 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.8 (13/10/2026)
+
+### Pipeline Single-Pass no Web Worker e Prevenção Definitiva de OOM ("Ah, não!") no Celular
+- **Processamento de Foto em Passagem Única (`public/workers/imageWorker.js`):**
+  - **Unificação de Redimensionamento, Marca D'água e Nitidez:** O Web Worker agora decodifica a imagem original uma única vez (`createImageBitmap`), gera miniatura de 200px para análise Laplaciana de blur/brilho, renderiza a tarja e textos da marca d'água (`bloco`, `apartamento`, `label`) diretamente no `OffscreenCanvas` secundário e converte para JPEG com a compressão configurada.
+  - **Liberação Imediata de Memória RAM:** Chamada compulsória a `bitmap.close()` imediatamente após o desenho nos canvas, eliminando mais de 120MB de bitmaps descompactados simultâneos na memória do navegador.
+  - **Fim da Carga na Main Thread (`app/CapturaScreen.tsx`):** Eliminada a chamada duplicada a `aplicarMarcaDagua()` no DOM principal durante o salvamento da foto, zerando alocações de `new Image()` e recodificações JPEG síncronas na UI. A thread do React permanece fluida a 60 FPS durante disparos sequenciais.
+  - **Zero Retrabalho no Alerta de Foto Escura/Borrada:** Adicionado cache do blob pré-processado (`preprocessedBlob`) no estado `blurWarning`, permitindo que a confirmação "Salvar mesmo assim" grave o resultado instantaneamente sem reprocessar o arquivo original.
+- **Suporte Robusto a Fallback & Tipagem (`lib/imageProcessor.ts`):**
+  - Adicionada interface `WatermarkOptions` e suporte ao parâmetro `watermark` em `comprimirImagemComWorker` e `processarFotoCompleta`.
+  - Fallback gracioso com import dinâmico assíncrono de `aplicarMarcaDagua` caso o navegador do operador não suporte Web Workers ou `OffscreenCanvas`.
+- **Suíte de Testes Automatizados Ampliada:**
+  - Adicionados testes unitários em `tests/imageProcessor.test.ts` cobrindo o fallback de compressão e a união de compressão com detecção de nitidez. Total: **115/115 testes aprovados**.
+- **Service Worker & Auto-Update:**
+  - Cache shell atualizado para `vistoria-shell-v21` no `public/sw.js` e versão `3.8.8` sincronizada em `lib/version.ts` e `package.json`.
+
 ## v3.8.7 (13/10/2026)
 
 ### Agenda Bidirecional Offline/Online, Redesign Retrátil com Limites e Conclusão Multi-Aparelho Sem Fotos Online

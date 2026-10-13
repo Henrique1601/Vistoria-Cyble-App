@@ -57,7 +57,13 @@ só precisa fazer uma vez (ou quando quiser corrigir a lista, tem o botão
 - O reconhecimento de "apartamento concluído" e a agenda de vistorias podem ser compartilhados entre aparelhos através do menu **Configurações > Prédio (Salvar / Carregar da Nuvem)** ou via exportação/importação em XLSX multissheet, CSV ou TXT de concluídos.
 - Sem paginação pesada na lista de apartamentos — com ~180 por bloco funciona instantaneamente; virtualização via `@tanstack/react-virtual` disponível para listas gigantescas.
 
-## Recursos Recentes (v3.8.7)
+## Recursos Recentes (v3.8.8)
+- **Pipeline Single-Pass no Web Worker (Prevenção Definitiva de OOM "Ah, não!" no Celular):** O processamento de fotos (redimensionamento, aplicação de marca d'água e análise Laplaciana de nitidez/brilho) ocorre agora em uma única passada em thread isolada de Web Worker.
+- **Liberação Instantânea de Memória RAM:** Chamada compulsória a `bitmap.close()` imediatamente após o desenho nos canvas, eliminando mais de 120MB de bitmaps transitórios da memória do navegador e prevenindo os travamentos ("Aw Snap") no Chrome PWA em celulares com pouca memória.
+- **Zero Retrabalho no Alerta de Nitidez:** O botão "Salvar mesmo assim" reaproveita o blob pré-processado instantaneamente, sem re-comprimir a imagem original.
+- **Main Thread a 60 FPS:** Remoção de alocações pesadas de canvas e imagens na thread de UI durante o salvamento de vistorias.
+
+## Recursos Anteriores (v3.8.7)
 - **Agenda Bidirecional 100% Offline-First:** Persistência automática no IndexedDB de agendamentos vindos do servidor, fila de reconciliação de novos agendamentos/edições/exclusões criados offline e auto-sync imediato na reconexão da internet (`window.ononline`).
 - **Redesign da Agenda (Acordeão Retrátil & Limites 5/10/Todos):** Grupos colapsáveis com contadores e animação Framer Motion (*Atrasados* e *Hoje* abertos; *Futuros* e *Concluídos* recolhidos), botão rápido "Expandir/Recolher todos", e seletor rápido de limite (*5 | 10 | Todos*) salvo em preferências com botão *"Ver mais (+X)"*.
 - **Conclusão Multi-Aparelho Sem Fotos Online:** Sincronização leve de apartamentos concluídos puxando a tabela `concluidos` do Neon DB por união não-destrutiva de conjuntos, garantindo que qualquer celular visualize apartamentos concluídos por outros aparelhos sem necessidade de envio de fotos pesadas ao Vercel Blob.

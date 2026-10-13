@@ -68,7 +68,7 @@ import PhotoEditor from '@/components/PhotoEditor';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { spring, stagger, item } from '@/lib/motion';
 import { detectBlur } from '@/lib/blurDetect';
-import { processarFotoCompleta, compararFotosSimilares } from '@/lib/imageProcessor';
+import { processarFotoCompleta, compararFotosSimilares, comprimirImagemComWorker } from '@/lib/imageProcessor';
 import { TOUCH_SENSOR_DELAY, TOUCH_SENSOR_TOLERANCE, GPS_TIMEOUT_MS, GPS_MAX_AGE_MS } from '@/lib/constants';
 import { formatarNomeFotoDownload } from '@/lib/utils';
 
@@ -257,7 +257,7 @@ export default function CapturaScreen({
   const [editingPhoto, setEditingPhoto] = useState<{ blob: Blob; categoria: Categoria } | null>(null);
   const [keepInCamera, setKeepInCamera] = useState(false);
   const [fotoZoom, setFotoZoom] = useState<string | null>(null);
-  const [blurWarning, setBlurWarning] = useState<{ message: string; file: File; categoria: Categoria } | null>(null);
+  const [blurWarning, setBlurWarning] = useState<{ message: string; file: File; categoria: Categoria; preprocessedBlob?: Blob } | null>(null);
   const [processingPhoto, setProcessingPhoto] = useState(false);
   const processingRef = useRef(false);
   const { toast } = useToast();
@@ -521,14 +521,24 @@ export default function CapturaScreen({
     );
 
     try {
-      // Processamento em Web Worker (compressão + análise de nitidez simultâneas)
+      // Processamento em Web Worker (compressão + marca d'água + análise de nitidez simultâneas em passada única)
+      const watermarkLabel = WATERMARK_LABELS[categoria] || categoria;
       const { blob: comprimido, blur: blurResult } = await Promise.race([
-        processarFotoCompleta(file, comprimirImagemLocal),
+        processarFotoCompleta(file, comprimirImagemLocal, {
+          texto: watermarkLabel,
+          bloco,
+          apartamento,
+        }),
         timeoutPromise,
       ]);
 
       if (blurResult.isBlurry || blurResult.isDark) {
-        setBlurWarning({ message: blurResult.message || 'Foto com problema', file, categoria });
+        setBlurWarning({
+          message: blurResult.message || 'Foto com problema',
+          file,
+          categoria,
+          preprocessedBlob: comprimido,
+        });
         processingRef.current = false;
         setProcessingPhoto(false);
         return;
@@ -557,7 +567,7 @@ export default function CapturaScreen({
         }
       }
 
-      // TEMP: editor desabilitado — salvar direto
+      // Salva direto: blob já processado e carimbado no Web Worker (Single-Pass)
       await salvarDireto(comprimido, categoria);
     } catch (err) {
       console.warn('Erro ao processar foto:', err);
@@ -579,15 +589,20 @@ export default function CapturaScreen({
 
   async function handleBlurOverride() {
     if (!blurWarning) return;
-    const { file, categoria } = blurWarning;
+    const { file, categoria, preprocessedBlob } = blurWarning;
     setBlurWarning(null);
     setProcessingPhoto(true);
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 25000)
     );
     try {
-      const comprimido = await Promise.race([
-        comprimirImagem(file),
+      const watermarkLabel = WATERMARK_LABELS[categoria] || categoria;
+      const comprimido = preprocessedBlob || await Promise.race([
+        comprimirImagemComWorker(file, comprimirImagemLocal, {
+          texto: watermarkLabel,
+          bloco,
+          apartamento,
+        }),
         timeoutPromise,
       ]);
 
@@ -613,7 +628,6 @@ export default function CapturaScreen({
         }
       }
 
-      // TEMP: editor desabilitado — salvar direto
       await salvarDireto(comprimido, categoria);
     } catch (err) {
       console.warn('Erro ao processar foto (override):', err);
@@ -625,12 +639,11 @@ export default function CapturaScreen({
     }
   }
 
-  // TEMP: salvar direto sem editor
+  // Salvar direto (Single-Pass: blob já processado e carimbado no Web Worker sem sobrecarregar a UI)
   async function salvarDireto(blob: Blob, categoria: Categoria) {
     const cat = categoria;
     try {
-      const watermarkLabel = WATERMARK_LABELS[cat] || cat;
-      const finalBlob = await aplicarMarcaDagua(blob, watermarkLabel, bloco, apartamento);
+      const finalBlob = blob;
       const gpsPromise = getGPS();
       await salvarFoto({
         bloco, apartamento, categoria: cat, blob: finalBlob, timestamp: Date.now(), synced: false,
