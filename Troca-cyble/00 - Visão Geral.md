@@ -15,7 +15,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **Virtualização:** @tanstack/react-virtual (disponível)
 - **Fonts:** Geist (display + mono)
 - **Deploy:** Vercel (auto-deploy do GitHub)
-- **Versão atual:** 3.8.8
+- **Versão atual:** 3.8.9
 
 ## Sistema de PIN
 - **`ADMIN_PIN`** — Acesso total: editar, excluir fotos, selecionar múltiplas, agendar, configurar
@@ -105,6 +105,10 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 ### Google Drive (v3.5.0)
 59. **Google Drive Backup** — backup completo para o Google Drive via OAuth2
 60. **Listar backups Drive** — visualizar backups existentes no Drive
+
+### Operação em Campo & Relatórios Executivos (v3.8.9)
+62. **Gestão de Moradores Ausentes & Medidores Internos** — registro de ausência/interfone sem resposta, acionamento da portaria/zelador via WhatsApp com 1 toque, filtro rápido de ausentes e auto-resolução ao registrar fotos.
+63. **Boletim Diário do Síndico em 1 Clique** — geração de texto estruturado para WhatsApp e renderização de Card Visual PNG (1080x1350px) em Canvas com métricas, progresso torre a torre e lista de ausentes.
 
 ### Segurança
 37. **Security Hardening** — `lib/auth.ts` (server-side) + `lib/api.ts` (client-side)

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -12,7 +12,7 @@ import {
   HouseLine,
 } from '@phosphor-icons/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ApartamentoStatus } from '@/lib/db';
+import { ApartamentoStatus, OcorrenciaApto } from '@/lib/db';
 import { spring } from '@/lib/motion';
 import { haptic } from '@/lib/haptic';
 import { setModoCompacto, setAltoContraste } from '@/lib/settings';
@@ -21,6 +21,7 @@ import AptoCard from '@/components/AptoCard';
 import { SyncBanner } from '@/components/SyncBanner';
 import QuickScheduleModal from '@/components/QuickScheduleModal';
 import CommentsModal from '@/components/CommentsModal';
+import OcorrenciaModal from '@/components/OcorrenciaModal';
 import { OrdemTipo, StatusFilterTipo } from '@/hooks/useApartamentosFilter';
 
 interface ApartamentosViewProps {
@@ -64,6 +65,7 @@ interface ApartamentosViewProps {
   setAgendamentoRapido: (v: { bloco: string; apto: string } | null) => void;
   showCommentsModal: { bloco: string; apto: string } | null;
   setShowCommentsModal: (v: { bloco: string; apto: string } | null) => void;
+  onOcorrenciaSalva?: () => void;
 }
 
 export function ApartamentosView({
@@ -107,8 +109,14 @@ export function ApartamentosView({
   setAgendamentoRapido,
   showCommentsModal,
   setShowCommentsModal,
+  onOcorrenciaSalva,
 }: ApartamentosViewProps) {
   const listParentRef = useRef<HTMLDivElement>(null);
+  const [ocorrenciaModal, setOcorrenciaModal] = useState<{
+    bloco: string;
+    apto: string;
+    ocorrencia?: OcorrenciaApto;
+  } | null>(null);
 
   const virtualizer = useVirtualizer({
     count: aptosPaginados.length,
@@ -255,6 +263,7 @@ export function ApartamentosView({
                 { key: 'todos', label: 'Todos' },
                 { key: 'pendente', label: 'Pendente' },
                 { key: 'em_andamento', label: 'Andamento' },
+                { key: 'ausente', label: 'Ausente' },
                 { key: 'concluido', label: 'Concluido' },
               ].map(({ key, label }) => (
                 <button
@@ -265,6 +274,7 @@ export function ApartamentosView({
                     statusFilter === key
                       ? key === 'concluido' ? 'bg-success-dim border-success text-success'
                         : key === 'em_andamento' ? 'bg-warn-dim border-warn text-warn'
+                        : key === 'ausente' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
                         : key === 'pendente' ? 'bg-danger-dim border-danger text-danger'
                         : 'bg-accent-dim border-accent text-accent'
                       : 'bg-base-raised border-base-border text-content-tertiary hover:text-content'
@@ -343,6 +353,7 @@ export function ApartamentosView({
                       comentarioCount={comentarioCounts[`${blocoAtual}_${s.apartamento}`] || 0}
                       onDesmarcar={() => onDesmarcarConfirm(blocoAtual, s.apartamento)}
                       userRole={userRole}
+                      onOcorrencia={() => setOcorrenciaModal({ bloco: blocoAtual, apto: s.apartamento, ocorrencia: s.ocorrencia })}
                     />
                   </div>
                 );
@@ -462,6 +473,22 @@ export function ApartamentosView({
           adminMode={userRole === 'admin'}
         />
       )}
+
+      <AnimatePresence>
+        {ocorrenciaModal && (
+          <OcorrenciaModal
+            isOpen={!!ocorrenciaModal}
+            bloco={ocorrenciaModal.bloco}
+            apartamento={ocorrenciaModal.apto}
+            ocorrenciaExistente={ocorrenciaModal.ocorrencia}
+            onClose={() => setOcorrenciaModal(null)}
+            onSalvo={() => {
+              setOcorrenciaModal(null);
+              onOcorrenciaSalva?.();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }

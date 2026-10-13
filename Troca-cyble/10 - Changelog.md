@@ -1,5 +1,26 @@
 # Changelog — Vistoria Cyble
 
+## v3.8.9 (13/10/2026)
+
+### Gestão de Moradores Ausentes & Boletim Diário do Síndico em 1 Clique
+- **Gestão de Ausentes & Impedimento de Acesso em Medidores Internos (`lib/db.ts`, `components/OcorrenciaModal.tsx`, `components/AptoCard.tsx`, `hooks/useApartamentosFilter.ts`):**
+  - **Foco Operacional Real:** Como hidrômetros de água e gás ficam dentro das unidades, o maior gargalo diário é o morador não atender a campainha ou o interfone estar mudo.
+  - **Registro Rápido e Categorizado:** Modal dedicado com botões táteis projetados para luvas de trabalho em campo, com 5 motivos principais (*Morador Ausente / Não Atende*, *Interfone Sem Resposta*, *Porta/Armário Trancado*, *Acesso Recusado*, *Outro*) e campo de observação livre.
+  - **Acionamento da Portaria via WhatsApp:** Botão com 1 toque que formata mensagem padrão estruturada e abre a API do WhatsApp ou menu de compartilhamento para acionar o zelador/portaria imediatamente e liberar o acesso.
+  - **Persistência Segura Offline-First:** Armazenamento em chave `ocorrencias` no store `config` do IndexedDB v5, sem risco de corrupção ou necessidade de quebra de schema em campo.
+  - **Filtro de Repescagem Rápida:** Chip de filtro `'Ausente'` adicionado nos filtros de status da torre para localização instantânea de apartamentos não atendidos no final do expediente.
+  - **Badge Visual & Auto-Resolução:** Ícone de porta âmbar em `AptoCard`; ao registrar as fotos de troca do hidrômetro, a ocorrência de ausente é resolvida automaticamente no banco.
+- **Boletim Diário do Síndico em 1 Clique (`lib/boletimDiario.ts`, `components/BoletimSindicoModal.tsx`, `components/views/BlocosView.tsx`, `components/ExportSection.tsx`):**
+  - **Resumo Executivo Instantâneo:** Cálculo em tempo real da produção diária (medidores trocados hoje, total acumulado, percentual geral do condomínio, status torre a torre e lista detalhada de ausentes).
+  - **Texto Formatado para WhatsApp:** Formatação limpa com emojis, separadores e bullet points, com botões táteis de "Copiar Texto" e "Enviar no WhatsApp".
+  - **Card Visual Gráfico PNG (1080x1350px):** Renderização via Canvas de card executivo em alta definição com tema dark glass, badge oficial, barras de progresso proporcionais com porcentagens por torre, métricas em destaque e rodapé institucional. Suporte a download direto e compartilhamento nativo (`navigator.share`).
+  - **Acesso em 1 Clique na Interface:** Botão em destaque "Boletim Síndico" incorporado diretamente no painel principal de blocos (`BlocosView`) e na seção de compartilhamento do painel de exportação (`ExportSection` / `ExportarView`).
+- **Suíte de Testes Automatizados:**
+  - Adicionados testes em `tests/boletim.test.ts` (cálculo de dados, progresso por torre e formatação de texto WhatsApp).
+  - Adicionados testes em `tests/ocorrencias.test.ts` (salvamento, atualização, normalização de blocos e remoção de ocorrências). Total: **122/122 testes aprovados (100% verdes)**.
+- **Service Worker & Auto-Update:**
+  - Cache shell promovido para `vistoria-shell-v22` no `public/sw.js` e versão `3.8.9` sincronizada em `lib/version.ts` e `package.json`.
+
 ## v3.8.8 (13/10/2026)
 
 ### Pipeline Single-Pass no Web Worker e Prevenção Definitiva de OOM ("Ah, não!") no Celular

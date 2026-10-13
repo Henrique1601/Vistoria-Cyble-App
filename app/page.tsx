@@ -697,6 +697,7 @@ export default function Home() {
           setAgendamentoRapido={setAgendamentoRapido}
           showCommentsModal={showCommentsModal}
           setShowCommentsModal={setShowCommentsModal}
+          onOcorrenciaSalva={refreshStatus}
         />
         <ConfirmDialog
           open={!!desmarcarConfirm}

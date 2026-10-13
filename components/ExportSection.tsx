@@ -1,6 +1,6 @@
 'use client';
 
-import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar, FunnelSimple, FileJs, PaintBrush, CheckCircle } from '@phosphor-icons/react';
+import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar, FunnelSimple, FileJs, PaintBrush, CheckCircle, ChatText } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { spring } from '@/lib/motion';
 import type { ApartamentoStatus } from '@/lib/db';
@@ -41,6 +41,7 @@ interface ExportSectionProps {
   fotos?: FotoRecord[];
   onMarcarDocsOK?: (bloco: string) => void;
   pin?: string;
+  onAbrirBoletim?: () => void;
 }
 
 export function ExportSection({
@@ -76,6 +77,7 @@ export function ExportSection({
   fotos = [],
   onMarcarDocsOK,
   pin = '',
+  onAbrirBoletim,
 }: ExportSectionProps) {
   const effectiveStatus = apenasPendentes
     ? statusExportacao.filter((s) => statusApto(s) !== 'Concluido')
@@ -211,7 +213,7 @@ export function ExportSection({
           <ShareNetwork size={14} weight="duotone" className="text-content-tertiary" />
           <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">Compartilhar</span>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid ${onAbrirBoletim ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
           <button
             onClick={() => onCompartilharPDF(effectiveStatus)}
             disabled={disabled || compartilhando !== null}
@@ -230,6 +232,16 @@ export function ExportSection({
             <ShareNetwork size={18} weight="bold" aria-hidden="true" />
             {compartilhando === 'xlsx' ? 'Compartilhando\u2026' : 'XLSX'}
           </button>
+          {onAbrirBoletim && (
+            <button
+              onClick={onAbrirBoletim}
+              aria-label="Boletim diário do síndico em 1 clique"
+              className="tactile-press flex flex-col items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-3 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none transition-all"
+            >
+              <ChatText size={18} weight="bold" aria-hidden="true" />
+              Boletim
+            </button>
+          )}
         </div>
       </div>
 

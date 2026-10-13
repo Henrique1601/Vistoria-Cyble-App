@@ -10,6 +10,7 @@ import {
   Warning,
   ChartBar,
   ArrowRight,
+  ShareNetwork,
 } from '@phosphor-icons/react';
 import { spring } from '@/lib/motion';
 import { haptic } from '@/lib/haptic';
@@ -29,6 +30,7 @@ import NotificationCenter from '@/components/NotificationCenter';
 import TowerReportPanel from '@/components/TowerReportPanel';
 import QuickScheduleModal from '@/components/QuickScheduleModal';
 import CommentsModal from '@/components/CommentsModal';
+import BoletimSindicoModal from '@/components/BoletimSindicoModal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { SyncBanner } from '@/components/SyncBanner';
 import { normApto } from '@/lib/utils';
@@ -140,6 +142,7 @@ export function BlocosView({
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [agendamentoRapido, setAgendamentoRapido] = useState<{ bloco: string; apto: string } | null>(null);
   const [showCommentsModal, setShowCommentsModal] = useState<{ bloco: string; apto: string } | null>(null);
+  const [showBoletimModal, setShowBoletimModal] = useState(false);
 
   const mainRef = useRef<HTMLDivElement>(null);
 
@@ -392,19 +395,39 @@ export function BlocosView({
           onFiltroInicioChange={setDataInicio}
         />
 
-        <button
-          onClick={() => onNavigate('comparativo')}
-          className="tactile-press w-full flex items-center gap-3 px-4 py-3 bg-base-raised border border-base-border rounded-xl hover:border-accent/30 transition-all mb-4"
-        >
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-            <ChartBar size={20} weight="duotone" className="text-accent" />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-semibold text-content">Comparativo entre Torres</p>
-            <p className="text-[11px] text-content-tertiary">Visualizar progresso por torre</p>
-          </div>
-          <ArrowRight size={16} weight="bold" className="ml-auto text-content-tertiary" />
-        </button>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <button
+            onClick={() => {
+              haptic('light');
+              onNavigate('comparativo');
+            }}
+            className="tactile-press flex items-center gap-2.5 px-3.5 py-3 bg-base-raised border border-base-border rounded-xl hover:border-accent/30 transition-all text-left"
+          >
+            <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+              <ChartBar size={18} weight="duotone" className="text-accent" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-content truncate">Comparativo</p>
+              <p className="text-[10px] text-content-tertiary truncate">Entre Torres</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              haptic('medium');
+              setShowBoletimModal(true);
+            }}
+            className="tactile-press flex items-center gap-2.5 px-3.5 py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all text-left"
+          >
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0 text-emerald-400">
+              <ShareNetwork size={18} weight="duotone" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-emerald-300 truncate">Boletim Síndico</p>
+              <p className="text-[10px] text-emerald-400/70 truncate">WhatsApp & Card</p>
+            </div>
+          </button>
+        </div>
 
         <SearchBar buscaGlobal={buscaGlobal} onBuscaChange={setBuscaGlobal} />
 
@@ -538,6 +561,17 @@ export function BlocosView({
           adminMode={userRole === 'admin'}
         />
       )}
+
+      <AnimatePresence>
+        {showBoletimModal && (
+          <BoletimSindicoModal
+            isOpen={showBoletimModal}
+            onClose={() => setShowBoletimModal(false)}
+            statusList={statusMerged && statusMerged.length > 0 ? statusMerged : status}
+            fotos={fotosRecentes}
+          />
+        )}
+      </AnimatePresence>
 
       <SyncBanner
         online={online}

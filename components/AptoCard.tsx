@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning, CloudCheck, CloudArrowUp } from '@phosphor-icons/react';
+import { CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning, CloudCheck, CloudArrowUp, Door } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { normApto, emAndamento } from '@/lib/utils';
@@ -27,6 +27,7 @@ interface AptoCardProps {
   comentarioCount?: number;
   onDesmarcar?: () => void;
   userRole?: string | null;
+  onOcorrencia?: () => void;
 }
 
 /**
@@ -42,7 +43,7 @@ function getDataAction(el: HTMLElement | null): string | null {
   return null;
 }
 
-export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0, onDesmarcar, userRole }: AptoCardProps) {
+export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEscaneamento, blocoAtual, onAbrir, onAgendar, onComentario, comentarioCount = 0, onDesmarcar, userRole, onOcorrencia }: AptoCardProps) {
   const { toast } = useToast();
   const [isFavorited, setIsFavorited] = useState(() => isFavorito(s.bloco, s.apartamento));
   const [swipeX, setSwipeX] = useState(0);
@@ -78,10 +79,13 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
       case 'comentario':
         onComentario?.();
         return true;
+      case 'ocorrencia':
+        onOcorrencia?.();
+        return true;
       default:
         return false;
     }
-  }, [onAgendar, onComentario, onDesmarcar]);
+  }, [onAgendar, onComentario, onDesmarcar, onOcorrencia]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
@@ -221,6 +225,18 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           </span>
           {isFavorited && <Star size={12} weight="fill" className="text-warn flex-shrink-0" />}
 
+          {/* Indicador de Morador Ausente / Impedimento de Acesso */}
+          {s.ocorrencia && !s.ocorrencia.resolvido && !isComplete && (
+            <span
+              data-action="ocorrencia"
+              className="flex items-center gap-1 text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex-shrink-0 cursor-pointer hover:bg-amber-500/20 transition-colors"
+              title={`${s.ocorrencia.motivoLabel}${s.ocorrencia.observacao ? ` - ${s.ocorrencia.observacao}` : ''}`}
+            >
+              <Door size={12} weight="duotone" />
+              <span>Ausente</span>
+            </span>
+          )}
+
           {/* Indicador de Sincronização em Nuvem / Local */}
           {(s.qtdPendentes ?? 0) > 0 ? (
             <span
@@ -277,6 +293,22 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
                   {comentarioCount > 9 ? '9+' : comentarioCount}
                 </span>
               )}
+            </div>
+          )}
+          {/* Ocorrência / Morador Ausente */}
+          {onOcorrencia && !isComplete && (
+            <div
+              data-action="ocorrencia"
+              className={`tactile-press flex items-center justify-center w-8 h-8 rounded-lg transition-colors cursor-pointer ${
+                s.ocorrencia && !s.ocorrencia.resolvido
+                  ? 'text-amber-400 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30'
+                  : 'text-content-tertiary hover:text-amber-400 hover:bg-amber-500/10'
+              }`}
+              role="button"
+              aria-label={`Registrar morador ausente em ${s.apartamento}`}
+              title={s.ocorrencia && !s.ocorrencia.resolvido ? `${s.ocorrencia.motivoLabel} (toque para editar)` : 'Registrar morador ausente / impedimento'}
+            >
+              <Door size={16} weight={s.ocorrencia && !s.ocorrencia.resolvido ? 'fill' : 'bold'} />
             </div>
           )}
           {/* Desmarcar — admin only, completed only */}

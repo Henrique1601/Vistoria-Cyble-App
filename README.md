@@ -57,7 +57,13 @@ só precisa fazer uma vez (ou quando quiser corrigir a lista, tem o botão
 - O reconhecimento de "apartamento concluído" e a agenda de vistorias podem ser compartilhados entre aparelhos através do menu **Configurações > Prédio (Salvar / Carregar da Nuvem)** ou via exportação/importação em XLSX multissheet, CSV ou TXT de concluídos.
 - Sem paginação pesada na lista de apartamentos — com ~180 por bloco funciona instantaneamente; virtualização via `@tanstack/react-virtual` disponível para listas gigantescas.
 
-## Recursos Recentes (v3.8.8)
+## Recursos Recentes (v3.8.9)
+- **Gestão de Moradores Ausentes & Medidores Internos:** Registro categorizado de impedimentos de acesso com motivos específicos para hidrômetros internos aos apartamentos (*Morador Ausente*, *Interfone Sem Resposta*, *Porta/Armário Trancado*, *Acesso Recusado*, *Outro*), com botão para acionamento imediato da portaria/zelador via WhatsApp, badge visual no card do apartamento, filtro de repescagem rápida `'Ausente'` e resolução automática no banco ao registrar as fotos da troca.
+- **Boletim Diário do Síndico em 1 Clique:** Resumo executivo da produção do dia gerado com 1 toque, com cálculo de trocas diárias, percentual de conclusão do condomínio, progresso torre a torre e lista de apartamentos pendentes por ausência. Disponível em texto formatado para WhatsApp e em Card Visual PNG de alta resolução (1080x1350px) renderizado no Canvas para compartilhamento com a administração e síndico.
+- **Acesso Rápido no Dashboard e Exportação:** Botão dedicado "Boletim Síndico" integrado na tela principal dos blocos (`BlocosView`) e no painel de exportação (`ExportSection`).
+- **Suíte de Testes Automatizados Ampliada:** 122 testes unitários automatizados (100% aprovados no Vitest).
+
+## Recursos Anteriores (v3.8.8)
 - **Pipeline Single-Pass no Web Worker (Prevenção Definitiva de OOM "Ah, não!" no Celular):** O processamento de fotos (redimensionamento, aplicação de marca d'água e análise Laplaciana de nitidez/brilho) ocorre agora em uma única passada em thread isolada de Web Worker.
 - **Liberação Instantânea de Memória RAM:** Chamada compulsória a `bitmap.close()` imediatamente após o desenho nos canvas, eliminando mais de 120MB de bitmaps transitórios da memória do navegador e prevenindo os travamentos ("Aw Snap") no Chrome PWA em celulares com pouca memória.
 - **Zero Retrabalho no Alerta de Nitidez:** O botão "Salvar mesmo assim" reaproveita o blob pré-processado instantaneamente, sem re-comprimir a imagem original.

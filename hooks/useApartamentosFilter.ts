@@ -6,7 +6,7 @@ import { normApto, normalizeBloco } from '@/lib/utils';
 import { getItensPagina, getModoCompacto, getAltoContraste } from '@/lib/settings';
 
 export type OrdemTipo = 'original' | 'pendentes';
-export type StatusFilterTipo = 'todos' | 'concluido' | 'em_andamento' | 'pendente';
+export type StatusFilterTipo = 'todos' | 'concluido' | 'em_andamento' | 'pendente' | 'ausente';
 
 interface UseApartamentosFilterProps {
   blocoAtual: string | null;
@@ -86,7 +86,9 @@ export function useApartamentosFilter({
     const statusFiltered = result.filter((s) => {
       if (statusFilter === 'todos') return true;
       const isConc = Boolean(s.isConcluido || (s.cybleAntesFeito && s.cybleDepoisFeito));
-      const isAndam = !isConc && Boolean(s.cybleAntesFeito || s.cybleDepoisFeito || (s.qtdDocumentos ?? 0) > 0 || (s.qtdFotos ?? 0) > 0);
+      const isAusente = !isConc && Boolean(s.ocorrencia && !s.ocorrencia.resolvido);
+      if (statusFilter === 'ausente') return isAusente;
+      const isAndam = !isConc && !isAusente && Boolean(s.cybleAntesFeito || s.cybleDepoisFeito || (s.qtdDocumentos ?? 0) > 0 || (s.qtdFotos ?? 0) > 0);
       const st = isConc
         ? 'concluido'
         : isAndam

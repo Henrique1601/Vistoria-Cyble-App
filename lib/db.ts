@@ -6,6 +6,23 @@ import { comprimirImagemComWorker } from './imageProcessor';
 
 export type Categoria = 'cyble_antes' | 'cyble_depois' | 'documento';
 
+export type MotivoAusente =
+  | 'morador_ausente'
+  | 'interfone_sem_resposta'
+  | 'porta_fechada'
+  | 'acesso_recusado'
+  | 'outro';
+
+export interface OcorrenciaApto {
+  bloco: string;
+  apartamento: string;
+  motivo: MotivoAusente;
+  motivoLabel: string;
+  timestamp: number;
+  observacao?: string;
+  resolvido?: boolean;
+}
+
 export interface ApartamentoStatus {
   bloco: string;
   apartamento: string;
@@ -17,6 +34,7 @@ export interface ApartamentoStatus {
   isConcluido?: boolean;
   qtdPendentes?: number;
   qtdSynced?: number;
+  ocorrencia?: OcorrenciaApto;
 }
 
 export interface FotoRecord {
@@ -183,6 +201,14 @@ export async function salvarFoto(rec: Omit<FotoRecord, 'id'>) {
           [bNorm]: [...aptosBloco, aNorm].sort((a, b) => Number(a) - Number(b)),
         });
       }
+      // Se havia ocorrência de ausente, marca como resolvida automaticamente
+      try {
+        const dataOcorrencias: Record<string, Record<string, OcorrenciaApto>> = (await db.get('config', 'ocorrencias')) ?? {};
+        if (dataOcorrencias[bNorm]?.[aNorm] && !dataOcorrencias[bNorm][aNorm].resolvido) {
+          dataOcorrencias[bNorm][aNorm].resolvido = true;
+          await db.put('config', dataOcorrencias, 'ocorrencias');
+        }
+      } catch {}
     }
   } catch {}
 
@@ -415,11 +441,46 @@ export async function desmarcarSincronizada(id: number) {
   }
 }
 
+// --- Ocorrências de Acesso e Moradores Ausentes ---
+export async function carregarOcorrencias(): Promise<Record<string, Record<string, OcorrenciaApto>>> {
+  const db = await getDb();
+  const data = (await db.get('config', 'ocorrencias')) ?? {};
+  return data;
+}
+
+export async function salvarOcorrencia(ocorrencia: OcorrenciaApto): Promise<void> {
+  const db = await getDb();
+  const data: Record<string, Record<string, OcorrenciaApto>> = (await db.get('config', 'ocorrencias')) ?? {};
+  const bNorm = normalizeBloco(ocorrencia.bloco);
+  const aNorm = normApto(ocorrencia.apartamento);
+  if (!data[bNorm]) data[bNorm] = {};
+  data[bNorm][aNorm] = {
+    ...ocorrencia,
+    bloco: bNorm,
+    apartamento: aNorm,
+  };
+  await db.put('config', data, 'ocorrencias');
+}
+
+export async function removerOcorrencia(bloco: string, apartamento: string): Promise<void> {
+  const db = await getDb();
+  const data: Record<string, Record<string, OcorrenciaApto>> = (await db.get('config', 'ocorrencias')) ?? {};
+  const bNorm = normalizeBloco(bloco);
+  const aNorm = normApto(apartamento);
+  if (data[bNorm] && data[bNorm][aNorm]) {
+    delete data[bNorm][aNorm];
+    await db.put('config', data, 'ocorrencias');
+  }
+}
+
 export async function statusDeTodosApartamentos(
   lista: Record<string, string[]>
 ): Promise<ApartamentoStatus[]> {
   const db = await getDb();
-  const concluidos = await carregarConcluidos();
+  const [concluidos, ocorrencias] = await Promise.all([
+    carregarConcluidos(),
+    carregarOcorrencias(),
+  ]);
 
   // Build letter-to-full-name map for normalization
   const letterToFull = new Map<string, string>();
@@ -460,6 +521,7 @@ export async function statusDeTodosApartamentos(
   const result: ApartamentoStatus[] = [];
   for (const bloco of Object.keys(lista)) {
     const concluidosBloco = new Set((concluidos[bloco] || []).map(normApto));
+    const blocoNorm = normalizeBloco(bloco);
     for (const apto of lista[bloco]) {
       const aptoNorm = normApto(apto);
       const key = `${bloco}__${aptoNorm}`;
@@ -474,6 +536,8 @@ export async function statusDeTodosApartamentos(
       const notas = fotos.map((f) => f.nota).filter((n): n is string => !!n && n.trim().length > 0);
       const qtdPendentes = fotos.filter((f) => !f.synced).length;
       const qtdSynced = fotos.filter((f) => f.synced).length;
+      const ocorrenciaDoApto = ocorrencias[blocoNorm]?.[aptoNorm];
+
       result.push({
         bloco,
         apartamento: apto,
@@ -485,6 +549,7 @@ export async function statusDeTodosApartamentos(
         isConcluido,
         qtdPendentes,
         qtdSynced,
+        ocorrencia: ocorrenciaDoApto,
       });
     }
   }

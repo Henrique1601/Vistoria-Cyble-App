@@ -7,6 +7,22 @@
 
 ---
 
+## v3.8.9 (13/10/2026)
+
+### ✅ Gestão de Moradores Ausentes & Acesso a Medidores Internos
+- Modal tátil com motivos de ausência para medidores internos (morador ausente, interfone sem resposta, shaft/porta trancada, acesso recusado, outro)
+- Acionamento imediato da portaria/zelador via mensagem pronta no WhatsApp
+- Filtro de repescagem rápida `'Ausente'` na visualização de apartamentos da torre
+- Badge visual âmbar e auto-resolução no IndexedDB ao fotografar medidor
+
+### ✅ Boletim Diário do Síndico em 1 Clique
+- Cálculo automático da produção diária, acumulado e lista de apartamentos pendentes por ausência
+- Resumo executivo em texto formatado para WhatsApp com 1 clique
+- Renderização Canvas de Card Visual PNG de alta definição (1080x1350px) para envio ao cliente/síndico
+- Botões de acesso rápido integrados no dashboard (`BlocosView`) e na exportação (`ExportSection`)
+
+---
+
 ## v3.5.0 (02/08/2026)
 
 ### ✅ Google Drive Backup

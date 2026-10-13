@@ -11,6 +11,7 @@ import { fotosMapKey, normalizeBloco } from '@/lib/utils';
 import { ApartamentoStatus, FotoRecord, obterTodasFotos, marcarTodosDocsOK, desmarcarSincronizada, ultimasFotos } from '@/lib/db';
 import { FotoOnline, EstatisticasPeriodo } from '@/components/EstatisticasPeriodo';
 import { EstatisticasPorTorre } from '@/components/EstatisticasPorTorre';
+import BoletimSindicoModal from '@/components/BoletimSindicoModal';
 
 const ExportSection = dynamic(
   () => import('@/components/ExportSection').then((m) => ({ default: m.ExportSection })),
@@ -47,6 +48,7 @@ export function ExportarView({
   const [torresExportacao, setTorresExportacao] = useState<Set<string>>(new Set());
   const [showEstatisticas, setShowEstatisticas] = useState(false);
   const [showEstatisticasTorre, setShowEstatisticasTorre] = useState(false);
+  const [showBoletim, setShowBoletim] = useState(false);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [apenasPendentes, setApenasPendentes] = useState(false);
@@ -232,6 +234,7 @@ export function ExportarView({
                 obterTodasFotos().then(setAllFotos);
               }}
               pin={pin}
+              onAbrirBoletim={() => setShowBoletim(true)}
             />
 
             {showEstatisticas && <EstatisticasPeriodo fotosOnline={fotosOnline} />}
@@ -242,6 +245,15 @@ export function ExportarView({
         </div>
       </main>
       <BottomNav active="exportar" onNavigate={onNavigate} />
+
+      {showBoletim && (
+        <BoletimSindicoModal
+          isOpen={showBoletim}
+          onClose={() => setShowBoletim(false)}
+          statusList={statusExportacao}
+          fotos={allFotos}
+        />
+      )}
     </>
   );
 }
