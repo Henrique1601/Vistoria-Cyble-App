@@ -1,0 +1,6 @@
+interface:
+  display_name: "Vistoria Cyble App"
+  short_description: "Repo-specific patterns and workflows for Vistoria-Cyble-App"
+  default_prompt: "Use the Vistoria-Cyble-App repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
