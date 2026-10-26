@@ -391,7 +391,19 @@ export default function AgendaScreen({
                       )}
                     </button>
 
-                    <div className="flex-1 min-w-0">
+                    <div
+                      onClick={() => onNavegarPara(ag.bloco, ag.apartamento)}
+                      className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onNavegarPara(ag.bloco, ag.apartamento);
+                        }
+                      }}
+                      aria-label={`Abrir vistoria de ${ag.bloco} apartamento ${ag.apartamento}`}
+                    >
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-content truncate">{ag.bloco}</span>
                         <span className="text-sm text-content-secondary font-mono">{ag.apartamento}</span>

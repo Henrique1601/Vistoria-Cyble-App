@@ -3,7 +3,7 @@ import { getQualidadeFoto } from './settings';
 
 const QUALIDADE_MAP: Record<string, number> = { '50': 0.50, '75': 0.75, '90': 0.90, '100': 1.0 };
 const MAX_IMAGE_WIDTH_DEFAULT = 2560;
-const WORKER_TIMEOUT_MS = 15000;
+const WORKER_TIMEOUT_MS = 35000;
 
 export interface WatermarkOptions {
   texto: string;
@@ -133,7 +133,10 @@ export async function processarFotoCompleta(
     console.warn('Worker processAll fallback:', err);
     const [rawBlob, blur] = await Promise.all([
       fallbackCompress(file),
-      detectBlurFallback(file),
+      detectBlurFallback(file).catch((blurErr) => {
+        console.warn('detectBlurFallback falhou defensivamente:', blurErr);
+        return { isBlurry: false, isDark: false, brightness: 80, sharpness: 10 };
+      }),
     ]);
     let blob = rawBlob;
     if (watermark) {

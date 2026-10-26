@@ -9,24 +9,19 @@
 
 ---
 
-## 🚀 Backlog & Próximas Melhorias (Demandas Operacionais de Campo)
+## v3.9.0 (26/10/2026)
 
-### ⬜ 1. Navegação Ágil: Agenda ➔ Apartamento (com Retorno Direto à Agenda)
-- **Cenário:** Na tela de Agenda, ao tocar no card ou número do apartamento, navegar diretamente para a tela de vistoria/captura correspondente.
-- **Retorno Inteligente:** Ao clicar no botão de voltar na tela de captura, identificar que a rota de origem foi a Agenda e retornar diretamente a ela (em vez da lista de blocos), agilizando o atendimento sequencial do dia.
+### ✅ 1. Navegação Ágil: Agenda ➔ Apartamento (com Retorno Direto à Agenda)
+- **Acesso em 1 Toque:** Na tela de Agenda, tocar no agendamento abre diretamente a tela de captura daquela unidade.
+- **Retorno Inteligente:** Ao clicar em voltar na captura, identifica que a rota de origem foi a Agenda (`origemCaptura: 'agenda'`) e retorna diretamente a ela, acelerando a rotina de vistorias agendadas.
 
-### ⬜ 2. Otimização e Tolerância de Captura em Celulares Antigos
-- **Cenário:** Em celulares mais antigos ou com hardware modesto, a decodificação da foto dispara a mensagem: *"Foto muito grande ou celular lento. Tente de novo."*
-- **Solução:**
-  - Ampliar dinamicamente os tempos de tolerância (timeout) para processamento em hardware legado.
-  - Implementar degradação graciosa com downscaling preventivo antes de submeter ao Web Worker quando o aparelho indicar restrição de memória.
-  - Tratar mensagens de erro com fallback direto de salvamento sem travamento.
+### ✅ 2. Otimização e Tolerância de Captura em Celulares Antigos
+- **Fim do Erro "Foto muito grande ou celular lento":** Aumentados timeouts de Web Worker (`35s`), carregamento de imagem (`35s`) e codificação JPEG de canvas (`35s`).
+- **Resiliência na Câmera:** Timeout de segurança em `CapturaScreen.tsx` estendido para 45s e detecção Laplaciana de blur tratada defensivamente sem abortar a captura de fotos em dispositivos lentos.
 
-### ⬜ 3. Exportação de Fotos do Dia em ZIP em 1 Clique (Fechamento do Expediente)
-- **Cenário:** Ao terminar os agendamentos e vistorias do dia, o técnico quer salvar todas as fotos tiradas naquela data sem ter que selecionar torres uma a uma manualmente.
-- **Solução:**
-  - Adicionar botão de 1 clique "Exportar Fotos de Hoje (.ZIP)" no painel de exportação e no dashboard de fechamento.
-  - O compactador filtra automaticamente no IndexedDB todas as fotos com timestamp da data de hoje em todas as torres e gera o arquivo ZIP já com pastas organizadas (Torre/Apto/categoria.jpg).
+### ✅ 3. Exportação de Fotos do Dia em ZIP em 1 Clique (Fechamento do Expediente)
+- **Fechamento Ágil:** Botão em destaque "Fotos de Hoje (ZIP)" no painel de exportação.
+- **Organização Automática:** Consolida todas as fotos capturadas na data de hoje em todas as torres (locais e sincronizadas) em pastas estruturadas (`Torre/Apto/categoria_timestamp.jpg`), sem necessidade de filtro manual torre por torre.
 
 ---
 

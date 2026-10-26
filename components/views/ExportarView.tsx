@@ -54,6 +54,7 @@ export function ExportarView({
   const [apenasPendentes, setApenasPendentes] = useState(false);
   const [compartilhando, setCompartilhando] = useState<'pdf' | 'xlsx' | 'report' | null>(null);
   const [exportandoZIP, setExportandoZIP] = useState(false);
+  const [exportandoFotosDiaZIP, setExportandoFotosDiaZIP] = useState(false);
   const [exportandoFotos, setExportandoFotos] = useState(false);
   const [showPDFOptions, setShowPDFOptions] = useState(false);
   const [pdfAccentColor, setPDFAccentColor] = useState<[number, number, number]>([232, 130, 58]);
@@ -132,6 +133,29 @@ export function ExportarView({
                   setExportandoZIP(false);
                 }
               }}
+              onExportFotosDiaZIP={async () => {
+                setExportandoFotosDiaZIP(true);
+                try {
+                  const { exportarFotosDoDiaZIP } = await loadExport();
+                  const res = await exportarFotosDoDiaZIP(undefined, {
+                    onProgress: (msg) => {
+                      // progresso opcional
+                    },
+                  });
+                  if (res.count > 0) {
+                    toast(`${res.count} foto(s) de hoje exportadas com sucesso!`, 'success');
+                    logAudit('export_zip', `ZIP do dia exportado com ${res.count} fotos`);
+                  } else {
+                    toast('Nenhuma foto encontrada na data de hoje.', 'info');
+                  }
+                } catch (err) {
+                  console.error('Erro ao exportar fotos do dia:', err);
+                  toast('Erro ao exportar fotos do dia em ZIP.', 'error');
+                } finally {
+                  setExportandoFotosDiaZIP(false);
+                }
+              }}
+              exportandoFotosDiaZIP={exportandoFotosDiaZIP}
               onRelatorioPDFComFotos={async (s) => {
                 setExportandoFotos(true);
                 try {

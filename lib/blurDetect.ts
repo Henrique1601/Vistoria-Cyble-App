@@ -6,7 +6,7 @@ export interface BlurResult {
   message?: string;
 }
 
-const IMAGE_LOAD_TIMEOUT_MS = 15000;
+const IMAGE_LOAD_TIMEOUT_MS = 35000;
 
 export async function detectBlur(file: File): Promise<BlurResult> {
   const img = await loadImage(file);

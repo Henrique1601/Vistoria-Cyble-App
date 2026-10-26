@@ -15,7 +15,7 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 - **Virtualização:** @tanstack/react-virtual (disponível)
 - **Fonts:** Geist (display + mono)
 - **Deploy:** Vercel (auto-deploy do GitHub)
-- **Versão atual:** 3.8.9
+- **Versão atual:** 3.9.0
 
 ## Sistema de PIN
 - **`ADMIN_PIN`** — Acesso total: editar, excluir fotos, selecionar múltiplas, agendar, configurar
@@ -109,6 +109,9 @@ PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** 
 ### Operação em Campo & Relatórios Executivos (v3.8.9)
 62. **Gestão de Moradores Ausentes & Medidores Internos** — registro de ausência/interfone sem resposta, acionamento da portaria/zelador via WhatsApp com 1 toque, filtro rápido de ausentes e auto-resolução ao registrar fotos.
 63. **Boletim Diário do Síndico em 1 Clique** — geração de texto estruturado para WhatsApp e renderização de Card Visual PNG (1080x1350px) em Canvas com métricas, progresso torre a torre e lista de ausentes.
+64. **Navegação Ágil Agenda ➔ Apartamento com Retorno Automático** — clique direto no agendamento para abrir a captura da unidade e retorno automático com 1 toque à agenda.
+65. **Resiliência de Câmera para Celulares Antigos** — ampliação de timeouts de codificação (35s-45s) e tratamento não-bloqueante de nitidez para evitar interrupções de hardware lento.
+66. **Fotos de Hoje em ZIP (Fechamento do Expediente)** — exportação consolidada em 1 clique de todas as vistorias do dia organizadas por Torre/Apartamento.
 
 ### Segurança
 37. **Security Hardening** — `lib/auth.ts` (server-side) + `lib/api.ts` (client-side)

@@ -517,7 +517,7 @@ export default function CapturaScreen({
 
     // Timeout wrapper — if comprimirImagem hangs, show error after 25s
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 25000)
+      setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 45000)
     );
 
     try {
@@ -593,7 +593,7 @@ export default function CapturaScreen({
     setBlurWarning(null);
     setProcessingPhoto(true);
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 25000)
+      setTimeout(() => reject(new Error('Foto demorou demais para processar (timeout)')), 45000)
     );
     try {
       const watermarkLabel = WATERMARK_LABELS[categoria] || categoria;

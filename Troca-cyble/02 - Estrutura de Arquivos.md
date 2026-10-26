@@ -90,7 +90,7 @@ vistoria-cyble-app/
 │   ├── motion.ts               # Constantes de animação (spring, stagger, item)
 │   ├── utils.ts                # normApto(), normalizeBloco(), formatarDataParaInput(), etc.
 │   ├── constants.ts            # Constantes centralizadas (SYNC_INTERVAL_MS, etc.)
-│   ├── version.ts              # APP_VERSION = '3.5.0'
+│   ├── version.ts              # APP_VERSION = '3.9.0'
 │   ├── blurDetect.ts           # Detecção de blur/brilho em fotos (Laplacian)
 │   ├── googleDrive.ts          # Integração Google Drive (gapi + OAuth2)
 │   ├── validation.ts           # Validação de input para API routes
@@ -111,7 +111,7 @@ vistoria-cyble-app/
 │   ├── robots.txt              # SEO (noindex/nofollow para PWA)
 │   └── icon.svg                # Ícone do app
 ├── Troca-cyble/                # Obsidian vault — documentação
-├── package.json                # v3.5.0
+├── package.json                # v3.9.0
 ├── tsconfig.json
 ├── next.config.mjs
 └── README.md

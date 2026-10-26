@@ -57,7 +57,13 @@ só precisa fazer uma vez (ou quando quiser corrigir a lista, tem o botão
 - O reconhecimento de "apartamento concluído" e a agenda de vistorias podem ser compartilhados entre aparelhos através do menu **Configurações > Prédio (Salvar / Carregar da Nuvem)** ou via exportação/importação em XLSX multissheet, CSV ou TXT de concluídos.
 - Sem paginação pesada na lista de apartamentos — com ~180 por bloco funciona instantaneamente; virtualização via `@tanstack/react-virtual` disponível para listas gigantescas.
 
-## Recursos Recentes (v3.8.9)
+## Recursos Recentes (v3.9.0)
+- **Navegação Ágil Agenda ➔ Apartamento com Retorno Automático:** Toque direto em qualquer agendamento na tela de Agenda abre instantaneamente a tela de captura daquela unidade (bloco e apartamento), e ao clicar em "Voltar", o aplicativo retorna automaticamente para a Agenda (preservando posição e agilidade no campo).
+- **Resiliência de Câmera para Celulares Antigos / Lentos:** Eliminação do erro *"Foto muito grande ou celular lento. Tente de novo."* através da expansão dos timeouts de processamento (de 15s para 35s-45s) e tratamento tolerante a falhas na detecção Laplaciana de foco, assegurando que aparelhos com menor memória RAM consigam processar fotos de 12MP a 48MP sem travar ou rejeitar o salvamento.
+- **Exportação de Fotos do Dia em ZIP em 1 Clique (Fechamento do Expediente):** Botão em destaque *"Fotos de Hoje (ZIP)"* no painel de exportação consolidando todas as fotos capturadas na data de hoje (locais e sincronizadas) em pastas estruturadas (`Torre/Apartamento/categoria_timestamp.jpg`), simplificando a prestação de contas no final do expediente sem precisar selecionar torre por torre.
+- **Suíte de Testes Automatizados Ampliada:** 124 testes unitários automatizados (100% aprovados no Vitest).
+
+## Recursos Anteriores (v3.8.9)
 - **Gestão de Moradores Ausentes & Medidores Internos:** Registro categorizado de impedimentos de acesso com motivos específicos para hidrômetros internos aos apartamentos (*Morador Ausente*, *Interfone Sem Resposta*, *Porta/Armário Trancado*, *Acesso Recusado*, *Outro*), com botão para acionamento imediato da portaria/zelador via WhatsApp, badge visual no card do apartamento, filtro de repescagem rápida `'Ausente'` e resolução automática no banco ao registrar as fotos da troca.
 - **Boletim Diário do Síndico em 1 Clique:** Resumo executivo da produção do dia gerado com 1 toque, com cálculo de trocas diárias, percentual de conclusão do condomínio, progresso torre a torre e lista de apartamentos pendentes por ausência. Disponível em texto formatado para WhatsApp e em Card Visual PNG de alta resolução (1080x1350px) renderizado no Canvas para compartilhamento com a administração e síndico.
 - **Acesso Rápido no Dashboard e Exportação:** Botão dedicado "Boletim Síndico" integrado na tela principal dos blocos (`BlocosView`) e no painel de exportação (`ExportSection`).

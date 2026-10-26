@@ -1,6 +1,6 @@
 'use client';
 
-import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar, FunnelSimple, FileJs, PaintBrush, CheckCircle, ChatText } from '@phosphor-icons/react';
+import { Buildings, FileCsv, FilePdf, ShareNetwork, Download, ChartBar, Code, Calendar, FunnelSimple, FileJs, PaintBrush, CheckCircle, ChatText, Archive } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { spring } from '@/lib/motion';
 import type { ApartamentoStatus } from '@/lib/db';
@@ -34,6 +34,8 @@ interface ExportSectionProps {
   compartilhando: 'pdf' | 'xlsx' | 'report' | null;
   exportandoZIP: boolean;
   exportandoFotos: boolean;
+  onExportFotosDiaZIP?: () => void;
+  exportandoFotosDiaZIP?: boolean;
   showPDFOptions?: boolean;
   onTogglePDFOptions?: () => void;
   pdfAccentColor?: [number, number, number];
@@ -70,6 +72,8 @@ export function ExportSection({
   compartilhando,
   exportandoZIP,
   exportandoFotos,
+  onExportFotosDiaZIP,
+  exportandoFotosDiaZIP = false,
   showPDFOptions = false,
   onTogglePDFOptions,
   pdfAccentColor = [232, 130, 58],
@@ -251,16 +255,27 @@ export function ExportSection({
           <FilePdf size={14} weight="duotone" className="text-content-tertiary" />
           <span className="text-xs font-semibold uppercase tracking-widest text-content-tertiary">Relatorios com fotos</span>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <button
             onClick={() => onExportZIP(effectiveStatus)}
             disabled={disabled || exportandoZIP}
-            aria-label="Baixar fotos como ZIP"
+            aria-label="Baixar fotos como ZIP filtrado"
             className="tactile-press flex flex-col items-center gap-1.5 bg-base-overlay border border-base-border rounded-xl px-3 py-3 text-xs font-medium text-content-secondary hover:text-content hover:border-accent/30 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none"
           >
             <Download size={18} weight="bold" aria-hidden="true" />
             {exportandoZIP ? 'Compactando\u2026' : 'Fotos ZIP'}
           </button>
+          {onExportFotosDiaZIP && (
+            <button
+              onClick={onExportFotosDiaZIP}
+              disabled={exportandoFotosDiaZIP}
+              aria-label="Baixar todas as fotos capturadas hoje em ZIP (Encerramento do Expediente)"
+              className="tactile-press flex flex-col items-center gap-1.5 bg-accent/10 border border-accent/40 rounded-xl px-3 py-3 text-xs font-semibold text-accent hover:bg-accent/20 hover:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none transition-all disabled:opacity-30 disabled:pointer-events-none col-span-2 sm:col-span-1 shadow-xs"
+            >
+              <Archive size={18} weight="bold" aria-hidden="true" />
+              {exportandoFotosDiaZIP ? 'Compactando\u2026' : 'Fotos de Hoje (ZIP)'}
+            </button>
+          )}
           <button
             onClick={() => onRelatorioPDFComFotos(effectiveStatus)}
             disabled={disabled || exportandoFotos}

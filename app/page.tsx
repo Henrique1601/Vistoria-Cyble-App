@@ -68,6 +68,7 @@ export default function Home() {
   const [userRole, setUserRole] = useState<string>('viewer');
   const [pinChecked, setPinChecked] = useState(false);
   const [view, setView] = useState<View>('blocos');
+  const [origemCaptura, setOrigemCaptura] = useState<'apartamentos' | 'agenda' | 'blocos' | 'heatmap'>('apartamentos');
   const [blocoAtual, setBlocoAtual] = useState<string | null>(null);
   const [aptoAtual, setAptoAtual] = useState<string | null>(null);
   const [modoEscaneamento, setModoEscaneamento] = useState(false);
@@ -517,6 +518,7 @@ export default function Home() {
         onNavigateToApto={(bloco, apto) => {
           setBlocoAtual(bloco);
           setAptoAtual(apto);
+          setOrigemCaptura('heatmap');
           setView('captura');
         }}
         onNavigate={handleNavigation}
@@ -543,6 +545,7 @@ export default function Home() {
           onNavegarPara={(bloco, apto) => {
             setBlocoAtual(bloco);
             setAptoAtual(apto);
+            setOrigemCaptura('agenda');
             setView('captura');
           }}
           onVoltar={() => setView('blocos')}
@@ -589,7 +592,16 @@ export default function Home() {
           bloco={blocoAtual}
           apartamento={aptoAtual}
           onVoltar={() => {
-            setView('apartamentos');
+            if (origemCaptura === 'agenda') {
+              setView('agenda');
+              setActiveNav('agenda');
+            } else if (origemCaptura === 'heatmap') {
+              setView('heatmap');
+            } else if (origemCaptura === 'blocos') {
+              setView('blocos');
+            } else {
+              setView('apartamentos');
+            }
             refreshStatus();
             setModoEscaneamento(false);
           }}
@@ -675,6 +687,7 @@ export default function Home() {
           }}
           onAbrirApto={(apto) => {
             setAptoAtual(apto);
+            setOrigemCaptura('apartamentos');
             setView('captura');
           }}
           onDesmarcarConfirm={(bloco, apto) => setDesmarcarConfirm({ bloco, apto })}
@@ -756,6 +769,7 @@ export default function Home() {
         onAbrirCapturaApto={(b, a) => {
           setBlocoAtual(b);
           setAptoAtual(a);
+          setOrigemCaptura('blocos');
           setView('captura');
         }}
         onNavigate={(v) => {

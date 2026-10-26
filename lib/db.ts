@@ -573,7 +573,7 @@ function loadImageFromBlob(file: File): Promise<HTMLImageElement> {
         cleanup();
         reject(new Error('Image load timeout'));
       }
-    }, 15000);
+    }, 35000);
 
     img.onload = () => {
       if (!settled) {
@@ -689,7 +689,7 @@ export async function comprimirImagemLocal(
   if (!ctx) throw new Error('Nao foi possivel criar canvas (getContext retornou null)');
   drawImageWithOrientation(ctx, img, orientation, w, h);
 
-  const BLOB_TIMEOUT_MS = 15000;
+  const BLOB_TIMEOUT_MS = 35000;
   // convertToBlob only on OffscreenCanvas; toBlob on regular canvas fallback
   if (isOffscreen) {
     return Promise.race([

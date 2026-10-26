@@ -1,5 +1,23 @@
 # Changelog — Vistoria Cyble
 
+## v3.9.0 (26/10/2026)
+
+### Navegação Ágil Agenda ➔ Captura com Retorno Automático, Resiliência para Celulares Antigos e Exportação de Fotos do Dia em ZIP (Fechamento do Expediente)
+- **Navegação Ágil Agenda ➔ Apartamento com Retorno Automático (`components/AgendaScreen.tsx` & `app/page.tsx`):**
+  - **Acesso em 1 Toque a partir da Agenda:** Clicar no cartão de agendamento abre diretamente a tela de captura daquela unidade (`bloco` e `apartamento`), eliminando a necessidade de buscar a torre e o número manualmente.
+  - **Retorno Preciso à Agenda:** Adicionado rastreamento de origem (`origemCaptura: 'agenda' | 'apartamentos' | 'blocos' | 'heatmap'`). Ao concluir ou clicar em "Voltar" na captura, o operador retorna instantaneamente à Agenda, preservando a posição e o ritmo de atendimento.
+- **Resiliência de Captura em Celulares Antigos / Lentos (`lib/imageProcessor.ts`, `lib/db.ts`, `lib/blurDetect.ts`, `app/CapturaScreen.tsx`):**
+  - **Eliminação do Erro "Foto muito grande ou celular lento":** O Web Worker e o decodificador de imagem agora toleram fotos pesadas (15MB a 48MP) em aparelhos antigos com memória e CPU restritas, com timeout estendido de 15s para 35s (`WORKER_TIMEOUT_MS`, `IMAGE_LOAD_TIMEOUT_MS`, `BLOB_TIMEOUT_MS`).
+  - **Defesa Não-Bloqueante na Nitidez:** Em caso de lentidão ou falha no cálculo Laplaciano de blur, a compressão e o salvamento da foto prosseguem graciosamente sem rejeição (`catch` defensivo em `detectBlurFallback`).
+  - **Margem Segura na Câmera:** Timeout de espera em `CapturaScreen.tsx` elevado de 25s para 45s, prevenindo abortos acidentais enquanto o processador do aparelho codifica a foto.
+- **Exportação de Fotos do Dia em ZIP em 1 Clique (`lib/export/zip.ts`, `components/ExportSection.tsx`, `components/views/ExportarView.tsx`):**
+  - **Fechamento de Expediente Simplificado:** Nova ação em destaque "Fotos de Hoje (ZIP)" gera um único arquivo compactado contendo todas as vistorias realizadas no dia (locais do IndexedDB e sincronizadas na nuvem), organizadas em pastas por `${bloco}/${apartamento}/${categoria}_${timestamp}.jpg`.
+  - **Zero Organização Manual:** O técnico encerra a jornada e baixa ou compartilha o pacote consolidado em 1 clique, sem precisar filtrar torre por torre.
+- **Suíte de Testes Automatizados Ampliada:**
+  - Adicionado `tests/exportZip.test.ts` validando a agregação de fotos da data, estrutura de pastas e retorno seguro. Total: **124/124 testes aprovados (100% verdes)**.
+- **Service Worker & Auto-Update:**
+  - Shell de cache atualizado para `vistoria-shell-v23` no `public/sw.js` e versão `3.9.0` sincronizada em `package.json` e `lib/version.ts`.
+
 ## v3.8.9 (13/10/2026)
 
 ### Gestão de Moradores Ausentes & Boletim Diário do Síndico em 1 Clique
