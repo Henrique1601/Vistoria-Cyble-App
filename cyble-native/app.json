@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Vistoria Cyble",
+    "slug": "cyble-native",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0C0F14",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cyble.nativeapp"
+    },
+    "android": {
+      "package": "com.cyble.nativeapp",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#0C0F14",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "FLASHLIGHT",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir acesso a camera para fotografar hidrometros e documentos da vistoria.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir acesso ao GPS para auditoria e carimbo de localizacao das fotos."
+        }
+      ]
+    ]
+  }
+}

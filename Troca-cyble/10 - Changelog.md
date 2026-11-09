@@ -1,5 +1,24 @@
 # Changelog — Vistoria Cyble
 
+## v3.9.1 (09/11/2026)
+
+### Arquitetura Tri-Plataforma (PWA + TWA + React Native) e Central de Releases
+- **Criação da Central de Releases (
+eleases/):**
+  - Diretório oficial para concentração de todos os instaláveis e pacotes compilados (.apk, .aab).
+  - Publicação do instalável **
+eleases/cyble-twa-release.apk** (1.25 MB) assinado digitalmente para uso imediato em campo.
+  - Documentação em 
+eleases/README.md catalogando modelos de distribuição, instruções de instalação e permissões.
+- **Scaffolding e Implementação do App Nativo Real (cyble-native/):**
+  - **Isolamento de Código:** Criação do diretório cyble-native/ com React Native (Expo Bare SDK 58), garantindo que o código web PWA e a casca TWA permaneçam 100% intactos e sem interferência mútua.
+  - **Identificador Exclusivo:** Configurado como com.cyble.nativeapp, permitindo instalação simultânea lado a lado com o TWA (com.cyble.app) no mesmo aparelho Android.
+  - **Controle Físico da Câmera (Torch/Lanterna):** Módulo de câmera nativo com suporte a acionamento de lanterna física para medições em caixas de hidrômetro escuras e garagens.
+  - **Persistência Local e Sincronização:** Banco de dados offline integrado com AsyncStorage/SQLite espelhando os contratos de dados do IndexedDB, com fila de sincronização em background conectada às rotas de API existentes (/api/status, /api/upload, /api/concluidos).
+  - **Interface & Tema:** Reprodução do tema escuro #0C0F14 com badges de status, teclado numérico com feedback tátil (Haptics) e seletor de torres.
+- **Ambiente de Build Nativo Configurado:**
+  - Configuração do Android SDK e instalação do OpenJDK 17 x64 em .jdk/ para suporte a compilações nativas com Gradle 9.4 e Hermes.
+
 ## v3.9.0 (26/10/2026)
 
 ### Navegação Ágil Agenda ➔ Captura com Retorno Automático, Resiliência para Celulares Antigos e Exportação de Fotos do Dia em ZIP (Fechamento do Expediente)

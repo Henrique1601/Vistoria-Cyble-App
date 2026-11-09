@@ -42,3 +42,5 @@ android-build/
 *.aab
 *.keystore
 .gradle/
+!releases/*.apk
+!releases/*.aab

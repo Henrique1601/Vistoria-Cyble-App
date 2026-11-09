@@ -1,7 +1,19 @@
 # Vistoria Cyble — Visão Geral
 
 ## O que é
-PWA (Progressive Web App) para celular que registra fotos da **troca de Cyble** em apartamentos, organizados por bloco. Funciona **offline** — fotos ficam no IndexedDB até ter internet, depois sincronizam sozinhas para o Vercel Blob.
+Plataforma integrada de vistorias de campo para registro e auditoria de **troca de hidrômetros/módulos Cyble** em condomínios verticais (organizados por torres A–H e apartamentos). Opera com **resiliência total offline** e sincronização automática com Vercel Blob e Neon PostgreSQL.
+
+## Modelos de Distribuição Multiplataforma
+O projeto conta com **3 modelos de cliente independentes e isolados**, todos operando sobre a mesma infraestrutura de backend unificado:
+1. **PWA Web (pp/, components/, lib/):** Aplicação Next.js 14 instalável via navegador em Android, iOS e Desktop com Service Worker v23 e IndexedDB v5.
+2. **TWA APK (ndroid-build/ & 
+eleases/cyble-twa-release.apk):** Casca nativa Android ultraleve (1.25 MB) gerada via Google Bubblewrap que carrega o PWA oficial em tela cheia com atualizações instantâneas via nuvem.
+3. **App Nativo Real Android (cyble-native/):** Aplicativo nativo em **React Native (Expo Bare)** com persistência SQLite/AsyncStorage local, controle físico de lanterna/torch da câmera para locais escuros e fila de upload contínua.
+
+## Central de Releases
+Todos os instaláveis oficiais e executáveis são centralizados no diretório:
+👉 **[
+eleases/](../releases/README.md)**
 
 ## Stack
 - **Framework:** Next.js 14.2.35 (App Router)

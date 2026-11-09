@@ -20,7 +20,18 @@ sincronizam sozinhas.
 
 > **Dois níveis de acesso:** O PIN de administrador permite todas as ações (edição, exclusão, seleção múltipla). O PIN de visualização é seguro para compartilhar — quem entra com ele só vê as fotos, sem risco de apagar ou alterar nada.
 
-## Instalando no celular
+## 📱 Modelos de Uso & Central de Releases
+
+O sistema conta com 3 modelos de distribuição independentes:
+1. **PWA (Web / Navegador):** Acesse diretamente a URL oficial e adicione à tela inicial (ideal para iPhone/iOS e computadores).
+2. **TWA APK (Casca Android Leve - 1.25 MB):** Instale o [
+eleases/cyble-twa-release.apk](./releases/cyble-twa-release.apk) no celular Android. Opera com tela cheia, atalhos nativos e atualizações instantâneas via nuvem sem reinstalação.
+3. **App Nativo Real Android (React Native):** Código-fonte isolado na pasta dedicada [cyble-native/](./cyble-native), trazendo controle físico de lanterna/torch da câmera para locais escuros e persistência local offline.
+
+> 📦 **Central de Downloads:** Todos os instaláveis e APKs oficiais estão disponíveis na pasta **[
+eleases/](./releases/README.md)**.
+
+## Instalando no celular (PWA)
 
 1. Abra o link do app no navegador do celular (Chrome/Safari).
 2. Digite o PIN configurado.
