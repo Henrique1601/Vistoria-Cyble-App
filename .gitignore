@@ -35,3 +35,10 @@ Troca-cyble/.obsidian/workspace-mobile.json
 
 .vercel
 .env*
+
+# android / mobile builds
+android-build/
+*.apk
+*.aab
+*.keystore
+.gradle/
