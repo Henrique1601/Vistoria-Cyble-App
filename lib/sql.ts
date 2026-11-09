@@ -4,8 +4,11 @@ let sql: ReturnType<typeof postgres> | null = null;
 
 export function getSql() {
   if (!sql) {
-    const url = process.env.DATABASE_URL;
+    let url = process.env.DATABASE_URL;
     if (!url) throw new Error('DATABASE_URL not configured');
+    if (url.startsWith('postgres:postgresql://')) {
+      url = url.replace('postgres:postgresql://', 'postgresql://');
+    }
     sql = postgres(url, { ssl: 'require', max: 5 });
   }
   return sql;
