@@ -7,8 +7,11 @@ import {
   fotosPendentesCount,
   ultimasFotos,
   contarComentariosBloco,
+  carregarTrocas,
+  salvarTrocas,
   ApartamentoStatus,
   FotoRecord,
+  TrocaInfo,
 } from '@/lib/db';
 import { normApto, normalizeBloco, estaNoIntervalo, formatarDataParaInput } from '@/lib/utils';
 import { MS_PER_DAY } from '@/lib/constants';
@@ -25,6 +28,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
   const [comentarioCounts, setComentarioCounts] = useState<Record<string, number>>({});
   const [agendamentosConcluidos, setAgendamentosConcluidos] = useState<Set<string>>(new Set());
   const [concluidosRemotos, setConcluidosRemotos] = useState<Set<string>>(new Set());
+  const [trocasMap, setTrocasMap] = useState<Record<string, TrocaInfo>>({});
 
   // Carregar lista de apartamentos inicial
   useEffect(() => {
@@ -81,11 +85,42 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     } catch {}
   }, []);
 
+  const refreshTrocas = useCallback(async () => {
+    try {
+      const localTrocas = await carregarTrocas();
+      let mergedTrocas: Record<string, TrocaInfo> = { ...localTrocas };
+      if (pin) {
+        try {
+          const res = await fetch('/api/building-config', { headers: { 'x-app-pin': pin } });
+          if (res.ok) {
+            const data = await res.json();
+            const remoteTrocas = data?.buildings?.[0]?.config?.trocas as Record<string, TrocaInfo> | undefined;
+            if (remoteTrocas && typeof remoteTrocas === 'object') {
+              mergedTrocas = { ...remoteTrocas, ...localTrocas };
+              for (const [k, remoteVal] of Object.entries(remoteTrocas)) {
+                const localVal = localTrocas[k];
+                if (localVal) {
+                  mergedTrocas[k] = {
+                    data: localVal.data || remoteVal.data,
+                    por: localVal.por || remoteVal.por,
+                  };
+                }
+              }
+              await salvarTrocas(mergedTrocas);
+            }
+          }
+        } catch {}
+      }
+      setTrocasMap(mergedTrocas);
+    } catch {}
+  }, [pin]);
+
   useEffect(() => {
     refreshFotosOnline();
     refreshAgendamentos();
     refreshConcluidos();
-  }, [refreshFotosOnline, refreshAgendamentos, refreshConcluidos]);
+    refreshTrocas();
+  }, [refreshFotosOnline, refreshAgendamentos, refreshConcluidos, refreshTrocas]);
 
   // Atualizar status de todos os apartamentos
   const refreshStatus = useCallback(async () => {
@@ -147,7 +182,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
   }, [fotosOnline]);
 
   const fotosOnlineDetalhadoMap = useMemo(() => {
-    const map = new Map<string, { temAntes: boolean; temDepois: boolean; temDoc: boolean; count: number }>();
+    const map = new Map<string, { temAntes: boolean; temDepois: boolean; temDoc: boolean; count: number; latestDate?: string }>();
     fotosOnline.forEach((f) => {
       const key = `${normalizeBloco(f.bloco)}__${normApto(f.apartamento)}`;
       if (!map.has(key)) {
@@ -155,6 +190,12 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       }
       const entry = map.get(key)!;
       entry.count++;
+      if (f.data_leitura) {
+        const isoDate = String(f.data_leitura).slice(0, 10);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate) && (!entry.latestDate || isoDate > entry.latestDate)) {
+          entry.latestDate = isoDate;
+        }
+      }
       const isAntes = f.foto_index === 0 || f.foto_url.includes('cyble_antes') || f.foto_url.includes('antes');
       const isDepois = f.foto_index === 1 || f.foto_url.includes('cyble_depois') || f.foto_url.includes('depois');
       const isDoc = f.foto_index === 2 || f.foto_url.includes('documento') || f.foto_url.includes('doc');
@@ -383,10 +424,20 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       if (onlineCount > s.qtdFotos) {
         s.qtdFotos = onlineCount;
       }
+      const onlineInfo = fotosOnlineDetalhadoMap.get(key);
+      const trocaInfo = trocasMap[key];
+      const temTroca = Boolean(s.isConcluido || s.qtdFotos > 0);
+      if (temTroca) {
+        s.dataTroca = trocaInfo?.data || onlineInfo?.latestDate || s.dataTroca;
+        s.trocadoPor = trocaInfo?.por || s.trocadoPor || 'Henrique';
+      } else {
+        s.dataTroca = undefined;
+        s.trocadoPor = undefined;
+      }
     }
 
     return [...merged.values()];
-  }, [status, fotosOnlineDetalhadoMap, fotosCountMap, agendamentosConcluidos, concluidosRemotos]);
+  }, [status, fotosOnlineDetalhadoMap, fotosCountMap, agendamentosConcluidos, concluidosRemotos, trocasMap]);
 
   const statusMergedMap = useMemo(() => {
     const map = new Map<string, ApartamentoStatus>();

@@ -143,3 +143,12 @@ export function getLimiteAgenda(): LimiteAgenda {
 export function setLimiteAgenda(limite: LimiteAgenda) {
   set('limite_agenda', String(limite));
 }
+
+export function getTecnicoNome(): string {
+  const val = get('tecnico_nome', 'Henrique').trim();
+  return val || 'Henrique';
+}
+
+export function setTecnicoNome(nome: string) {
+  set('tecnico_nome', nome.trim() || 'Henrique');
+}

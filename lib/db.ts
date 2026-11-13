@@ -1,7 +1,7 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { AcaoDesenho } from './drawing';
 import { normApto, normalizeBloco } from './utils';
-import { getQualidadeFoto } from './settings';
+import { getQualidadeFoto, getTecnicoNome } from './settings';
 import { comprimirImagemComWorker } from './imageProcessor';
 
 export type Categoria = 'cyble_antes' | 'cyble_depois' | 'documento';
@@ -23,6 +23,11 @@ export interface OcorrenciaApto {
   resolvido?: boolean;
 }
 
+export interface TrocaInfo {
+  data?: string; // YYYY-MM-DD
+  por?: string;  // Nome do tecnico (ex: 'Henrique')
+}
+
 export interface ApartamentoStatus {
   bloco: string;
   apartamento: string;
@@ -35,6 +40,8 @@ export interface ApartamentoStatus {
   qtdPendentes?: number;
   qtdSynced?: number;
   ocorrencia?: OcorrenciaApto;
+  dataTroca?: string;
+  trocadoPor?: string;
 }
 
 export interface FotoRecord {
@@ -210,6 +217,14 @@ export async function salvarFoto(rec: Omit<FotoRecord, 'id'>) {
         }
       } catch {}
     }
+  } catch {}
+
+  // Registra data da troca e tecnico responsavel
+  try {
+    await registrarTroca(rec.bloco, rec.apartamento, {
+      data: formatTimestampToISO(rec.timestamp),
+      por: getTecnicoNome(),
+    });
   } catch {}
 
   return id;
@@ -473,13 +488,54 @@ export async function removerOcorrencia(bloco: string, apartamento: string): Pro
   }
 }
 
+function formatTimestampToISO(ts: number): string {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export async function carregarTrocas(): Promise<Record<string, TrocaInfo>> {
+  const db = await getDb();
+  return ((await db.get('config', 'trocas')) as Record<string, TrocaInfo> | undefined) ?? {};
+}
+
+export async function salvarTrocas(trocas: Record<string, TrocaInfo>): Promise<void> {
+  const db = await getDb();
+  await db.put('config', trocas, 'trocas');
+}
+
+export async function registrarTroca(bloco: string, apto: string, info: TrocaInfo): Promise<void> {
+  const db = await getDb();
+  const key = `${normalizeBloco(bloco)}__${normApto(apto)}`;
+  const trocas: Record<string, TrocaInfo> = ((await db.get('config', 'trocas')) as Record<string, TrocaInfo> | undefined) ?? {};
+  const existing = trocas[key];
+  trocas[key] = {
+    data: info.data || existing?.data,
+    por: info.por || existing?.por || getTecnicoNome(),
+  };
+  await db.put('config', trocas, 'trocas');
+}
+
+export async function removerTroca(bloco: string, apto: string): Promise<void> {
+  const db = await getDb();
+  const key = `${normalizeBloco(bloco)}__${normApto(apto)}`;
+  const trocas: Record<string, TrocaInfo> = ((await db.get('config', 'trocas')) as Record<string, TrocaInfo> | undefined) ?? {};
+  if (trocas[key]) {
+    delete trocas[key];
+    await db.put('config', trocas, 'trocas');
+  }
+}
+
 export async function statusDeTodosApartamentos(
   lista: Record<string, string[]>
 ): Promise<ApartamentoStatus[]> {
   const db = await getDb();
-  const [concluidos, ocorrencias] = await Promise.all([
+  const [concluidos, ocorrencias, trocas] = await Promise.all([
     carregarConcluidos(),
     carregarOcorrencias(),
+    carregarTrocas(),
   ]);
 
   // Build letter-to-full-name map for normalization
@@ -490,7 +546,7 @@ export async function statusDeTodosApartamentos(
   }
 
   // Use cursor to avoid loading all blobs into memory
-  const fotosMap = new Map<string, { bloco: string; apartamento: string; categoria: Categoria; nota?: string; synced: boolean; uploadUrl?: string }[]>();
+  const fotosMap = new Map<string, { bloco: string; apartamento: string; categoria: Categoria; nota?: string; synced: boolean; uploadUrl?: string; timestamp: number }[]>();
   let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
   while (cursor) {
     const f = cursor.value;
@@ -502,18 +558,21 @@ export async function statusDeTodosApartamentos(
     }
     const key = `${blocoKey}__${normApto(f.apartamento)}`;
     const arr = fotosMap.get(key) || [];
-    arr.push({ bloco: blocoKey, apartamento: f.apartamento, categoria: f.categoria, nota: f.nota, synced: f.synced, uploadUrl: f.uploadUrl });
+    arr.push({ bloco: blocoKey, apartamento: f.apartamento, categoria: f.categoria, nota: f.nota, synced: f.synced, uploadUrl: f.uploadUrl, timestamp: f.timestamp });
     fotosMap.set(key, arr);
     cursor = await cursor.continue();
   }
 
   // Carregar agendamentos concluídos locais
   const agendamentosConcluidos = new Set<string>();
+  const agendamentosDatas = new Map<string, string>();
   try {
     const ags = await db.getAll('agendamentos');
     for (const ag of ags) {
       if (ag.concluido) {
-        agendamentosConcluidos.add(`${normalizeBloco(ag.bloco)}__${normApto(ag.apartamento)}`);
+        const agKey = `${normalizeBloco(ag.bloco)}__${normApto(ag.apartamento)}`;
+        agendamentosConcluidos.add(agKey);
+        if (ag.data) agendamentosDatas.set(agKey, ag.data);
       }
     }
   } catch {}
@@ -525,18 +584,27 @@ export async function statusDeTodosApartamentos(
     for (const apto of lista[bloco]) {
       const aptoNorm = normApto(apto);
       const key = `${bloco}__${aptoNorm}`;
+      const normKey = `${blocoNorm}__${aptoNorm}`;
       const fotos = fotosMap.get(key) || [];
       const temAntes = fotos.some((f) => f.categoria === 'cyble_antes');
       const temDepois = fotos.some((f) => f.categoria === 'cyble_depois');
       const qtdDocs = fotos.filter((f) => f.categoria === 'documento').length;
       const tem3Categorias = temAntes && temDepois && qtdDocs > 0;
-      const concluidoNaAgenda = agendamentosConcluidos.has(key);
+      const concluidoNaAgenda = agendamentosConcluidos.has(key) || agendamentosConcluidos.has(normKey);
       const isConcluido = concluidosBloco.has(aptoNorm) || concluidoNaAgenda || tem3Categorias || (temAntes && temDepois);
 
       const notas = fotos.map((f) => f.nota).filter((n): n is string => !!n && n.trim().length > 0);
       const qtdPendentes = fotos.filter((f) => !f.synced).length;
       const qtdSynced = fotos.filter((f) => f.synced).length;
       const ocorrenciaDoApto = ocorrencias[blocoNorm]?.[aptoNorm];
+
+      const trocaInfo = trocas[normKey];
+      const latestFotoTs = fotos.length > 0 ? Math.max(...fotos.map((f) => f.timestamp)) : 0;
+      const latestFotoDate = latestFotoTs > 0 ? formatTimestampToISO(latestFotoTs) : undefined;
+      const agData = agendamentosDatas.get(normKey) || agendamentosDatas.get(key);
+      const temTroca = isConcluido || fotos.length > 0;
+      const dataTroca = temTroca ? (trocaInfo?.data || latestFotoDate || agData) : undefined;
+      const trocadoPor = temTroca ? (trocaInfo?.por || 'Henrique') : undefined;
 
       result.push({
         bloco,
@@ -550,6 +618,8 @@ export async function statusDeTodosApartamentos(
         qtdPendentes,
         qtdSynced,
         ocorrencia: ocorrenciaDoApto,
+        dataTroca,
+        trocadoPor,
       });
     }
   }
@@ -1399,6 +1469,7 @@ export async function desmarcarConcluidoLocal(bloco: string, apto: string) {
     syncConcluidosToAPI(concluidos).catch((err) => console.warn('syncConcluidosToAPI error:', err));
   }
   await deletarFotosApartamento(bloco, apto);
+  await removerTroca(bloco, apto);
 }
 
 export async function carregarConcluidos(): Promise<Record<string, string[]>> {

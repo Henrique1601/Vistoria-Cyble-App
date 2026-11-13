@@ -341,6 +341,10 @@ export default function SetupScreen({
         const { salvarComentariosLote } = await import('@/lib/db');
         await salvarComentariosLote(cfg.comentarios);
       }
+      if (cfg.trocas && typeof cfg.trocas === 'object') {
+        const { salvarTrocas } = await import('@/lib/db');
+        await salvarTrocas(cfg.trocas);
+      }
     }
 
     onDone(lista);

@@ -1,13 +1,20 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning, CloudCheck, CloudArrowUp, Door } from '@phosphor-icons/react';
+import { CalendarDots, ChatText, Star, CheckCircle, CaretRight, Warning, CloudCheck, CloudArrowUp, Door, User } from '@phosphor-icons/react';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
 import { normApto, emAndamento } from '@/lib/utils';
 import { toggleFavorito, isFavorito } from '@/lib/settings';
 import StatusDot from '@/components/StatusDot';
 import type { ApartamentoStatus } from '@/lib/db';
+
+function formatarDataTrocaBR(iso?: string): string {
+  if (!iso) return '';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return iso;
+}
 
 function statusGradient(s: ApartamentoStatus): string {
   if (s.isConcluido || (s.cybleAntesFeito && s.cybleDepoisFeito)) return 'bg-gradient-to-r from-success/5 to-transparent';
@@ -219,46 +226,58 @@ export default function AptoCard({ s, aptosOnlineDoBloco, modoCompacto, modoEsca
           statusGradient(s)
         } ${modoCompacto ? 'px-3 py-2' : 'px-4 py-3.5'}`}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className={`badge-mono-pill px-2.5 py-0.5 font-bold tracking-tight text-content ${modoCompacto ? 'text-xs' : 'text-sm'}`}>
-            {s.apartamento}
-          </span>
-          {isFavorited && <Star size={12} weight="fill" className="text-warn flex-shrink-0" />}
-
-          {/* Indicador de Morador Ausente / Impedimento de Acesso */}
-          {s.ocorrencia && !s.ocorrencia.resolvido && !isComplete && (
-            <span
-              data-action="ocorrencia"
-              className="flex items-center gap-1 text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex-shrink-0 cursor-pointer hover:bg-amber-500/20 transition-colors"
-              title={`${s.ocorrencia.motivoLabel}${s.ocorrencia.observacao ? ` - ${s.ocorrencia.observacao}` : ''}`}
-            >
-              <Door size={12} weight="duotone" />
-              <span>Ausente</span>
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className={`badge-mono-pill px-2.5 py-0.5 font-bold tracking-tight text-content ${modoCompacto ? 'text-xs' : 'text-sm'}`}>
+              {s.apartamento}
             </span>
+            {isFavorited && <Star size={12} weight="fill" className="text-warn flex-shrink-0" />}
+
+            {/* Indicador de Morador Ausente / Impedimento de Acesso */}
+            {s.ocorrencia && !s.ocorrencia.resolvido && !isComplete && (
+              <span
+                data-action="ocorrencia"
+                className="flex items-center gap-1 text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex-shrink-0 cursor-pointer hover:bg-amber-500/20 transition-colors"
+                title={`${s.ocorrencia.motivoLabel}${s.ocorrencia.observacao ? ` - ${s.ocorrencia.observacao}` : ''}`}
+              >
+                <Door size={12} weight="duotone" />
+                <span>Ausente</span>
+              </span>
+            )}
+
+            {/* Indicador de Sincronização em Nuvem / Local */}
+            {(s.qtdPendentes ?? 0) > 0 ? (
+              <span
+                className="flex items-center gap-1 text-[10px] font-mono text-warn bg-warn/10 border border-warn/20 px-2 py-0.5 rounded-full flex-shrink-0"
+                title={`${s.qtdPendentes} foto(s) pendente(s) de envio para a nuvem`}
+              >
+                <CloudArrowUp size={12} weight="duotone" className="animate-pulse" />
+                <span>{s.qtdPendentes}</span>
+              </span>
+            ) : ((s.qtdSynced ?? 0) > 0 || aptosOnlineDoBloco.has(normApto(s.apartamento))) ? (
+              <span
+                className="flex items-center gap-1 text-[10px] font-mono text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full flex-shrink-0"
+                title="Fotos salvas e sincronizadas na nuvem"
+              >
+                <CloudCheck size={12} weight="duotone" />
+                <span className="hidden sm:inline text-[9px]">nuvem</span>
+              </span>
+            ) : s.qtdFotos > 0 ? (
+              <span className={`font-mono text-content-tertiary bg-base-overlay px-2 py-0.5 rounded-full flex-shrink-0 ${modoCompacto ? 'text-[9px]' : 'text-[10px]'}`}>
+                {s.qtdFotos} foto{s.qtdFotos > 1 ? 's' : ''}
+              </span>
+            ) : null}
+          </div>
+
+          {(s.trocadoPor || s.dataTroca) && (
+            <div className={`flex items-center gap-1 text-content-secondary truncate ${modoCompacto ? 'text-[9px]' : 'text-[10px]'}`}>
+              <User size={10} weight="duotone" className="text-accent flex-shrink-0" />
+              <span className="truncate font-medium">
+                {s.trocadoPor || 'Henrique'}
+                {s.dataTroca ? ` • ${formatarDataTrocaBR(s.dataTroca)}` : ''}
+              </span>
+            </div>
           )}
-
-          {/* Indicador de Sincronização em Nuvem / Local */}
-          {(s.qtdPendentes ?? 0) > 0 ? (
-            <span
-              className="flex items-center gap-1 text-[10px] font-mono text-warn bg-warn/10 border border-warn/20 px-2 py-0.5 rounded-full flex-shrink-0"
-              title={`${s.qtdPendentes} foto(s) pendente(s) de envio para a nuvem`}
-            >
-              <CloudArrowUp size={12} weight="duotone" className="animate-pulse" />
-              <span>{s.qtdPendentes}</span>
-            </span>
-          ) : ((s.qtdSynced ?? 0) > 0 || aptosOnlineDoBloco.has(normApto(s.apartamento))) ? (
-            <span
-              className="flex items-center gap-1 text-[10px] font-mono text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full flex-shrink-0"
-              title="Fotos salvas e sincronizadas na nuvem"
-            >
-              <CloudCheck size={12} weight="duotone" />
-              <span className="hidden sm:inline text-[9px]">nuvem</span>
-            </span>
-          ) : s.qtdFotos > 0 ? (
-            <span className={`font-mono text-content-tertiary bg-base-overlay px-2 py-0.5 rounded-full flex-shrink-0 ${modoCompacto ? 'text-[9px]' : 'text-[10px]'}`}>
-              {s.qtdFotos} foto{s.qtdFotos > 1 ? 's' : ''}
-            </span>
-          ) : null}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <StatusDot done={isComplete || s.cybleAntesFeito} partial={isInProgress && !s.cybleAntesFeito} label="Antes" />

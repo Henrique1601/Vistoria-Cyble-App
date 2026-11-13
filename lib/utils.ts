@@ -81,6 +81,8 @@ export interface ApartamentoStatus {
   qtdDocumentos?: number;
   qtdFotos?: number;
   isConcluido?: boolean;
+  dataTroca?: string;
+  trocadoPor?: string;
 }
 
 export function emAndamento(s: ApartamentoStatus): boolean {

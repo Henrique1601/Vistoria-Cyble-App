@@ -44,6 +44,8 @@ import {
   setSalvarEm,
   getProvedorNuvem,
   setProvedorNuvem,
+  getTecnicoNome,
+  setTecnicoNome,
   type ProvedorNuvem,
 } from '@/lib/settings';
 import {
@@ -142,6 +144,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
   const [dias, setDias] = useState(getDiasAlerta);
   const [itens, setItens] = useState(getItensPagina);
   const [backupInt, setBackupInt] = useState(getBackupIntervalo);
+  const [tecnicoNome, setTecnicoNomeState] = useState(getTecnicoNome);
   const [espaco, setEspaco] = useState<{ usado: number; total: number; pct: number } | null>(null);
   const [clearing, setClearing] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -186,6 +189,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
         carregarTodosConcluidosConsolidados,
         salvarConcluidos,
         listarAgendamentos,
+        carregarTrocas,
         getDb,
       } = await import('@/lib/db');
 
@@ -198,6 +202,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
 
       const concluidos = await carregarTodosConcluidosConsolidados();
       const agendamentos = await listarAgendamentos();
+      const trocas = await carregarTrocas();
       const db = await getDb();
       const notas = await db.getAll('notas');
       const comentarios = await db.getAll('comentarios');
@@ -216,6 +221,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
             agendamentos,
             notas,
             comentarios,
+            trocas,
           },
         }),
       });
@@ -268,6 +274,7 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
         salvarAgendamentosLote,
         salvarNotasLote,
         salvarComentariosLote,
+        salvarTrocas,
       } = await import('@/lib/db');
 
       await salvarListaApartamentos(lista);
@@ -287,6 +294,10 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
 
       if (rawConfig && typeof rawConfig === 'object' && 'notas' in rawConfig && Array.isArray(rawConfig.notas)) {
         await salvarNotasLote(rawConfig.notas);
+      }
+
+      if (rawConfig && typeof rawConfig === 'object' && 'trocas' in rawConfig && rawConfig.trocas && typeof rawConfig.trocas === 'object') {
+        await salvarTrocas(rawConfig.trocas);
       }
 
       if (rawConfig && typeof rawConfig === 'object' && 'comentarios' in rawConfig && Array.isArray(rawConfig.comentarios)) {
@@ -687,6 +698,19 @@ export default function ConfiguracoesClient({ onVoltar, onRefresh, onNavigate, p
                   { label: 'Claro', value: 'light', icon: <Sun size={12} /> },
                   { label: 'Auto', value: 'auto', icon: <CircleHalf size={12} /> },
                 ]}
+              />
+            </SettingRow>
+            <SettingRow label="Tecnico responsavel" description="Nome registrado nas proximas trocas de Cyble">
+              <input
+                type="text"
+                value={tecnicoNome}
+                onChange={(e) => {
+                  setTecnicoNomeState(e.target.value);
+                  setTecnicoNome(e.target.value);
+                }}
+                placeholder="Henrique"
+                maxLength={40}
+                className="w-36 bg-base-overlay border border-base-border rounded-lg px-2.5 py-1.5 text-xs text-content text-right focus:outline-none focus:border-accent/50"
               />
             </SettingRow>
             <SettingRow label="Predio" description="Salvar e carregar configuracao dos blocos e apartamentos na nuvem">

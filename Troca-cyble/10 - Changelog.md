@@ -1,5 +1,15 @@
 # Changelog — Vistoria Cyble
 
+## v3.9.2 (13/11/2026)
+
+### Exibição de Data da Troca e Técnico Responsável na Lista de Apartamentos
+- **Identificação de Técnico e Data nos Cards (`components/AptoCard.tsx`, `lib/db.ts`, `hooks/useVistoriaState.ts`):**
+  - Adicionados os campos `dataTroca` e `trocadoPor` em `ApartamentoStatus`, exibindo no card de cada apartamento concluído ou com fotos quem realizou a troca e a data (ex.: `Henrique • 06/11/2026`). Apartamentos ainda não trocados permanecem vazios.
+  - Persistência offline-first em IndexedDB (`config.trocas`) integrada ao `building_config` na nuvem (`config.trocas` no Neon PostgreSQL), mantendo sincronização entre dispositivos.
+  - Backfill histórico no banco de dados atribuindo **`Henrique`** a todos os apartamentos já concluídos desde `12/06/2026`, com datas preenchidas a partir das fotos online (`fotos.data_leitura`) e das pastas locais datadas.
+- **Configuração de Técnico Responsável (`lib/settings.ts`, `app/configuracoes/ConfiguracoesClient.tsx`):**
+  - Novo campo **"Técnico responsável"** nas Configurações (padrão `Henrique`) para registrar automaticamente quem realizou as próximas trocas ao salvar fotos.
+
 ## v3.9.1 (09/11/2026)
 
 ### Arquitetura Tri-Plataforma (PWA + TWA + React Native) e Central de Releases
