@@ -68,6 +68,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
 
   // Carregar apartamentos concluídos da nuvem/IndexedDB (sem fotos)
   const refreshConcluidos = useCallback(async () => {
+    if (!pin) return;
     try {
       const { carregarConcluidos } = await import('@/lib/db');
       const c = await carregarConcluidos();
@@ -83,7 +84,7 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
       }
       setConcluidosRemotos(set);
     } catch {}
-  }, []);
+  }, [pin]);
 
   const refreshTrocas = useCallback(async () => {
     try {

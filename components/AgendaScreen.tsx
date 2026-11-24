@@ -22,7 +22,7 @@ import {
 } from '@phosphor-icons/react';
 import { haptic } from '@/lib/haptic';
 import { authFetch } from '@/lib/api';
-import { hoje } from '@/lib/utils';
+import { hoje, normalizeBloco, normApto } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ShareAgendaModal from '@/components/ShareAgendaModal';
@@ -35,9 +35,11 @@ import {
   excluirAgendamento,
   carregarConcluidos,
   salvarConcluidos,
+  registrarTroca,
+  removerTroca,
   sincronizarAgendamentos,
 } from '@/lib/db';
-import { getLimiteAgenda, setLimiteAgenda, LimiteAgenda } from '@/lib/settings';
+import { getLimiteAgenda, setLimiteAgenda, getTecnicoNome, LimiteAgenda } from '@/lib/settings';
 
 const spring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -200,23 +202,27 @@ export default function AgendaScreen({
         });
       }
       // 3. Link: agendamento concluido → apartamento concluido (sem fotos)
-      const letter = ag.bloco.replace(/^Torre\s*/i, '').trim();
-      if (letter.length === 1) {
+      const blocoNorm = normalizeBloco(ag.bloco);
+      const aptoNorm = normApto(ag.apartamento);
+      const letter = blocoNorm.replace(/^Torre\s*/i, '').trim();
+      if (letter.length === 1 && aptoNorm) {
         const concluidos = await carregarConcluidos();
-        const aptosBloco = concluidos[ag.bloco] || [];
+        const aptosBloco = (concluidos[blocoNorm] || []).map(normApto);
         if (novoConcluido) {
-          // Add apartment to concluidos
-          if (!aptosBloco.includes(ag.apartamento)) {
-            const updated = { ...concluidos, [ag.bloco]: [...aptosBloco, ag.apartamento].sort((a, b) => Number(a) - Number(b)) };
+          if (!aptosBloco.includes(aptoNorm)) {
+            const updated = { ...concluidos, [blocoNorm]: [...aptosBloco, aptoNorm].sort((a, b) => Number(a) - Number(b)) };
             await salvarConcluidos(updated);
           }
+          await registrarTroca(blocoNorm, aptoNorm, {
+            data: ag.data || hoje(),
+            por: getTecnicoNome(),
+          });
         } else {
-          // Remove apartment from concluidos
-          const idx = aptosBloco.indexOf(ag.apartamento);
-          if (idx !== -1) {
-            const updated = { ...concluidos, [ag.bloco]: aptosBloco.filter(a => a !== ag.apartamento) };
+          if (aptosBloco.includes(aptoNorm)) {
+            const updated = { ...concluidos, [blocoNorm]: aptosBloco.filter((a) => a !== aptoNorm) };
             await salvarConcluidos(updated);
           }
+          await removerTroca(blocoNorm, aptoNorm);
         }
       }
     } catch {

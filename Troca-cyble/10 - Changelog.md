@@ -1,8 +1,15 @@
 # Changelog — Vistoria Cyble
 
-## v3.9.2 (13/11/2026)
+## v3.9.2 (24/11/2026)
 
-### Exibição de Data da Troca e Técnico Responsável na Lista de Apartamentos
+### Correção de Erro 401 em `/api/concluidos` nos Agendamentos e Carregamento Inicial
+- **Bloqueio de chamadas sem autenticação (`hooks/useVistoriaState.ts`, `lib/db.ts`):**
+  - `refreshConcluidos` agora aguarda o `pin` estar definido antes de consultar `/api/concluidos` e recarrega automaticamente após o login.
+  - `carregarConcluidos`, `syncConcluidosToAPI` e `limparConcluidos` verificam a existência de `vistoria_pin` em `sessionStorage` (e bloqueiam mutações remotas em modo `viewer`), eliminando erros `401` no console.
+- **Normalização e Registro de Troca na Agenda (`components/AgendaScreen.tsx`):**
+  - `handleToggle` normaliza bloco/apartamento ao concluir/desmarcar um agendamento e registra/remove `dataTroca` e `trocadoPor`.
+
+### Exibição de Data da Troca e Técnico Responsável na Lista de Apartamentos (13/11/2026)
 - **Identificação de Técnico e Data nos Cards (`components/AptoCard.tsx`, `lib/db.ts`, `hooks/useVistoriaState.ts`):**
   - Adicionados os campos `dataTroca` e `trocadoPor` em `ApartamentoStatus`, exibindo no card de cada apartamento concluído ou com fotos quem realizou a troca e a data (ex.: `Henrique • 06/11/2026`). Apartamentos ainda não trocados permanecem vazios.
   - Persistência offline-first em IndexedDB (`config.trocas`) integrada ao `building_config` na nuvem (`config.trocas` no Neon PostgreSQL), mantendo sincronização entre dispositivos.

@@ -1484,8 +1484,9 @@ export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   const agora = Date.now();
   const limiteDesmarcado = 24 * 60 * 60 * 1000; // 24h
 
-  // When online, fetch remote and merge without resurrecting deleted local items
-  if (typeof navigator !== 'undefined' && navigator.onLine) {
+  // When online and authenticated, fetch remote and merge without resurrecting deleted local items
+  const hasPin = typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('vistoria_pin');
+  if (typeof navigator !== 'undefined' && navigator.onLine && hasPin) {
     try {
       const { authFetch } = await import('@/lib/api');
       const resp = await authFetch('/api/concluidos');
@@ -1536,6 +1537,9 @@ let _syncConcluidosLock = false;
 
 async function syncConcluidosToAPI(lista: Record<string, string[]>) {
   if (_syncConcluidosLock) return;
+  const hasPin = typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('vistoria_pin');
+  const isViewer = typeof localStorage !== 'undefined' && localStorage.getItem('vistoria_role') === 'viewer';
+  if (!hasPin || isViewer) return;
   _syncConcluidosLock = true;
   try {
     const { authFetch } = await import('@/lib/api');
@@ -1556,6 +1560,9 @@ export async function limparConcluidos() {
   await db.delete('config', 'concluidos');
   _concluidosCache = {};
   _concluidosCacheTime = Date.now();
+  const hasPin = typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('vistoria_pin');
+  const isViewer = typeof localStorage !== 'undefined' && localStorage.getItem('vistoria_role') === 'viewer';
+  if (!hasPin || isViewer) return;
   try {
     const { authFetch } = await import('@/lib/api');
     await authFetch('/api/concluidos', { method: 'DELETE' });
