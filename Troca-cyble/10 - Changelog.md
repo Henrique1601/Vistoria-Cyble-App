@@ -49,6 +49,10 @@ eleases/README.md catalogando modelos de distribuição, instruções de instala
   - **Controle Físico da Câmera (Torch/Lanterna):** Módulo de câmera nativo com suporte a acionamento de lanterna física para medições em caixas de hidrômetro escuras e garagens.
   - **Persistência Local e Sincronização:** Banco de dados offline integrado com AsyncStorage/SQLite espelhando os contratos de dados do IndexedDB, com fila de sincronização em background conectada às rotas de API existentes (/api/status, /api/upload, /api/concluidos).
   - **Interface & Tema:** Reprodução do tema escuro #0C0F14 com badges de status, teclado numérico com feedback tátil (Haptics) e seletor de torres.
+- **Correção de Inicialização do APK Nativo (`cyble-native/` & `releases/cyble-native-release.apk`):**
+  - Desativado o R8 (`android.enableMinifyInReleaseBuilds=false`) que ofuscava `expo.modules.ExpoModulesPackageList` e causava tela vazia na abertura; adicionadas regras `-keep` no `proguard-rules.pro`.
+  - Ativada compressão de bibliotecas nativas (`expo.useLegacyPackaging=true`), reduzindo o APK de 87,9 MB para 45,9 MB.
+  - Adicionado `ErrorBoundary` e timeout de restauração de sessão em `cyble-native/App.tsx`.
 - **Ambiente de Build Nativo Configurado:**
   - Configuração do Android SDK e instalação do OpenJDK 17 x64 em .jdk/ para suporte a compilações nativas com Gradle 9.4 e Hermes.
 

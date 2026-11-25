@@ -9,7 +9,7 @@ Este diretório armazena todos os pacotes executáveis e instaláveis oficiais d
 | Arquivo | Modelo | Tecnologia | Tamanho | Package ID | Descrição |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | [`cyble-twa-release.apk`](./cyble-twa-release.apk) | **TWA** | Google Bubblewrap (Android Activity) | ~1.25 MB | `com.cyble.app` | Casca nativa ultraleve que carrega o PWA oficial com atualizações instantâneas via nuvem (sem reinstalação). |
-| [`cyble-native-release.apk`](./cyble-native-release.apk) | **Nativo Real** | React Native (Expo Bare + Hermes) | ~87.9 MB | `com.cyble.nativeapp` | Aplicativo 100% nativo universal (todas as CPUs: arm64-v8a, armeabi-v7a, x86, x86_64) com banco local offline, controle de lanterna/torch da câmera e sincronização contínua. |
+| [`cyble-native-release.apk`](./cyble-native-release.apk) | **Nativo Real** | React Native (Expo Bare + Hermes) | ~45.9 MB | `com.cyble.nativeapp` | Aplicativo 100% nativo universal (todas as CPUs: arm64-v8a, armeabi-v7a, x86, x86_64) com banco local offline, controle de lanterna/torch da câmera e sincronização contínua. |
 
 ---
 
