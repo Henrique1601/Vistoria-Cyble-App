@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   carregarListaApartamentos,
   statusDeTodosApartamentos,
@@ -21,6 +21,8 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
   const [lista, setLista] = useState<Record<string, string[]> | null>(null);
   const [listaAnterior, setListaAnterior] = useState<Record<string, string[]> | null>(null);
   const [status, setStatus] = useState<ApartamentoStatus[]>([]);
+  const statusRef = useRef<ApartamentoStatus[]>([]);
+  statusRef.current = status;
   const [fotosOnline, setFotosOnline] = useState<FotoOnline[]>([]);
   const [fotosRecentes, setFotosRecentes] = useState<FotoRecord[]>([]);
   const [pendentes, setPendentes] = useState(0);
@@ -136,13 +138,13 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
         return newStatus;
       }
       setPendentes(await fotosPendentesCount());
-      return status;
+      return statusRef.current;
     } catch (err) {
       console.warn('refreshStatus error:', err);
       setLoadingSkeleton(false);
-      return status;
+      return statusRef.current;
     }
-  }, [lista, status]);
+  }, [lista]);
 
   useEffect(() => {
     if (lista) refreshStatus();

@@ -63,12 +63,15 @@ export default function PhotoEditor({
 
   useEffect(() => {
     const img = new Image();
+    const objUrl = URL.createObjectURL(imagemBlob);
     img.onload = () => {
       setEstado((prev) => ({ ...prev, imagem: img }));
     };
-    img.src = URL.createObjectURL(imagemBlob);
+    img.src = objUrl;
     return () => {
+      img.onload = null;
       img.src = '';
+      URL.revokeObjectURL(objUrl);
     };
   }, [imagemBlob]);
 

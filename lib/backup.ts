@@ -2,7 +2,9 @@ import { backupDados } from './db';
 import { authFetch } from './api';
 
 const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const AUTO_BACKUP_RETRY_COOLDOWN_MS = 30 * 60 * 1000; // 30 min cooldown after failed attempt
 const LAST_BACKUP_KEY = 'lastBackupTimestamp';
+const LAST_BACKUP_ATTEMPT_KEY = 'lastAutoBackupAttemptTimestamp';
 
 export async function obterUltimoBackup(): Promise<number | null> {
   if (typeof window === 'undefined') return null;
@@ -22,6 +24,13 @@ export async function salvarUltimoBackup(timestamp: number) {
 }
 
 export async function deveFazerBackup(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+  try {
+    const lastAttempt = localStorage.getItem(LAST_BACKUP_ATTEMPT_KEY);
+    if (lastAttempt && Date.now() - parseInt(lastAttempt, 10) < AUTO_BACKUP_RETRY_COOLDOWN_MS) {
+      return false;
+    }
+  } catch { /* ignore */ }
   const ultimo = await obterUltimoBackup();
   if (!ultimo) return true;
   return Date.now() - ultimo > BACKUP_INTERVAL_MS;
@@ -80,6 +89,9 @@ export async function fazerBackupAutomatico(): Promise<{
   erro?: string;
 }> {
   try {
+    try {
+      localStorage.setItem(LAST_BACKUP_ATTEMPT_KEY, Date.now().toString());
+    } catch { /* ignore */ }
     const blob = await backupDados();
     const timestamp = Date.now();
     const fileName = `backup-auto-${new Date(timestamp).toISOString().slice(0, 10)}.json`;

@@ -1,13 +1,29 @@
 # Changelog — Vistoria Cyble
 
-## v3.9.2 (24/11/2026)
+## v3.9.2 (25/11/2026)
 
-### Correção de Erro 401 em `/api/concluidos` nos Agendamentos e Carregamento Inicial
+### Blindagem contra Crash de Memória (OOM / "Ah não! Algo deu errado") no PWA e TWA
+- **Service Worker (`public/sw.js`):**
+  - Atualizado para `vistoria-shell-v25` e `vistoria-api-v2` (limpando automaticamente caches antigos acumulados no dispositivo).
+  - Bloqueado o cache de URLs externas (como fotos do Vercel Blob) dentro do `CACHE_SHELL` e adicionado limite máximo de entradas (`trimCache`: 120 assets / 25 APIs) para evitar crescimento infinito do `CacheStorage`.
+- **Streaming de Backup via Cursor + Cooldown (`lib/db.ts`, `lib/backup.ts`):**
+  - `backupDados()` passou a ler fotos via cursor em vez de `db.getAll('fotos')`, evitando carregar todos os Blobs na memória RAM de uma só vez.
+  - `deveFazerBackup()` agora respeita status offline e cooldown de 30 minutos após tentativa falha, evitando loop de OOM na inicialização.
+- **Limpeza de `ObjectURL`s e Metadados Leves (`components/PhotoEditor.tsx`, `components/BoletimSindicoModal.tsx`, `lib/db.ts`):**
+  - Adicionado `URL.revokeObjectURL(...)` no cleanup de `PhotoEditor` e `BoletimSindicoModal`.
+  - Criada função `obterMetadadosFotos()` via cursor sem Blobs para o `BoletimSindicoModal`.
+
+### Correção de Erro 401 em `/api/concluidos` nos Agendamentos e Carregamento Inicial (24/11/2026)
 - **Bloqueio de chamadas sem autenticação (`hooks/useVistoriaState.ts`, `lib/db.ts`):**
   - `refreshConcluidos` agora aguarda o `pin` estar definido antes de consultar `/api/concluidos` e recarrega automaticamente após o login.
   - `carregarConcluidos`, `syncConcluidosToAPI` e `limparConcluidos` verificam a existência de `vistoria_pin` em `sessionStorage` (e bloqueiam mutações remotas em modo `viewer`), eliminando erros `401` no console.
 - **Normalização e Registro de Troca na Agenda (`components/AgendaScreen.tsx`):**
   - `handleToggle` normaliza bloco/apartamento ao concluir/desmarcar um agendamento e registra/remove `dataTroca` e `trocadoPor`.
+- **Otimizações de Arquitetura e Performance (`lib/db.ts`, `hooks/useVistoriaState.ts`, `tests/concluidosTrocas.test.ts`):**
+  - Deduplicação de chamadas concorrentes (`_concluidosInflight`) em `carregarConcluidos()` para evitar requisições duplicadas a `/api/concluidos` no carregamento inicial.
+  - Cache em memória com TTL em `carregarTrocas()` (invalidado em `salvarTrocas`, `registrarTroca` e `removerTroca`), reduzindo leituras no IndexedDB.
+  - Estabilização de `refreshStatus` em `useVistoriaState` via `useRef`, eliminando recriação do callback e re-renders em cascata.
+  - Adicionada suíte de testes unitários em `tests/concluidosTrocas.test.ts`.
 
 ### Exibição de Data da Troca e Técnico Responsável na Lista de Apartamentos (13/11/2026)
 - **Identificação de Técnico e Data nos Cards (`components/AptoCard.tsx`, `lib/db.ts`, `hooks/useVistoriaState.ts`):**

@@ -496,35 +496,51 @@ function formatTimestampToISO(ts: number): string {
   return `${y}-${m}-${day}`;
 }
 
+let _trocasCache: Record<string, TrocaInfo> | null = null;
+let _trocasCacheTime = 0;
+const TROCAS_CACHE_TTL = 30_000; // 30 seconds
+
 export async function carregarTrocas(): Promise<Record<string, TrocaInfo>> {
+  if (_trocasCache && Date.now() - _trocasCacheTime < TROCAS_CACHE_TTL) {
+    return _trocasCache;
+  }
   const db = await getDb();
-  return ((await db.get('config', 'trocas')) as Record<string, TrocaInfo> | undefined) ?? {};
+  const data = ((await db.get('config', 'trocas')) as Record<string, TrocaInfo> | undefined) ?? {};
+  _trocasCache = data;
+  _trocasCacheTime = Date.now();
+  return data;
 }
 
 export async function salvarTrocas(trocas: Record<string, TrocaInfo>): Promise<void> {
   const db = await getDb();
   await db.put('config', trocas, 'trocas');
+  _trocasCache = trocas;
+  _trocasCacheTime = Date.now();
 }
 
 export async function registrarTroca(bloco: string, apto: string, info: TrocaInfo): Promise<void> {
   const db = await getDb();
   const key = `${normalizeBloco(bloco)}__${normApto(apto)}`;
-  const trocas: Record<string, TrocaInfo> = ((await db.get('config', 'trocas')) as Record<string, TrocaInfo> | undefined) ?? {};
+  const trocas: Record<string, TrocaInfo> = { ...(await carregarTrocas()) };
   const existing = trocas[key];
   trocas[key] = {
     data: info.data || existing?.data,
     por: info.por || existing?.por || getTecnicoNome(),
   };
   await db.put('config', trocas, 'trocas');
+  _trocasCache = trocas;
+  _trocasCacheTime = Date.now();
 }
 
 export async function removerTroca(bloco: string, apto: string): Promise<void> {
   const db = await getDb();
   const key = `${normalizeBloco(bloco)}__${normApto(apto)}`;
-  const trocas: Record<string, TrocaInfo> = ((await db.get('config', 'trocas')) as Record<string, TrocaInfo> | undefined) ?? {};
+  const trocas: Record<string, TrocaInfo> = { ...(await carregarTrocas()) };
   if (trocas[key]) {
     delete trocas[key];
     await db.put('config', trocas, 'trocas');
+    _trocasCache = trocas;
+    _trocasCacheTime = Date.now();
   }
 }
 
@@ -876,6 +892,21 @@ export async function ultimasFotos(limite = 10): Promise<FotoRecord[]> {
 }
 
 // --- Todas as fotos (para relatorios) ---
+/**
+ * Versao leve de obterTodasFotos para estatisticas/relatorios sem carregar Blobs na RAM.
+ */
+export async function obterMetadadosFotos(): Promise<FotoRecord[]> {
+  const db = await getDb();
+  const result: FotoRecord[] = [];
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    const { blob: _blob, ...meta } = cursor.value;
+    result.push({ ...meta, blob: new Blob() } as FotoRecord);
+    cursor = await cursor.continue();
+  }
+  return result;
+}
+
 export async function obterTodasFotos(): Promise<FotoRecord[]> {
   const db = await getDb();
   return db.getAll('fotos');
@@ -1184,7 +1215,6 @@ const BACKUP_BATCH_SIZE = 50;
 
 export async function backupDados(): Promise<Blob> {
   const db = await getDb();
-  const fotos = await db.getAll('fotos');
   const syncLog = await db.getAll('syncLog');
   const blocos = await db.get('config', 'blocos');
   const concluidos = await db.get('config', 'concluidos');
@@ -1192,25 +1222,32 @@ export async function backupDados(): Promise<Blob> {
   const notas = await db.getAll('notas');
   const comentarios = await db.getAll('comentarios');
 
-  // Process photos in batches to avoid OOM on large datasets
+  // Stream photos via cursor to avoid holding all Blobs in RAM at once (prevents WebView OOM)
   const fotosSerializadas: { bloco: string; apartamento: string; categoria: string; timestamp: number; synced: boolean; uploadUrl?: string; nota?: string; gps?: { lat: number; lng: number }; blobBase64: string }[] = [];
-  for (let i = 0; i < fotos.length; i += BACKUP_BATCH_SIZE) {
-    const batch = fotos.slice(i, i + BACKUP_BATCH_SIZE);
-    const processed = await Promise.all(
-      batch.map(async (f) => {
-        let blobBase64 = '';
-        if (f.blob && f.blob.size > 0 && !f.synced) {
-          blobBase64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = () => resolve('');
-            reader.readAsDataURL(f.blob);
-          });
-        }
-        return { bloco: f.bloco, apartamento: f.apartamento, categoria: f.categoria, timestamp: f.timestamp, synced: f.synced, uploadUrl: f.uploadUrl, nota: f.nota, gps: f.gps, blobBase64 };
-      })
-    );
-    fotosSerializadas.push(...processed);
+  let cursor = await db.transaction('fotos', 'readonly').store.openCursor();
+  while (cursor) {
+    const f = cursor.value;
+    let blobBase64 = '';
+    if (f.blob && f.blob.size > 0 && !f.synced) {
+      blobBase64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(f.blob);
+      });
+    }
+    fotosSerializadas.push({
+      bloco: f.bloco,
+      apartamento: f.apartamento,
+      categoria: f.categoria,
+      timestamp: f.timestamp,
+      synced: f.synced,
+      uploadUrl: f.uploadUrl,
+      nota: f.nota,
+      gps: f.gps,
+      blobBase64,
+    });
+    cursor = await cursor.continue();
   }
 
   const dados = {
@@ -1472,65 +1509,78 @@ export async function desmarcarConcluidoLocal(bloco: string, apto: string) {
   await removerTroca(bloco, apto);
 }
 
+let _concluidosInflight: Promise<Record<string, string[]>> | null = null;
+
 export async function carregarConcluidos(): Promise<Record<string, string[]>> {
   // Return cached data if fresh
   if (_concluidosCache && Date.now() - _concluidosCacheTime < CONCLUIDOS_CACHE_TTL) {
     return _concluidosCache;
   }
 
-  const db = await getDb();
-  const local: Record<string, string[]> = (await db.get('config', 'concluidos')) ?? {};
-  const desmarcados: Record<string, number> = (await db.get('config', 'desmarcados')) ?? {};
-  const agora = Date.now();
-  const limiteDesmarcado = 24 * 60 * 60 * 1000; // 24h
-
-  // When online and authenticated, fetch remote and merge without resurrecting deleted local items
-  const hasPin = typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('vistoria_pin');
-  if (typeof navigator !== 'undefined' && navigator.onLine && hasPin) {
-    try {
-      const { authFetch } = await import('@/lib/api');
-      const resp = await authFetch('/api/concluidos');
-      if (resp.ok) {
-        const remote: Record<string, string[]> = await resp.json();
-        const merged: Record<string, string[]> = {};
-
-        // Inicia com os blocos remotos
-        for (const [bloco, aptos] of Object.entries(remote)) {
-          if (Array.isArray(aptos)) {
-            merged[bloco] = [...aptos];
-          }
-        }
-
-        // Une com conclusões locais sem sobrescrever os outros apartamentos do bloco
-        for (const [bloco, aptos] of Object.entries(local)) {
-          const set = new Set((merged[bloco] || []).map(normApto));
-          if (Array.isArray(aptos)) {
-            for (const a of aptos) {
-              const na = normApto(a);
-              const key = `${normalizeBloco(bloco)}__${na}`;
-              // Se foi desmarcado recentemente neste dispositivo, não re-adiciona
-              if (desmarcados[key] && agora - desmarcados[key] < limiteDesmarcado) {
-                set.delete(na);
-              } else if (na) {
-                set.add(na);
-              }
-            }
-          }
-          merged[bloco] = Array.from(set).sort((a, b) => Number(a) - Number(b));
-        }
-
-        await db.put('config', merged, 'concluidos');
-        _concluidosCache = merged;
-        _concluidosCacheTime = Date.now();
-        return merged;
-      }
-    } catch {}
+  // Deduplicate concurrent calls during startup/hydration
+  if (_concluidosInflight) {
+    return _concluidosInflight;
   }
 
-  // Offline: return local data
-  _concluidosCache = local;
-  _concluidosCacheTime = Date.now();
-  return local;
+  _concluidosInflight = (async () => {
+    const db = await getDb();
+    const local: Record<string, string[]> = (await db.get('config', 'concluidos')) ?? {};
+    const desmarcados: Record<string, number> = (await db.get('config', 'desmarcados')) ?? {};
+    const agora = Date.now();
+    const limiteDesmarcado = 24 * 60 * 60 * 1000; // 24h
+
+    // When online and authenticated, fetch remote and merge without resurrecting deleted local items
+    const hasPin = typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('vistoria_pin');
+    if (typeof navigator !== 'undefined' && navigator.onLine && hasPin) {
+      try {
+        const { authFetch } = await import('@/lib/api');
+        const resp = await authFetch('/api/concluidos');
+        if (resp.ok) {
+          const remote: Record<string, string[]> = await resp.json();
+          const merged: Record<string, string[]> = {};
+
+          // Inicia com os blocos remotos
+          for (const [bloco, aptos] of Object.entries(remote)) {
+            if (Array.isArray(aptos)) {
+              merged[bloco] = [...aptos];
+            }
+          }
+
+          // Une com conclusões locais sem sobrescrever os outros apartamentos do bloco
+          for (const [bloco, aptos] of Object.entries(local)) {
+            const set = new Set((merged[bloco] || []).map(normApto));
+            if (Array.isArray(aptos)) {
+              for (const a of aptos) {
+                const na = normApto(a);
+                const key = `${normalizeBloco(bloco)}__${na}`;
+                // Se foi desmarcado recentemente neste dispositivo, não re-adiciona
+                if (desmarcados[key] && agora - desmarcados[key] < limiteDesmarcado) {
+                  set.delete(na);
+                } else if (na) {
+                  set.add(na);
+                }
+              }
+            }
+            merged[bloco] = Array.from(set).sort((a, b) => Number(a) - Number(b));
+          }
+
+          await db.put('config', merged, 'concluidos');
+          _concluidosCache = merged;
+          _concluidosCacheTime = Date.now();
+          return merged;
+        }
+      } catch {}
+    }
+
+    // Offline: return local data
+    _concluidosCache = local;
+    _concluidosCacheTime = Date.now();
+    return local;
+  })().finally(() => {
+    _concluidosInflight = null;
+  });
+
+  return _concluidosInflight;
 }
 
 let _syncConcluidosLock = false;

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { spring } from '@/lib/motion';
 import { useToast } from '@/components/Toast';
 import { haptic } from '@/lib/haptic';
-import { type ApartamentoStatus, type FotoRecord, obterTodasFotos } from '@/lib/db';
+import { type ApartamentoStatus, type FotoRecord, obterMetadadosFotos } from '@/lib/db';
 import { calcularDadosBoletim, formatarTextoWhatsApp, renderizarCardImagemBoletim } from '@/lib/boletimDiario';
 
 interface BoletimSindicoModalProps {
@@ -35,9 +35,15 @@ export default function BoletimSindicoModal({
     if (fotos && fotos.length > 0) {
       setFotosLocais(fotos);
     } else if (isOpen) {
-      obterTodasFotos().then((f) => setFotosLocais(f)).catch(() => {});
+      obterMetadadosFotos().then((f) => setFotosLocais(f)).catch(() => {});
     }
   }, [fotos, isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (imagemUrl) URL.revokeObjectURL(imagemUrl);
+    };
+  }, [imagemUrl]);
 
   const dados = useMemo(() => {
     return calcularDadosBoletim(statusList, fotosLocais);

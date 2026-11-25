@@ -1,7 +1,22 @@
-const CACHE_SHELL = 'vistoria-shell-v24';
-const CACHE_API = 'vistoria-api-v1';
+const CACHE_SHELL = 'vistoria-shell-v25';
+const CACHE_API = 'vistoria-api-v2';
 const CACHE_FOTOS = 'vistoria-fotos-v1';
-const APP_VERSION = '3.9.1';
+const MAX_SHELL_ENTRIES = 120;
+const MAX_API_ENTRIES = 25;
+const APP_VERSION = '3.9.2';
+
+async function trimCache(cacheName, maxItems) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    if (keys.length > maxItems) {
+      const excess = keys.length - maxItems;
+      for (let i = 0; i < excess; i++) {
+        await cache.delete(keys[i]);
+      }
+    }
+  } catch {}
+}
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -22,14 +37,16 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // API calls: network-first com cache fallback
+  // API calls: network-first com cache fallback (apenas endpoints leves, com limite)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(event.request)
         .then((resp) => {
-          if (resp.ok) {
+          if (resp.ok && url.origin === self.location.origin && !url.pathname.startsWith('/api/fotos')) {
             const clone = resp.clone();
-            caches.open(CACHE_API).then((cache) => cache.put(event.request, clone));
+            caches.open(CACHE_API).then((cache) => {
+              cache.put(event.request, clone).then(() => trimCache(CACHE_API, MAX_API_ENTRIES));
+            });
           }
           return resp;
         })
@@ -38,8 +55,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip non-http(s) requests (chrome-extension://, etc)
-  if (!event.request.url.startsWith('http')) {
+  // Skip non-http(s) requests and cross-origin assets (never cache Vercel Blob images in CACHE_SHELL)
+  if (!event.request.url.startsWith('http') || url.origin !== self.location.origin) {
     return;
   }
 
@@ -63,13 +80,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: stale-while-revalidate
+  // Static assets (same-origin only): stale-while-revalidate com limite de entradas
   event.respondWith(
     caches.open(CACHE_SHELL).then(async (cache) => {
       const cached = await cache.match(event.request);
       const fetchPromise = fetch(event.request)
         .then((resp) => {
-          if (resp.ok && event.request.url.startsWith('http')) cache.put(event.request, resp.clone());
+          if (resp.ok) {
+            cache.put(event.request, resp.clone()).then(() => trimCache(CACHE_SHELL, MAX_SHELL_ENTRIES));
+          }
           return resp;
         })
         .catch(() => cached);
