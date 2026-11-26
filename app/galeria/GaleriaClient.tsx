@@ -76,6 +76,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [downloadingGrupo, setDownloadingGrupo] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'tower'>('newest');
+  const [visibleGruposCount, setVisibleGruposCount] = useState(30);
 
   useEffect(() => {
     authFetch('/api/fotos')
@@ -115,6 +116,15 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
     // tower: sort by bloco name, then by apartment number
     return arr.sort((a, b) => a.bloco.localeCompare(b.bloco) || a.apartamento.localeCompare(b.apartamento, undefined, { numeric: true }));
   }, [filtradas, sortOrder]);
+
+  useEffect(() => {
+    setVisibleGruposCount(30);
+  }, [filtroBloco, filtroData, busca, sortOrder]);
+
+  const gruposVisiveis = useMemo(
+    () => grupos.slice(0, visibleGruposCount),
+    [grupos, visibleGruposCount]
+  );
 
   const abrirLightbox = useCallback((f: Foto) => {
     previousFocusRef.current = document.activeElement as HTMLElement;
@@ -505,7 +515,7 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
           </motion.div>
         ) : (
           <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
-            {grupos.map((grupo) => (
+            {gruposVisiveis.map((grupo) => (
               <motion.div key={`${grupo.data}__${grupo.bloco}__${grupo.apartamento}`} variants={item}>
                 <div className="flex items-center gap-2 mb-3">
                   <button
@@ -617,6 +627,16 @@ export default function GaleriaClient({ userRole = 'viewer' }: { userRole?: stri
                 </div>
               </motion.div>
             ))}
+            {visibleGruposCount < grupos.length && (
+              <div className="pt-2 pb-6 flex justify-center">
+                <button
+                  onClick={() => setVisibleGruposCount((c) => c + 30)}
+                  className="tactile-press px-5 py-2.5 rounded-xl bg-base-raised border border-base-border text-xs font-semibold text-content hover:border-accent/40 hover:text-accent transition-colors"
+                >
+                  Carregar mais ({grupos.length - visibleGruposCount} grupo{grupos.length - visibleGruposCount > 1 ? 's' : ''} restante{grupos.length - visibleGruposCount > 1 ? 's' : ''})
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </div>

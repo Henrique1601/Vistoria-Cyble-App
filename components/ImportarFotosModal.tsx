@@ -104,7 +104,19 @@ export default function ImportarFotosModal({ onFechar, onImportado }: ImportarFo
         previews,
       });
     }
-    setGroups(newGroups);
+    setGroups((prev) => {
+      prev.forEach((g) => g.previews.forEach((u) => URL.revokeObjectURL(u)));
+      return newGroups;
+    });
+  }, []);
+
+  const groupsRef = useRef<PhotoGroup[]>(groups);
+  groupsRef.current = groups;
+
+  useEffect(() => {
+    return () => {
+      groupsRef.current.forEach((g) => g.previews.forEach((u) => URL.revokeObjectURL(u)));
+    };
   }, []);
 
   function updateGroup(idx: number, patch: Partial<PhotoGroup>) {
@@ -113,7 +125,11 @@ export default function ImportarFotosModal({ onFechar, onImportado }: ImportarFo
 
   function removeGroup(idx: number) {
     haptic('light');
-    setGroups((prev) => prev.filter((_, i) => i !== idx));
+    setGroups((prev) => {
+      const target = prev[idx];
+      target?.previews.forEach((u) => URL.revokeObjectURL(u));
+      return prev.filter((_, i) => i !== idx);
+    });
   }
 
   async function handleImportar() {

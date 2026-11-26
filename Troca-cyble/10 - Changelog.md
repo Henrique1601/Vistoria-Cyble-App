@@ -1,8 +1,16 @@
 # Changelog — Vistoria Cyble
 
-## v3.9.2 (25/11/2026)
+## v3.9.2 (26/11/2026)
 
-### Blindagem contra Crash de Memória (OOM / "Ah não! Algo deu errado") no PWA e TWA
+### Performance em Campo e Sincronização ao Retornar ao App
+- **Paginação Progressiva na Galeria ([GaleriaClient.tsx](file:///c:/Users/Public/Downloads/Vistoria-Cyble-App/app/galeria/GaleriaClient.tsx)):**
+  - Renderização em lotes de 30 grupos por vez com botão **"Carregar mais"**, evitando carregar centenas de imagens simultâneas no DOM do celular.
+- **Importação em Lote via Web Worker + Limpeza de Previews ([ImportarFotosModal.tsx](file:///c:/Users/Public/Downloads/Vistoria-Cyble-App/components/ImportarFotosModal.tsx)):**
+  - Compressão migrada para `comprimirImagemComWorker` (não trava a UI) e revogação garantida de `ObjectURL`s ao trocar pasta, remover grupo ou desmontar.
+- **Sincronização Inteligente em Campo ([useVistoriaState.ts](file:///c:/Users/Public/Downloads/Vistoria-Cyble-App/hooks/useVistoriaState.ts)):**
+  - Atualização automática de `fotosOnline`, `agendamentos`, `concluidos` e `trocas` ao retornar ao foco (`visibilitychange`) ou reconectar (`online`), com throttle de 60s.
+
+### Blindagem contra Crash de Memória (OOM / "Ah não! Algo deu errado") no PWA e TWA (25/11/2026)
 - **Service Worker (`public/sw.js`):**
   - Atualizado para `vistoria-shell-v25` e `vistoria-api-v2` (limpando automaticamente caches antigos acumulados no dispositivo).
   - Bloqueado o cache de URLs externas (como fotos do Vercel Blob) dentro do `CACHE_SHELL` e adicionado limite máximo de entradas (`trimCache`: 120 assets / 25 APIs) para evitar crescimento infinito do `CacheStorage`.

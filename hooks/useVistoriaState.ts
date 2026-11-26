@@ -125,6 +125,29 @@ export function useVistoriaState(pin: string | null, diasAlerta = 7) {
     refreshTrocas();
   }, [refreshFotosOnline, refreshAgendamentos, refreshConcluidos, refreshTrocas]);
 
+  // Sincronizar dados da nuvem ao retornar ao app (foreground) ou reconectar em campo (throttle 60s)
+  const lastRemoteSyncRef = useRef(0);
+  useEffect(() => {
+    if (!pin) return;
+    const syncIfStale = () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastRemoteSyncRef.current < 60_000) return;
+      lastRemoteSyncRef.current = now;
+      refreshFotosOnline();
+      refreshAgendamentos();
+      refreshConcluidos();
+      refreshTrocas();
+    };
+    document.addEventListener('visibilitychange', syncIfStale);
+    window.addEventListener('online', syncIfStale);
+    return () => {
+      document.removeEventListener('visibilitychange', syncIfStale);
+      window.removeEventListener('online', syncIfStale);
+    };
+  }, [pin, refreshFotosOnline, refreshAgendamentos, refreshConcluidos, refreshTrocas]);
+
   // Atualizar status de todos os apartamentos
   const refreshStatus = useCallback(async () => {
     try {
